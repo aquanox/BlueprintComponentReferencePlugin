@@ -3,13 +3,10 @@
 #include "BlueprintComponentReference.h"
 #include "Modules/ModuleManager.h"
 #include "Components/ActorComponent.h"
-#include "Containers/AnsiString.h"
 #include "Misc/OutputDevice.h"
 #include "GameFramework/Actor.h"
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, BlueprintComponentReference);
-
-DEFINE_LOG_CATEGORY_STATIC(LogComponentReference, Log, All);
 
 FBlueprintComponentReference::FBlueprintComponentReference()
 	: Mode(EBlueprintComponentReferenceMode::None)
@@ -50,9 +47,9 @@ void FBlueprintComponentReference::SetValueFromString(const FString& InValue)
 	}
 }
 
-FString FBlueprintComponentReference::GetValueString(bool bFull) const
+FString FBlueprintComponentReference::GetValueString(bool bIncludeMode) const
 {
-	if (bFull)
+	if (bIncludeMode)
 	{
 		FString Result;
 		switch(Mode)

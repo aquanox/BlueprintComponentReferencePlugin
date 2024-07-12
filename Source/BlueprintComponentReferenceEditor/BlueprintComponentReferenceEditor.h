@@ -24,3 +24,4 @@ private:
 	FDelegateHandle PostEngineInitHandle;
 };
 
+DECLARE_LOG_CATEGORY_EXTERN(LogComponentReferenceEditor, Log, All);

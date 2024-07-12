@@ -3,28 +3,76 @@
 
 #include "BlueprintComponentReferenceUtils.h"
 
-UActorComponent* UBlueprintComponentReferenceUtils::ResolveComponentReference(const FBlueprintComponentReference& Reference, AActor* Actor)
+bool UBlueprintComponentReferenceUtils::ResolveComponentReference(const FBlueprintComponentReference& Reference, AActor* Actor, UActorComponent*& Component)
 {
-	return Reference.GetComponent(Actor);
+	if (!Reference.IsNull())
+	{
+		Component = Reference.GetComponent(Actor);
+	}
+	return IsValid(Component);
 }
 
-void UBlueprintComponentReferenceUtils::TryResolveComponentReference(const FBlueprintComponentReference& Reference, AActor* Actor, TSubclassOf<UActorComponent> Class, UActorComponent*& Component)
+bool UBlueprintComponentReferenceUtils::ResolveComponentReferenceOfType(const FBlueprintComponentReference& Reference, AActor* Actor, TSubclassOf<UActorComponent> Class, UActorComponent*& Component)
 {
 	Component = nullptr;
 
 	UActorComponent* Result = Reference.GetComponent(Actor);
-	if (::IsValid(Result) && (!Class || Result->IsA(Class)))
+	if (IsValid(Result) && (!Class || Result->IsA(Class)))
 	{
 		Component = Result;
 	}
+
+	return IsValid(Component);
 }
 
-void UBlueprintComponentReferenceUtils::SetComponentReference_FromName(FBlueprintComponentReference& Reference, AActor* Actor, FName PropertyName)
+void UBlueprintComponentReferenceUtils::ResolveComponentReferenceArray(const TArray<FBlueprintComponentReference>& References, AActor* Actor, TArray<UActorComponent*>& Components)
 {
-	Reference.SetValueFromString(PropertyName.ToString());
+	for (const FBlueprintComponentReference& Reference : References)
+	{
+		UActorComponent* Component = nullptr;
+		if (!Reference.IsNull())
+		{
+			Component = Reference.GetComponent(Actor);
+		}
+		if (IsValid(Component))
+		{
+			Components.Add(Component);
+		}
+	}
 }
 
-void UBlueprintComponentReferenceUtils::SetComponentReference_FromComponent(FBlueprintComponentReference& Reference, UActorComponent* Component)
+void UBlueprintComponentReferenceUtils::ResolveComponentReferenceArrayOfType(const TArray<FBlueprintComponentReference>& References, AActor* Actor, TSubclassOf<UActorComponent> Class, TArray<UActorComponent*>& Components)
+{
+	for (const FBlueprintComponentReference& Reference : References)
+	{
+		UActorComponent* Component = nullptr;
+		if (!Reference.IsNull())
+		{
+			Component = Reference.GetComponent(Actor);
+		}
+		if (IsValid(Component) && (!Class || Component->IsA(Class)))
+		{
+			Components.Add(Component);
+		}
+	}
+}
+
+bool UBlueprintComponentReferenceUtils::ComponentReference_IsNull(const FBlueprintComponentReference& Reference)
+{
+	return Reference.IsNull();
+}
+
+void UBlueprintComponentReferenceUtils::ComponentReference_SetFromName(FBlueprintComponentReference& Reference, AActor* Actor, FName PropertyName)
+{
+	Reference = FBlueprintComponentReference(EBlueprintComponentReferenceMode::VariableName, PropertyName);
+}
+
+void UBlueprintComponentReferenceUtils::ComponentReference_SetFromObjectPath(FBlueprintComponentReference& Reference, AActor* Actor, FString ObjectPath)
+{
+	Reference = FBlueprintComponentReference(EBlueprintComponentReferenceMode::ObjectPath, *ObjectPath);
+}
+
+void UBlueprintComponentReferenceUtils::ComponentReference_SetFromComponent(FBlueprintComponentReference& Reference, UActorComponent* Component)
 {
 	if (!Component)
 	{

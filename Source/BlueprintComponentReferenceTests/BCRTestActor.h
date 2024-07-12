@@ -86,6 +86,10 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=TESTACTOR, meta=(ShowBlueprint=false))
 	TArray<FBlueprintComponentReference> ReferenceArray;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=TESTACTOR, meta=(ShowBlueprint=false))
+	TMap<FName, FBlueprintComponentReference> ReferenceMap;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=TESTACTOR, meta=(ShowBlueprint=false))
+	//TSet<FBlueprintComponentReference> ReferenceSet;
 
 };
 

@@ -56,7 +56,7 @@ void FBlueprintComponentReferenceCustomization::CustomizeHeader(TSharedRef<IProp
 	ClassHelper = FBCREditorModule::Get().GetClassHelper();
 	check(ClassHelper.IsValid());
 
-	ChooserContext.Reset();
+	ComponentPickerContext.Reset();
 	CachedComponentNode.Reset();
 	CachedPropertyAccess = FPropertyAccess::Fail;
 
@@ -69,8 +69,8 @@ void FBlueprintComponentReferenceCustomization::CustomizeHeader(TSharedRef<IProp
 	{
 		check(FBlueprintComponentReference::StaticStruct() == Property->Struct);
 
-		Settings.BuildGeneral(PropertyHandle.ToSharedRef());
-		Settings.BuildClassFilters(PropertyHandle.ToSharedRef());
+		const FProperty* MetadataProperty = InPropertyHandle->GetMetaDataProperty();
+		FBlueprintComponentReferenceHelper::LoadSettingsFromProperty(Settings, MetadataProperty);
 
 		BuildComboBox();
 
@@ -99,7 +99,7 @@ void FBlueprintComponentReferenceCustomization::CustomizeHeader(TSharedRef<IProp
 				PropertyCustomizationHelpers::MakeBrowseButton(
 					FSimpleDelegate::CreateSP(this, &FBlueprintComponentReferenceCustomization::OnNavigateComponent),
 					LOCTEXT( "NavigateButtonToolTipText", "Select Component in Component Editor"),
-					TAttribute<bool>(Settings.bAllowNavigate),
+					TAttribute<bool>(Settings.bUseNavigate),
 					true
 				)
 			]
@@ -112,7 +112,7 @@ void FBlueprintComponentReferenceCustomization::CustomizeHeader(TSharedRef<IProp
 				PropertyCustomizationHelpers::MakeClearButton(
 					FSimpleDelegate::CreateSP(this, &FBlueprintComponentReferenceCustomization::OnClear),
 					LOCTEXT("ClearButtonToolTipText", "Clear Component"),
-					TAttribute<bool>(Settings.bAllowClear)
+					TAttribute<bool>(Settings.bUseClear)
 				)
 			]
 		]
@@ -135,8 +135,8 @@ void FBlueprintComponentReferenceCustomization::CustomizeChildren(TSharedRef<IPr
 			ChildPropertyHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FBlueprintComponentReferenceCustomization::OnPropertyValueChanged, Property->GetFName()));
 
 			StructBuilder.AddProperty(ChildPropertyHandle)
-				.ShowPropertyButtons(!Settings.bAllowPicker)
-				.ShouldAutoExpand(!Settings.bAllowPicker)
+				.ShowPropertyButtons(!Settings.bUsePicker)
+				.ShouldAutoExpand(!Settings.bUsePicker)
 				.IsEnabled(MakeAttributeSP(this, &FBlueprintComponentReferenceCustomization::CanEditChildren));
 		}
 	}
@@ -178,7 +178,7 @@ void FBlueprintComponentReferenceCustomization::BuildComboBox()
 		.OnGetMenuContent(this, &FBlueprintComponentReferenceCustomization::OnGetMenuContent)
 		.OnMenuOpenChanged(this, &FBlueprintComponentReferenceCustomization::OnMenuOpenChanged)
 		.ContentPadding(FMargin(2,2,2,1))
-		.Visibility(Settings.bAllowPicker ? EVisibility::Visible : EVisibility::Collapsed)
+		.Visibility(Settings.bUsePicker ? EVisibility::Visible : EVisibility::Collapsed)
 		.ButtonContent()
 		[
 			SNew(SHorizontalBox)
@@ -249,11 +249,11 @@ void FBlueprintComponentReferenceCustomization::DetermineOuterActor()
 
 	UE_LOG(LogComponentReferenceEditor, Log, TEXT("%s DetermineOuterActor: Located Actor=%s BP=%s"), *GetLoggingContextString(), *GetNameSafe(OuterActor), *GetNameSafe(OuterActorClass));
 
-	if (!ChooserContext.IsValid()
-		|| ChooserContext->GetActor() != OuterActor
-		|| ChooserContext->GetClass() != OuterActorClass)
+	if (!ComponentPickerContext.IsValid()
+		|| ComponentPickerContext->GetActor() != OuterActor
+		|| ComponentPickerContext->GetClass() != OuterActorClass)
 	{
-		ChooserContext = ClassHelper->CreateChooserContext(
+		ComponentPickerContext = ClassHelper->CreateChooserContext(
 			FString(PropertyHandle->GetPropertyPath()),
 			OuterActor,
 			OuterActorClass);
@@ -262,7 +262,7 @@ void FBlueprintComponentReferenceCustomization::DetermineOuterActor()
 
 bool FBlueprintComponentReferenceCustomization::IsComponentReferenceValid(const FBlueprintComponentReference& Value) const
 {
-	AActor* const SearchActor = ChooserContext.IsValid() ? ChooserContext->GetActor() : nullptr;
+	AActor* const SearchActor = ComponentPickerContext.IsValid() ? ComponentPickerContext->GetActor() : nullptr;
 	if (UActorComponent* NewComponent = Value.GetComponent(SearchActor))
 	{
 		if (!Settings.IsFilteredObject(NewComponent))
@@ -365,7 +365,7 @@ void FBlueprintComponentReferenceCustomization::OnPropertyValueChanged(FName Sou
 	CachedPropertyAccess = GetValue(TmpComponentReference);
 	if (CachedPropertyAccess == FPropertyAccess::Success)
 	{
-		auto Found = ChooserContext->FindComponent(TmpComponentReference);
+		auto Found = ComponentPickerContext->FindComponent(TmpComponentReference);
 		if (!IsComponentReferenceValid(TmpComponentReference))
 		{
 			CachedComponentNode.Reset();
@@ -381,27 +381,22 @@ void FBlueprintComponentReferenceCustomization::OnPropertyValueChanged(FName Sou
 	}
 }
 
-void FBlueprintComponentReferenceCustomization::OnAdvancedValueChanged()
-{
-
-}
-
 bool FBlueprintComponentReferenceCustomization::CanEdit() const
 {
 	if (PropertyHandle.IsValid())
 	{
 		return !PropertyHandle->IsEditConst();
 	}
-	return Settings.bAllowPicker;
+	return Settings.bUsePicker;
 }
 
 bool FBlueprintComponentReferenceCustomization::CanEditChildren() const
 {
-	if (!Settings.bAllowPicker)
+	if (!Settings.bUsePicker)
 	{
 		return CanEdit();
 	}
-	return CanEdit() && !ChooserContext.IsValid();
+	return CanEdit() && !ComponentPickerContext.IsValid();
 }
 
 const FSlateBrush* FBlueprintComponentReferenceCustomization::GetComponentIcon() const
@@ -466,13 +461,11 @@ TSharedRef<SWidget> FBlueprintComponentReferenceCustomization::OnGetMenuContent(
 {
 	FMenuBuilder MenuBuilder(true, nullptr);
 
-	// @todo: Context menu expansion
-
 	auto GenerateElementsContextMenu = [&]()
 	{
 		TMap<FString, TArray<TSharedRef<FComponentInfo>>> Result;
 
-		for (auto& HierarchyInfo : ChooserContext->ClassHierarchy)
+		for (auto& HierarchyInfo : ComponentPickerContext->ClassHierarchy)
 		{
 			if (HierarchyInfo->GetNodes().IsEmpty())
 				continue;
@@ -499,7 +492,6 @@ TSharedRef<SWidget> FBlueprintComponentReferenceCustomization::OnGetMenuContent(
 
 	if (!ChoosableElements.IsEmpty())
 	{
-
 		for (auto& Element : ChoosableElements)
 		{
 			MenuBuilder.BeginSection(NAME_None, FText::FromString(Element.Key));
@@ -559,12 +551,12 @@ void FBlueprintComponentReferenceCustomization::OnClear()
 void FBlueprintComponentReferenceCustomization::OnNavigateComponent()
 {
 	auto LocalNode = CachedComponentNode.Pin();
-	if (!LocalNode.IsValid() || !ChooserContext.IsValid())
+	if (!LocalNode.IsValid() || !ComponentPickerContext.IsValid())
 	{
 		return;
 	}
 
-	AActor* const SearchActor = ChooserContext.IsValid() ? ChooserContext->GetActor() : nullptr;
+	AActor* const SearchActor = ComponentPickerContext.IsValid() ? ComponentPickerContext->GetActor() : nullptr;
 
 	// Find editor for owning blueprint
 	UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
@@ -627,63 +619,7 @@ void FBlueprintComponentReferenceCustomization::CloseComboButton()
 
 void FBlueprintComponentReferenceViewSettings::Reset()
 {
-	AllowedComponentClassFilters.Empty();
-	DisallowedComponentClassFilters.Empty();
-	//RequiredInterfaceFilters.Empty();
-
-	bAllowNavigate = true;
-	bAllowPicker = true;
-	bAllowClear = true;
-	bAllowNative = true;
-	bAllowBlueprint = true;
-	bAllowInstanced = false;
-	bAllowPathOnly = false;
-}
-
-void FBlueprintComponentReferenceViewSettings::BuildGeneral(TSharedRef<IPropertyHandle> const& InPropertyHandle)
-{
-	const FProperty* MetadataProperty = InPropertyHandle->GetMetaDataProperty();
-
-	// global
-	bAllowPicker = !FBlueprintComponentReferenceHelper::HasMetaDataValue(MetadataProperty, CRMeta::NoPicker);
-	// actions
-	bAllowNavigate = bAllowPicker && !FBlueprintComponentReferenceHelper::HasMetaDataValue(MetadataProperty, CRMeta::NoNavigate);
-	bAllowClear = !(MetadataProperty->PropertyFlags & CPF_NoClear);
-	// filtering
-	bAllowNative = FBlueprintComponentReferenceHelper::GetBoolMetaDataValue(MetadataProperty, CRMeta::ShowNative, bAllowNative);
-	bAllowBlueprint = FBlueprintComponentReferenceHelper::GetBoolMetaDataValue(MetadataProperty, CRMeta::ShowBlueprint, bAllowBlueprint);
-	bAllowInstanced = FBlueprintComponentReferenceHelper::GetBoolMetaDataValue(MetadataProperty, CRMeta::ShowInstanced, bAllowInstanced);
-	bAllowPathOnly = FBlueprintComponentReferenceHelper::GetBoolMetaDataValue(MetadataProperty, CRMeta::ShowPathOnly, bAllowPathOnly);
-
-}
-
-void FBlueprintComponentReferenceViewSettings::BuildClassFilters(TSharedRef<IPropertyHandle> const& InPropertyHandle)
-{
-	const FProperty* MetadataProperty = InPropertyHandle->GetMetaDataProperty();
-
-	FBlueprintComponentReferenceHelper::GetClassListMetadata(MetadataProperty, CRMeta::AllowedClasses, [&](UClass* Class)
-	{
-		if (!AllowedComponentClassFilters.Contains(Class))
-		{
-			AllowedComponentClassFilters.Add(Class);
-		}
-	});
-
-	FBlueprintComponentReferenceHelper::GetClassListMetadata(MetadataProperty, CRMeta::DisallowedClasses, [&](UClass* Class)
-	{
-		if (!DisallowedComponentClassFilters.Contains(Class))
-		{
-			DisallowedComponentClassFilters.Add(Class);
-		}
-	});
-
-	//FBlueprintComponentReferenceHelper::GetClassListMetadata(MetadataProperty, CRMeta::ImplementsInterface, [&](UClass* Class)
-	//{
-	//	if (!RequiredInterfaceFilters.Contains(Class))
-	//	{
-	//		RequiredInterfaceFilters.Add(Class);
-	//	}
-	//});
+	FBlueprintComponentReferenceHelper::ResetSettings(*this);
 }
 
 bool FBlueprintComponentReferenceViewSettings::IsFilteredNode(const TSharedPtr<FComponentInfo>& Node) const
@@ -691,19 +627,19 @@ bool FBlueprintComponentReferenceViewSettings::IsFilteredNode(const TSharedPtr<F
 	if (!Node.IsValid())
 		return false;
 
-	if (Node->GetDesiredMode() == EBlueprintComponentReferenceMode::ObjectPath && !bAllowPathOnly)
+	if (Node->GetDesiredMode() == EBlueprintComponentReferenceMode::ObjectPath && !bShowPathOnly)
 		return false;
 
 	if (Node->IsInstancedComponent())
 	{
-		if (/*Node->GetDesiredMode() == EBlueprintComponentReferenceMode::VariableName && */!bAllowInstanced)
+		if (/*Node->GetDesiredMode() == EBlueprintComponentReferenceMode::VariableName && */!bShowInstanced)
 			return false;
 	}
 	else
 	{
-		if (Node->IsNativeComponent() && !bAllowNative)
+		if (Node->IsNativeComponent() && !bShowNative)
 			return false;
-		if (!Node->IsNativeComponent() && !bAllowBlueprint)
+		if (!Node->IsNativeComponent() && !bShowBlueprint)
 			return false;
 	}
 
@@ -739,10 +675,10 @@ bool FBlueprintComponentReferenceViewSettings::IsFilteredObject(const UObject* O
 	}
 	*/
 
-	if (AllowedComponentClassFilters.Num() > 0 && bAllowedToSetBasedOnFilter)
+	if (AllowedClasses.Num() > 0 && bAllowedToSetBasedOnFilter)
 	{
 		bAllowedToSetBasedOnFilter = false;
-		for (auto& AllowedClass : AllowedComponentClassFilters)
+		for (auto& AllowedClass : AllowedClasses)
 		{
 			if (UClass* Class = AllowedClass.Get())
 			{
@@ -757,9 +693,9 @@ bool FBlueprintComponentReferenceViewSettings::IsFilteredObject(const UObject* O
 		}
 	}
 
-	if (DisallowedComponentClassFilters.Num() > 0 && bAllowedToSetBasedOnFilter)
+	if (DisallowedClasses.Num() > 0 && bAllowedToSetBasedOnFilter)
 	{
-		for (auto& DisallowedClass : DisallowedComponentClassFilters)
+		for (auto& DisallowedClass : DisallowedClasses)
 		{
 			if (UClass* Class = DisallowedClass.Get())
 			{

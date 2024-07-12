@@ -15,14 +15,13 @@ DEFINE_LOG_CATEGORY(LogComponentReferenceEditor);
 
 inline static FString BuildComponentInfo(const UActorComponent* Obj)
 {
+	using namespace AQDebug;
 	FStringBuilderBase Base;
 	Base.Appendf(TEXT("%p:%s"), Obj, *Obj->GetName());
 	Base.Appendf(TEXT(" Flags=%s"), *FlagsToString(Obj->GetFlags(), GetObjectFlagsMap()));
 	Base.Appendf(TEXT(" Method=%s"), *StaticEnum<EComponentCreationMethod>()->GetNameStringByValue((int64)Obj->CreationMethod));
 	return Base.ToString();
 }
-
-#pragma region Component
 
 UActorComponent* FComponentInfo::GetComponentTemplate() const
 {
@@ -176,9 +175,6 @@ EBlueprintComponentReferenceMode FComponentInfo::GetDesiredMode() const
 	return !GetVariableName().IsNone() ? EBlueprintComponentReferenceMode::VariableName : EBlueprintComponentReferenceMode::ObjectPath;
 }
 
-#pragma endregion Component
-
-#pragma region Component Default
 
 FComponentInfo_Default::FComponentInfo_Default(USCS_Node* SCSNode, bool bInIsInherited) : SCSNode(SCSNode)
 {
@@ -206,10 +202,6 @@ USCS_Node* FComponentInfo_Default::GetSCSNode() const
 	return SCSNode.Get();
 }
 
-#pragma endregion Component Native
-
-#pragma region Component Instanced
-
 FComponentInfo_Instanced::FComponentInfo_Instanced(AActor* Owner, UActorComponent* Component)
 {
 	InstancedComponentName = Component->GetFName();
@@ -235,8 +227,6 @@ FHierarchyClassInfo::~FHierarchyClassInfo()
 		CompileDelegateHandle.Reset();
 	}
 }
-
-#pragma endregion Component Instanced
 
 UClass* FBlueprintComponentReferenceHelper::FindClassByName(const FString& ClassName)
 {
@@ -319,13 +309,22 @@ USCS_Node* FBlueprintComponentReferenceHelper::FindSCSNodeForInstance(const UAct
 	return nullptr;
 }
 
-TSharedPtr<FComponentInfo> FChooserContext::FindComponent(const FBlueprintComponentReference& InName) const
+bool FBlueprintComponentReferenceHelper::DoesReferenceMatch(const FBlueprintComponentReference& InRef, const FComponentInfo& Value)
+{
+	if (InRef.Mode == EBlueprintComponentReferenceMode::ObjectPath)
+		return InRef.Value == Value.GetObjectName();
+	if (InRef.Mode == EBlueprintComponentReferenceMode::VariableName)
+		return InRef.Value == Value.GetVariableName();
+	return false;
+}
+
+TSharedPtr<FComponentInfo> FComponentPickerContext::FindComponent(const FBlueprintComponentReference& InName) const
 {
 	for (const auto& ClassDetails : ClassHierarchy)
 	{
 		for (const auto& Node : ClassDetails->GetNodes())
 		{
-			if ((FBlueprintComponentReferenceHelper::Matches(InName, *Node)))
+			if ((FBlueprintComponentReferenceHelper::DoesReferenceMatch(InName, *Node)))
 				return Node;
 		}
 	}
@@ -333,7 +332,7 @@ TSharedPtr<FComponentInfo> FChooserContext::FindComponent(const FBlueprintCompon
 	return nullptr;
 }
 
-TSharedPtr<FComponentInfo> FChooserContext::FindComponent(const FName& InName) const
+TSharedPtr<FComponentInfo> FComponentPickerContext::FindComponent(const FName& InName) const
 {
 	for (const auto& ClassDetails : ClassHierarchy)
 	{
@@ -364,11 +363,11 @@ FBlueprintComponentReferenceHelper::~FBlueprintComponentReferenceHelper()
 	FModuleManager::Get().OnModulesChanged().Remove(OnModulesChangedDelegateHandle);
 }
 
-TSharedRef<FChooserContext> FBlueprintComponentReferenceHelper::CreateChooserContext(FString InLabel, AActor* InActor, UClass* InClass)
+TSharedRef<FComponentPickerContext> FBlueprintComponentReferenceHelper::CreateChooserContext(FString InLabel, AActor* InActor, UClass* InClass)
 {
 	CleanupStaleData(false);
 
-	TSharedRef<FChooserContext> Ctx = MakeShared<FChooserContext>();
+	TSharedRef<FComponentPickerContext> Ctx = MakeShared<FComponentPickerContext>();
 	Ctx->Label = InLabel;
 	Ctx->Actor = InActor;
 	Ctx->Class = InClass;
@@ -565,12 +564,6 @@ bool FBlueprintComponentReferenceHelper::IsBlueprintProperty(const FProperty* Va
 		return (VarSourceClass->ClassGeneratedBy != NULL);
 	}
 	return false;
-}
-
-const FBlueprintComponentReferenceExtras& FBlueprintComponentReferenceHelper::GetDefaults()
-{
-	static const FBlueprintComponentReferenceExtras Value;
-	return Value;
 }
 
 bool FBlueprintComponentReferenceHelper::HasMetaDataValue(const FProperty* Property, const FName& InName)

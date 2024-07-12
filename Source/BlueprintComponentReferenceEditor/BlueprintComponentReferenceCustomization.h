@@ -14,44 +14,48 @@
 #include "Templates/SharedPointer.h"
 
 class FMenuBuilder;
+class SComboButton;
 
-struct FBlueprintComponentReferenceViewSettings
+/**
+ * Clas holding BCR filter settings
+ */
+struct FBlueprintComponentReferenceViewSettings // : public FBlueprintComponentReferenceMetadata
 {
-	/** Classes that can be used with this property */
-	TArray<TWeakObjectPtr<UClass>> AllowedComponentClassFilters;
-
-	/** Classes that can NOT be used with this property */
-	TArray<TWeakObjectPtr<UClass>> DisallowedComponentClassFilters;
-
-	/** Interfaces that must be implemented */
-	//TArray<TWeakObjectPtr<UClass>> RequiredInterfaceFilters;
-
 	/** Whether we allow to use Picker feature */
-	bool bAllowPicker = true;
+	bool bUsePicker = true;
 
-	/** Whether we allow to use Browse feature */
-	bool bAllowNavigate = true;
+	/** Whether we allow to use Navigate/Browse feature */
+	bool bUseNavigate = true;
 	/** Whether the asset can be 'None' in this case */
-	bool bAllowClear = true;
+	bool bUseClear = true;
 
 	/** Whether we allow to pick native components */
-	bool bAllowNative = true;
+	bool bShowNative = true;
 	/** Whether we allow to pick blueprint components */
-	bool bAllowBlueprint = true;
+	bool bShowBlueprint = true;
 	/** Whether we allow to pick instanced components */
-	bool bAllowInstanced = true;
+	bool bShowInstanced = true;
 	/** Whether we allow to pick path-only components */
-	bool bAllowPathOnly = true;
+	bool bShowPathOnly = true;
+
+	/** Classes that can be used with this property */
+	TArray<TWeakObjectPtr<UClass>> AllowedClasses;
+
+	/** Classes that can NOT be used with this property */
+	TArray<TWeakObjectPtr<UClass>> DisallowedClasses;
+
+	/** Interfaces that must be implemented to be eligible for this property */
+	//TArray<TWeakObjectPtr<UClass>> RequiredInterfaces;
 
 	void Reset();
 
 	bool IsFilteredNode(const TSharedPtr<FComponentInfo>& Node) const;
 	bool IsFilteredObject(const UObject* Object) const;
-
-	void BuildGeneral(TSharedRef<IPropertyHandle> const& InPropertyHandle);
-	void BuildClassFilters(TSharedRef<IPropertyHandle> const& InPropertyHandle);
 };
 
+/**
+ * Component reference cutomization class
+ */
 class FBlueprintComponentReferenceCustomization : public IPropertyTypeCustomization
 {
 public:
@@ -62,8 +66,10 @@ public:
 	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& PropertyTypeCustomizationUtils) override;
 	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> InPropertyHandle, IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& PropertyTypeCustomizationUtils) override;
 
-	FString GetLoggingContextString() const;
 private:
+	/* Build a simple debug context for the property */
+	FString GetLoggingContextString() const;
+
 	/** Build the combobox widget. */
 	void BuildComboBox();
 
@@ -86,12 +92,8 @@ private:
 	void OnPropertyValueChanged(FName Source);
 
 	/** */
-	void OnAdvancedValueChanged();
-
-	/** */
 	bool IsComponentReferenceValid(const FBlueprintComponentReference& Value) const;
 
-private:
 	bool CanEdit() const;
 	bool CanEditChildren() const;
 
@@ -107,7 +109,7 @@ private:
 	/**
 	 * Generate menu
 	 */
-	void AddMenuNodes(FMenuBuilder& MenuBuilder, TSharedRef<struct FComponentInfo> Node);
+	void AddMenuNodes(FMenuBuilder& MenuBuilder, TSharedRef<FComponentInfo> Node);
 	/**
 	 * Called when the menu is closed, we handle this to force the destruction of the menu
 	 */
@@ -140,13 +142,13 @@ private:
 	TSharedPtr<FBlueprintComponentReferenceHelper> ClassHelper;
 
 	/** Main combo button */
-	TSharedPtr<class SComboButton> ComponentComboButton;
+	TSharedPtr<SComboButton> ComponentComboButton;
 
 	/** */
 	FBlueprintComponentReferenceViewSettings Settings;
 
 	/* component picker helper */
-	TSharedPtr<FChooserContext>	ChooserContext;
+	TSharedPtr<FComponentPickerContext>	ComponentPickerContext;
 	/* currently selected node*/
 	TWeakPtr<FComponentInfo> CachedComponentNode;
 	/* last call property access state */

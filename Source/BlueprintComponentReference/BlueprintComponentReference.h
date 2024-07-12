@@ -8,31 +8,63 @@
 class FOutputDevice;
 
 /**
- *
+ * Defines method which ComponentReference resolves the component from actor
  */
 UENUM()
 enum class EBlueprintComponentReferenceMode
 {
+	/**
+	 * Undefined referencing mode
+	 */
 	None UMETA(Hidden),
-	VariableName,
-	ObjectPath,
+	/**
+	 * Referencing via FProperty
+	 */
+	VariableName UMETA(DisplayName="Variable"),
+	/**
+	 * Referencing via subobject path
+	 */
+	ObjectPath UMETA(DisplayName="Object Path"),
 };
 
 /**
  * Struct that allows referencing actor components within blueprint.
  *
  * Supported meta-specifiers:
- * - AllowedClasses=classlist
- * - DisallowedClasses=classlist
- * - ImplementsInterface=classlist
+ *
+ * - AllowedClasses=/Script/Engine.ClassA,/Script/Engine.Class.B
+ *		Specifies list of allowed base component types
+ *
+ * - DisallowedClasses=/Script/Engine.ClassA,/Script/Engine.Class.B
+ *		Specifies list of disallowed base component types
+ *
+ * - NoPicker
+ *		Disables component picker functions, allowing direct editing
+ *		Default: false
+ *
+ * - NoClear
+ *		Disables "Clear" action, that resets value to default state
+ *		Default: false
  *
  * - NoNavigate
- * - NoPicker
+ *		Disables "Navigate" action, that attempts to select component in Components View window
+ *		Default: false
+ *
+ *	- ShowNative=bool
+ *		Should include native (C++ CreateDefaultSubobject) components in list?
+ *		Default: true
  *
  * - ShowBlueprint=bool
- * - ShowNative=bool
+ *		Should include blueprint (Simple Construction Script) components in list?
+ *		Default: true
+ *
  * - ShowInstanced=bool
+ *		Should include instanced components in list?
+ *		Default: false
+ *
  * - ShowPathOnly=bool
+ *		Should include instanced components that have no variable bound to?
+ *		Default: false
  *
  */
 USTRUCT(BlueprintType)
@@ -45,7 +77,9 @@ public:
 	 */
 	FBlueprintComponentReference();
 	/**
-	 * Construct reference from smart path
+	 * Construct reference from smart path.
+	 *
+	 * If mode not specified "Variable" mode is used.
 	 */
 	explicit FBlueprintComponentReference(const FString& InValue);
 	/**
@@ -54,23 +88,40 @@ public:
 	explicit FBlueprintComponentReference(EBlueprintComponentReferenceMode InMode, const FName& InValue);
 
 	/**
+	 * Set reference value from string.
+	 * Value may be represented as a pair "mode:value" or "value"
 	 *
-	 * @param InValue
+	 * @param InValue string
 	 */
 	void SetValueFromString(const FString& InValue);
 
 	/**
+	 * Get reference value as string
 	 *
-	 * @return
+	 * @param bIncludeMode should include mode prefix
+	 *
+	 * @return string
 	 */
-	FString GetValueString(bool bFull = true) const;
+	FString GetValueString(bool bIncludeMode = true) const;
 
 	/**
-	 *
-	 **/
+	 * Get current component selection mode
+	 */
+	EBlueprintComponentReferenceMode GetMode() const
+	{
+		return Mode;
+	}
+
+	/**
+	 * Reset reference to default (None) state
+	 */
 	void Reset();
 
-	/** Get the actual component pointer from this reference */
+	/**
+	 * Get the actual component pointer from this reference
+	 *
+	 * @param SearchActor Actor to perform search in
+	 */
 	UActorComponent* GetComponent(AActor* SearchActor) const;
 
 	/** Get the actual component pointer from this reference */
@@ -80,7 +131,9 @@ public:
 		return Cast<T>(GetComponent(SearchActor));
 	}
 
-	/** Does this reference has any value set */
+	/**
+	 * Does this reference have any value set
+	 */
 	bool IsNull() const;
 
 	bool ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText);
@@ -89,8 +142,7 @@ public:
 
 	bool SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
 
-	/** get current selection mode */
-	EBlueprintComponentReferenceMode GetMode() const {return Mode;}
+
 protected:
 	friend class FBlueprintComponentReferenceCustomization;
 	friend class FBlueprintComponentReferenceHelper;
