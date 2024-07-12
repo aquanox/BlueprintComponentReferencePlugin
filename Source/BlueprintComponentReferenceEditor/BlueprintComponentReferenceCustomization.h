@@ -4,6 +4,7 @@
 
 #include "BlueprintComponentReference.h"
 #include "BlueprintComponentReferenceHelper.h"
+#include "IDetailCustomNodeBuilder.h"
 #include "IPropertyTypeCustomization.h"
 #include "PropertyHandle.h"
 #include "Containers/Array.h"
@@ -13,6 +14,43 @@
 #include "Templates/SharedPointer.h"
 
 class FMenuBuilder;
+
+struct FBlueprintComponentReferenceViewSettings
+{
+	/** Classes that can be used with this property */
+	TArray<TWeakObjectPtr<UClass>> AllowedComponentClassFilters;
+
+	/** Classes that can NOT be used with this property */
+	TArray<TWeakObjectPtr<UClass>> DisallowedComponentClassFilters;
+
+	/** Interfaces that must be implemented */
+	//TArray<TWeakObjectPtr<UClass>> RequiredInterfaceFilters;
+
+	/** Whether we allow to use Picker feature */
+	bool bAllowPicker = true;
+
+	/** Whether we allow to use Browse feature */
+	bool bAllowNavigate = true;
+	/** Whether the asset can be 'None' in this case */
+	bool bAllowClear = true;
+
+	/** Whether we allow to pick native components */
+	bool bAllowNative = true;
+	/** Whether we allow to pick blueprint components */
+	bool bAllowBlueprint = true;
+	/** Whether we allow to pick instanced components */
+	bool bAllowInstanced = true;
+	/** Whether we allow to pick path-only components */
+	bool bAllowPathOnly = true;
+
+	void Reset();
+
+	bool IsFilteredNode(const TSharedPtr<FComponentInfo>& Node) const;
+	bool IsFilteredObject(const UObject* Object) const;
+
+	void BuildGeneral(TSharedRef<IPropertyHandle> const& InPropertyHandle);
+	void BuildClassFilters(TSharedRef<IPropertyHandle> const& InPropertyHandle);
+};
 
 class FBlueprintComponentReferenceCustomization : public IPropertyTypeCustomization
 {
@@ -26,9 +64,6 @@ public:
 
 	FString GetLoggingContextString() const;
 private:
-	/** From the property metadata, build the list of allowed and disallowed class. */
-	void BuildClassFilters();
-
 	/** Build the combobox widget. */
 	void BuildComboBox();
 
@@ -48,12 +83,13 @@ private:
 	FPropertyAccess::Result GetValue(FBlueprintComponentReference& OutValue) const;
 
 	/** Callback when the property value changed. */
-	void OnPropertyValueChanged();
-	/** Is this component allowed to be picked in this chooser */
-	bool IsFilteredNode(TSharedPtr<struct FComponentInfo> Node) const;
+	void OnPropertyValueChanged(FName Source);
 
+	/** */
+	void OnAdvancedValueChanged();
+
+	/** */
 	bool IsComponentReferenceValid(const FBlueprintComponentReference& Value) const;
-
 
 private:
 	bool CanEdit() const;
@@ -71,7 +107,7 @@ private:
 	/**
 	 * Generate menu
 	 */
-	void AddMenuNodes(FMenuBuilder& MenuBuilder, TSharedRef<struct FComponentInfo> Node, FString Path);
+	void AddMenuNodes(FMenuBuilder& MenuBuilder, TSharedRef<struct FComponentInfo> Node);
 	/**
 	 * Called when the menu is closed, we handle this to force the destruction of the menu
 	 */
@@ -85,12 +121,7 @@ private:
 	/**
 	 *
 	 */
-	void OnBrowseComponent();
-
-	/**
-	 * Returns whether the actor/component should be filtered out from selection.
-	 */
-	bool IsFilteredObject(const UObject* Object) const;
+	void OnNavigateComponent();
 
 	/**
 	 * Delegate for handling selection in the scene outliner.
@@ -105,40 +136,15 @@ private:
 private:
 	/** The property handle we are customizing */
 	TSharedPtr<IPropertyHandle> PropertyHandle;
-	/** Cached property utilities */
-	TSharedPtr<IPropertyUtilities> PropertyUtilities;
+	/* Cached hierarchy utilities */
+	TSharedPtr<FBlueprintComponentReferenceHelper> ClassHelper;
 
 	/** Main combo button */
 	TSharedPtr<class SComboButton> ComponentComboButton;
 
-	/** Classes that can be used with this property */
-	TArray<const UClass*> AllowedComponentClassFilters;
+	/** */
+	FBlueprintComponentReferenceViewSettings Settings;
 
-	/** Classes that can NOT be used with this property */
-	TArray<const UClass*> DisallowedComponentClassFilters;
-
-	/** Interfaces that must be implemented */
-	TArray<const UClass*> RequiredInterfaceFilters;
-
-	/** Whether we allow to use Picker feature */
-	bool bAllowPicker = true;
-
-	/** Whether we allow to use Browse feature */
-	bool bAllowNavigate = true;
-	/** Whether the asset can be 'None' in this case */
-	bool bAllowClear = true;
-
-	/** Whether we allow to pick native components */
-	bool bAllowNative = true;
-	/** Whether we allow to pick blueprint components */
-	bool bAllowBlueprint = true;
-	/** Whether we allow to pick instanced components */
-	bool bAllowInstanced = true;
-	/** Whether we allow to pick path-only components */
-	bool bAllowPathOnly = true;
-
-	/* */
-	TSharedPtr<FBlueprintComponentReferenceHelper> ClassHelper;
 	/* component picker helper */
 	TSharedPtr<FChooserContext>	ChooserContext;
 	/* currently selected node*/

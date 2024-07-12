@@ -4,10 +4,26 @@
 
 #include "CoreMinimal.h"
 #include "BlueprintComponentReference.h"
+#include "BlueprintComponentReferenceUtils.h"
 #include "Components/ActorComponent.h"
 #include "Engine/Blueprint.h"
 #include "Engine/SCS_Node.h"
 #include "Templates/TypeHash.h"
+
+// All Component reference metadata to use
+namespace CRMeta
+{
+	inline static const FName AllowedClasses = "AllowedClasses"; // list of allowed classes or interfaces (at least one)
+	inline static const FName DisallowedClasses = "DisallowedClasses"; // list of disallowed classes or interfaces
+	inline static const FName ImplementsInterface = "ImplementsInterface"; // list of required interfaces to implement (all)
+	inline static const FName NoNavigate = "NoNavigate"; // disables component selection
+	inline static const FName NoPicker = "NoPicker"; // disables picker
+	inline static const FName ShowBlueprint = "ShowBlueprint"; // ignore SCS components
+	inline static const FName ShowNative = "ShowNative"; // ignore native components
+	inline static const FName ShowInstanced = "ShowInstanced"; // ignore instanced components
+	inline static const FName ShowPathOnly = "ShowPathOnly"; // ignore components without variables
+}
+
 
 /**
  * @see FSCSEditorTreeNodeComponentBase
@@ -190,6 +206,9 @@ public:
 	static TSharedPtr<FComponentInfo> CreateFromNode(USCS_Node* InComponentNode);
 	static TSharedPtr<FComponentInfo> CreateFromInstance(UActorComponent* Component);
 
+	/** IS it a blueprint property or not */
+	static bool IsBlueprintProperty(const FProperty* VariableProperty);
+
 	/** */
 	static UClass* FindClassByName(const FString& ClassName);
 
@@ -211,6 +230,15 @@ public:
 		return false;
 	}
 
+	static const FBlueprintComponentReferenceExtras& GetDefaults();
+
+	static bool HasMetaDataValue(const FProperty* Property, const FName& InName);
+	static TOptional<bool> GetBoolMetaDataOptional(const FProperty* Property, const FName& InName);
+	static bool GetBoolMetaDataValue(const FProperty* Property, const FName& InName, bool bDefaultValue);
+	static void SetBoolMetaDataValue(FProperty* Property, const FName& InName, TOptional<bool> Value);
+	static void GetClassListMetadata(const FProperty* Property, const FName& InName, const TFunctionRef<void(UClass*)>& Func);
+	static void SetClassListMetadata(FProperty* Property, const FName& InName, const TFunctionRef<void(TArray<FString>&)>& PathSource);
+
 private:
 
 	void OnReloadComplete(EReloadCompleteReason ReloadCompleteReason);
@@ -221,7 +249,6 @@ private:
 };
 
 DECLARE_LOG_CATEGORY_EXTERN(LogComponentReferenceEditor, Log, All);
-
 
 template<typename T>
 FString FlagsToString(T InValue, TMap<T, FString> const& InFlagMap)

@@ -16,7 +16,11 @@ struct FBCREditorModule : public IModuleInterface
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
+	void OnPostEngineInit();
 private:
 	TSharedPtr<FBlueprintComponentReferenceHelper> ClassHelper;
+
+	FDelegateHandle VariableCustomizationHandle;
+	FDelegateHandle PostEngineInitHandle;
 };
 

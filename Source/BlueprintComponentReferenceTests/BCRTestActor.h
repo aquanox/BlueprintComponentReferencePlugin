@@ -84,7 +84,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=TESTACTOR, meta=(ShowNative=false, ShowBlueprint=false, ShowInstanced=false, ShowPathOnly=true))
 	FBlueprintComponentReference ReferencePathOnly;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=TESTACTOR)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=TESTACTOR, meta=(ShowBlueprint=false))
 	TArray<FBlueprintComponentReference> ReferenceArray;
 
 };

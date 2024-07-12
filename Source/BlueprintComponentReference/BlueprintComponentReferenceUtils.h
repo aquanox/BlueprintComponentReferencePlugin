@@ -27,3 +27,35 @@ public:
 	UFUNCTION(BlueprintCallable)
 	static void SetComponentReference_FromComponent(UPARAM(Ref) FBlueprintComponentReference& Reference,UActorComponent* Component);
 };
+
+/**
+ * Internal struct for blueprint property configuration
+ */
+USTRUCT(NotBlueprintable, NotBlueprintType, meta=(HiddenByDefault))
+struct FBlueprintComponentReferenceExtras
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(EditAnywhere, Category=MetaData)
+	bool bShowNative = true;
+	UPROPERTY(EditAnywhere, Category=MetaData)
+	bool bShowBlueprint = true;
+	UPROPERTY(EditAnywhere, Category=MetaData)
+	bool bShowInstanced = false;
+	UPROPERTY(EditAnywhere, Category=MetaData)
+	bool bShowPathOnly = false;
+
+	//UPROPERTY(EditAnywhere, Category=MetaData)
+	//bool bAllowPicker	= true;
+	//UPROPERTY(EditAnywhere, Category=MetaData)
+	//bool bAllowNavigate = true;
+	//UPROPERTY(EditAnywhere, Category=MetaData)
+	//bool bAllowClear	= true;
+
+	UPROPERTY(EditAnywhere, Category=MetaData, meta=(DisplayThumbnail=false, NoBrowse, NoCreate))
+	TArray<TSoftClassPtr<UActorComponent>>	AllowedClasses;
+	UPROPERTY(EditAnywhere, Category=MetaData, meta=(DisplayThumbnail=false, NoBrowse, NoCreate))
+	TArray<TSoftClassPtr<UActorComponent>>	DisallowedClasses;
+	//UPROPERTY(EditAnywhere, Category=MetaData, meta=(DisplayThumbnail=false, NoBrowse, NoCreate))
+	//TArray<TSoftClassPtr<UInterface>>		RequiredInterfaces;
+};

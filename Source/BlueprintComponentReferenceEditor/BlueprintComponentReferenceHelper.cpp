@@ -240,7 +240,7 @@ FHierarchyClassInfo::~FHierarchyClassInfo()
 
 UClass* FBlueprintComponentReferenceHelper::FindClassByName(const FString& ClassName)
 {
-	UClass* Class =  UClass::TryFindTypeSlow<UClass>(ClassName);
+	UClass* Class =  UClass::TryFindTypeSlow<UClass>(ClassName, EFindFirstObjectOptions::EnsureIfAmbiguous);
 	if (!Class)
 	{
 		Class = LoadObject<UClass>(nullptr, *ClassName);
@@ -556,6 +556,149 @@ TSharedPtr<FComponentInfo> FBlueprintComponentReferenceHelper::CreateFromInstanc
 	}
 
 	return MakeShared<FComponentInfo_Default>(InComponent);
+}
+
+bool FBlueprintComponentReferenceHelper::IsBlueprintProperty(const FProperty* VariableProperty)
+{
+	if(UClass* const VarSourceClass = VariableProperty ? VariableProperty->GetOwner<UClass>() : NULL)
+	{
+		return (VarSourceClass->ClassGeneratedBy != NULL);
+	}
+	return false;
+}
+
+const FBlueprintComponentReferenceExtras& FBlueprintComponentReferenceHelper::GetDefaults()
+{
+	static const FBlueprintComponentReferenceExtras Value;
+	return Value;
+}
+
+bool FBlueprintComponentReferenceHelper::HasMetaDataValue(const FProperty* Property, const FName& InName)
+{
+	return Property->HasMetaData(InName);
+}
+
+TOptional<bool> FBlueprintComponentReferenceHelper::GetBoolMetaDataOptional(const FProperty* Property, const FName& InName)
+{
+	if (Property->HasMetaData(InName))
+	{
+		bool bResult = true;
+
+		const FString& ValueString = Property->GetMetaData(InName);
+		if (!ValueString.IsEmpty())
+		{
+			if (ValueString == TEXT("true"))
+			{
+				bResult = true;
+			}
+			else if (ValueString == TEXT("false"))
+			{
+				bResult = false;
+			}
+		}
+
+		return TOptional<bool>(bResult);
+	}
+
+	return TOptional<bool>();
+}
+
+bool FBlueprintComponentReferenceHelper::GetBoolMetaDataValue(const FProperty* Property, const FName& InName, bool bDefaultValue)
+{
+	bool bResult = bDefaultValue;
+
+	if (Property->HasMetaData(InName))
+	{
+		bResult = true;
+
+		const FString& ValueString = Property->GetMetaData(InName);
+		if (!ValueString.IsEmpty())
+		{
+			if (ValueString == TEXT("true"))
+			{
+				bResult = true;
+			}
+			else if (ValueString == TEXT("false"))
+			{
+				bResult = false;
+			}
+		}
+	}
+
+	return bResult;
+}
+
+void FBlueprintComponentReferenceHelper::SetBoolMetaDataValue(FProperty* Property, const FName& InName, TOptional<bool> Value)
+{
+	if (Value.IsSet())
+	{
+		Property->SetMetaData(InName, Value.GetValue() ? TEXT("true") : TEXT("false"));
+	}
+	else
+	{
+		Property->RemoveMetaData(InName);
+	}
+
+	if (UObject* ParamOwner = Property->GetOwnerUObject())
+	{
+		ParamOwner->Modify();
+	}
+}
+
+void FBlueprintComponentReferenceHelper::GetClassListMetadata(const FProperty* Property, const FName& InName, const TFunctionRef<void(UClass*)>& Func)
+{
+	const FString& MetaDataString = Property->GetMetaData(InName);
+	if (MetaDataString.IsEmpty())
+	{
+		return;
+	}
+
+	TArray<FString> ClassFilterNames;
+	MetaDataString.ParseIntoArrayWS(ClassFilterNames, TEXT(","), true);
+
+	for (const FString& ClassName : ClassFilterNames)
+	{
+		if (UClass* Class = FBlueprintComponentReferenceHelper::FindClassByName(ClassName))
+		{
+			// If the class is an interface, expand it to be all classes in memory that implement the class.
+			if (Class->HasAnyClassFlags(CLASS_Interface))
+			{
+				for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
+				{
+					UClass* const ClassWithInterface = (*ClassIt);
+					if (ClassWithInterface->IsChildOf(UActorComponent::StaticClass()) && ClassWithInterface->ImplementsInterface(Class))
+					{
+						Func(ClassWithInterface);
+					}
+				}
+			}
+			else if (Class->IsChildOf(UActorComponent::StaticClass()))
+			{
+				Func(Class);
+			}
+		}
+	}
+}
+
+void FBlueprintComponentReferenceHelper::SetClassListMetadata(FProperty* Property, const FName& InName, const TFunctionRef<void(TArray<FString>&)>& PathSource)
+{
+	TArray<FString> Result;
+	PathSource(Result);
+
+	FString Complete = FString::Join(Result, TEXT(","));
+	if (Complete.IsEmpty())
+	{
+		Property->RemoveMetaData(InName);
+	}
+	else
+	{
+		Property->SetMetaData(InName, MoveTemp(Complete));
+	}
+
+	if (UObject* ParamOwner = Property->GetOwnerUObject())
+	{
+		ParamOwner->Modify();
+	}
 }
 
 void FBlueprintComponentReferenceHelper::OnReloadComplete(EReloadCompleteReason ReloadCompleteReason)
