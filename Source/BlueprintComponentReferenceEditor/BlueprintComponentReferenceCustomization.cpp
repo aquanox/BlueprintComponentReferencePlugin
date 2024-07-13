@@ -77,20 +77,17 @@ void FBlueprintComponentReferenceCustomization::CustomizeHeader(TSharedRef<IProp
 		InPropertyHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FBlueprintComponentReferenceCustomization::OnPropertyValueChanged, Property->GetFName()));
 		OnPropertyValueChanged(Property->GetFName());
 
-		HeaderRow.NameContent()
+		TSharedPtr<SHorizontalBox> ValueContent;
+		SAssignNew(ValueContent, SHorizontalBox)
+		+SHorizontalBox::Slot()
+		.FillWidth(1.0f)
 		[
-			InPropertyHandle->CreatePropertyNameWidget()
-		]
-		.ValueContent()
-		.HAlign(HAlign_Fill)
-		[
-			SNew(SHorizontalBox)
-			+SHorizontalBox::Slot()
-			.FillWidth(1.0f)
-			[
-				ComponentComboButton.ToSharedRef()
-			]
-			+SHorizontalBox::Slot()
+			ComponentComboButton.ToSharedRef()
+		];
+
+		if (Settings.bUseNavigate)
+		{
+			ValueContent->AddSlot()
 			.AutoWidth()
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
@@ -99,11 +96,14 @@ void FBlueprintComponentReferenceCustomization::CustomizeHeader(TSharedRef<IProp
 				PropertyCustomizationHelpers::MakeBrowseButton(
 					FSimpleDelegate::CreateSP(this, &FBlueprintComponentReferenceCustomization::OnNavigateComponent),
 					LOCTEXT( "NavigateButtonToolTipText", "Select Component in Component Editor"),
-					TAttribute<bool>(Settings.bUseNavigate),
-					true
+					/* enabled = */ true, /* actor icon = */ true
 				)
-			]
-			+SHorizontalBox::Slot()
+			];
+		}
+
+		if (Settings.bUseClear)
+		{
+			ValueContent->AddSlot()
 			.AutoWidth()
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
@@ -112,9 +112,19 @@ void FBlueprintComponentReferenceCustomization::CustomizeHeader(TSharedRef<IProp
 				PropertyCustomizationHelpers::MakeClearButton(
 					FSimpleDelegate::CreateSP(this, &FBlueprintComponentReferenceCustomization::OnClear),
 					LOCTEXT("ClearButtonToolTipText", "Clear Component"),
-					TAttribute<bool>(Settings.bUseClear)
+					/* enabled = */ true
 				)
-			]
+			];
+		}
+
+		HeaderRow.NameContent()
+		[
+			InPropertyHandle->CreatePropertyNameWidget()
+		]
+		.ValueContent()
+		.HAlign(HAlign_Fill)
+		[
+			ValueContent.ToSharedRef()
 		]
 		.IsEnabled(MakeAttributeSP(this, &FBlueprintComponentReferenceCustomization::CanEdit));
 	}

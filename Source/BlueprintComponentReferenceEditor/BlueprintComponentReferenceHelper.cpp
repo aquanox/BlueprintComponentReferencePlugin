@@ -2,6 +2,7 @@
 
 #include "BlueprintComponentReferenceHelper.h"
 
+#include "BlueprintComponentReferenceEditor.h"
 #include "GameFramework/Pawn.h"
 #include "Engine/World.h"
 #include "Kismet2/ComponentEditorUtils.h"
