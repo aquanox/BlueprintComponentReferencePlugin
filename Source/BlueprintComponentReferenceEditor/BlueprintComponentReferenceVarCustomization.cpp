@@ -117,13 +117,15 @@ void FBlueprintComponentReferenceVarCustomization::CustomizeDetails(IDetailLayou
 
 		for (TFieldIterator<FProperty> It(ScopedSettings->GetStruct(), EFieldIterationFlags::Default); It; ++It)
 		{
+			FSimpleDelegate ChangeHandler = FSimpleDelegate::CreateSP(this, &FBlueprintComponentReferenceVarCustomization::OnPropertyChanged, It->GetFName());
+
 			FAddPropertyParams Params;
 			IDetailPropertyRow* PropertyRow = Builder.AddExternalStructureProperty(ScopedSettings, It->GetFName(), EPropertyLocation::Default, Params);
 			PropertyRow->ShouldAutoExpand(true);
 
 			TSharedPtr<IPropertyHandle> PropertyHandle = PropertyRow->GetPropertyHandle();
-			PropertyHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FBlueprintComponentReferenceVarCustomization::OnPropertyChanged, It->GetFName()));
-			PropertyHandle->SetOnChildPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FBlueprintComponentReferenceVarCustomization::OnPropertyChanged, It->GetFName()));
+			PropertyHandle->SetOnPropertyValueChanged(ChangeHandler);
+			PropertyHandle->SetOnChildPropertyValueChanged(ChangeHandler);
 		}
 	}
 }
@@ -145,9 +147,20 @@ void FBlueprintComponentReferenceVarCustomization::LoadSettingsFromProperty(cons
 {
 	UE_LOG(BCRVariableCustomization, Log, TEXT("LoadSettingsFromProperty(%s)"), *InProp->GetFName().ToString());
 
-	FBlueprintComponentReferenceMetadata& Settings = *ScopedSettings->Get();
+	FBlueprintComponentReferenceMetadata Local;
+	FBlueprintComponentReferenceHelper::LoadSettingsFromProperty(Local, InProp);
 
-	FBlueprintComponentReferenceHelper::LoadSettingsFromProperty(Settings, InProp);
+	// @todo: how to handle multiple?
+	FBlueprintComponentReferenceMetadata& Settings = *ScopedSettings->Get();
+	Settings.bUsePicker |= Local.bUsePicker;
+	Settings.bUseNavigate |= Local.bUseNavigate;
+	Settings.bUseClear |= Local.bUseClear;
+	Settings.bShowNative |= Local.bShowNative;
+	Settings.bShowBlueprint |= Local.bShowBlueprint;
+	Settings.bShowInstanced |= Local.bShowInstanced;
+	Settings.bShowPathOnly |= Local.bShowPathOnly;
+	Settings.AllowedClasses.Append(Local.AllowedClasses);
+	Settings.DisallowedClasses.Append(Local.DisallowedClasses);
 }
 
 void FBlueprintComponentReferenceVarCustomization::ApplySettingsToProperty(FProperty* Property, const FName& InChanged)

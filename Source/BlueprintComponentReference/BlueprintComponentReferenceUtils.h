@@ -8,25 +8,15 @@
 
 namespace CRMeta
 {
-	// list of allowed classes or interfaces (at least one)
 	inline static const FName AllowedClasses = "AllowedClasses";
-	// list of disallowed classes or interfaces
 	inline static const FName DisallowedClasses = "DisallowedClasses";
-	// list of required interfaces to implement (all)
 	inline static const FName ImplementsInterface = "ImplementsInterface";
-	// disables clear action
 	inline static const FName NoClear = "NoClear";
-	// disables component selection action
 	inline static const FName NoNavigate = "NoNavigate";
-	// disables picker
 	inline static const FName NoPicker = "NoPicker";
-	// ignore SCS components
 	inline static const FName ShowBlueprint = "ShowBlueprint";
-	// ignore native components
 	inline static const FName ShowNative = "ShowNative";
-	// ignore instanced components
 	inline static const FName ShowInstanced = "ShowInstanced";
-	// ignore components without variables
 	inline static const FName ShowPathOnly = "ShowPathOnly";
 }
 
@@ -126,35 +116,34 @@ struct FBlueprintComponentReferenceMetadata
 {
 	GENERATED_BODY()
 public:
-	/** Whether we allow to use Picker feature */
+	/** Allow to use Picker feature */
 	UPROPERTY(EditAnywhere, Category=MetaData)
 	bool bUsePicker	= true;
-	/** Whether we allow to use Navigate/Browse feature */
+	/** Allow to use Navigate/Browse feature */
 	UPROPERTY(EditAnywhere, Category=MetaData)
 	bool bUseNavigate = true;
-	/** Whether the asset can be 'None' in this case */
+	/** Allow reference to be reset */
 	UPROPERTY(EditAnywhere, Category=MetaData)
 	bool bUseClear	= true;
 
-	/** Whether we allow to pick native components */
+	/** Allow to pick native components */
 	UPROPERTY(EditAnywhere, Category=MetaData)
 	bool bShowNative = true;
-	/** Whether we allow to pick blueprint components */
+	/** Allow to pick blueprint components */
 	UPROPERTY(EditAnywhere, Category=MetaData)
 	bool bShowBlueprint = true;
-	/** Whether we allow to pick instanced components */
+	/** Allow to pick instanced components */
 	UPROPERTY(EditAnywhere, Category=MetaData)
 	bool bShowInstanced = false;
-	/** Whether we allow to pick path-only components */
+	/** Allow to pick path-only/hidden components */
 	UPROPERTY(EditAnywhere, Category=MetaData, DisplayName="Show Hidden")
 	bool bShowPathOnly = false;
 
-
-	/** Classes that can be used with this property */
-	UPROPERTY(EditAnywhere, Category=MetaData, meta=(DisplayThumbnail=false, NoBrowse, NoCreate))
+	/** Classes or interfaces that can be used with this property */
+	UPROPERTY(EditAnywhere, Category=MetaData, NoClear, meta=(DisplayThumbnail=false, NoElementDuplicate, AllowAbstract, NoBrowse, NoCreate, DisallowCreateNew))
 	TArray<TSoftClassPtr<UActorComponent>>	AllowedClasses;
-	/** Classes that can NOT be used with this property */
-	UPROPERTY(EditAnywhere, Category=MetaData, meta=(DisplayThumbnail=false, NoBrowse, NoCreate))
+	/** Classes or interfaces that can NOT be used with this property */
+	UPROPERTY(EditAnywhere, Category=MetaData, NoClear, meta=(DisplayThumbnail=false, NoElementDuplicate, AllowAbstract, NoBrowse, NoCreate, DisallowCreateNew))
 	TArray<TSoftClassPtr<UActorComponent>>	DisallowedClasses;
 	/** Interfaces that must be implemented to be eligible for this property */
 	//UPROPERTY(EditAnywhere, Category=MetaData, meta=(DisplayThumbnail=false, NoBrowse, NoCreate))
