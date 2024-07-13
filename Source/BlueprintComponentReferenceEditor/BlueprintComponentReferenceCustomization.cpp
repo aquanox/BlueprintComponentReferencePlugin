@@ -265,7 +265,7 @@ bool FBlueprintComponentReferenceCustomization::IsComponentReferenceValid(const 
 	AActor* const SearchActor = ComponentPickerContext.IsValid() ? ComponentPickerContext->GetActor() : nullptr;
 	if (UActorComponent* NewComponent = Value.GetComponent(SearchActor))
 	{
-		if (!Settings.IsFilteredObject(NewComponent))
+		if (!Settings.TestObject(NewComponent))
 		{
 			return false;
 		}
@@ -473,7 +473,7 @@ TSharedRef<SWidget> FBlueprintComponentReferenceCustomization::OnGetMenuContent(
 			TArray<TSharedRef<FComponentInfo>> LocalArray;
 			for(auto& Node : HierarchyInfo->GetNodes())
 			{
-				if (Settings.IsFilteredNode(Node) && Settings.IsFilteredObject(Node->GetComponentTemplate()))
+				if (Settings.TestNode(Node) && Settings.TestObject(Node->GetComponentTemplate()))
 				{
 					LocalArray.Add(Node.ToSharedRef());
 				}
@@ -563,7 +563,7 @@ void FBlueprintComponentReferenceCustomization::OnNavigateComponent()
 			UBlueprintGeneratedClass* GeneratedClass = Cast<UBlueprintGeneratedClass>(Blueprint->GeneratedClass);
 			if (GeneratedClass && GeneratedClass->GetFName() == SearchActor->GetClass()->GetFName())
 			{
-				BlueprintEditor =  (FBlueprintEditor*)AssetEditorSubsystem->FindEditorForAsset(Blueprint, false);
+				BlueprintEditor =  static_cast<FBlueprintEditor*>(AssetEditorSubsystem->FindEditorForAsset(Blueprint, false));
 				EditedBlueprint = Blueprint;
 				break;
 			}
@@ -614,31 +614,32 @@ void FBlueprintComponentReferenceViewSettings::Reset()
 	FBlueprintComponentReferenceHelper::ResetSettings(*this);
 }
 
-bool FBlueprintComponentReferenceViewSettings::IsFilteredNode(const TSharedPtr<FComponentInfo>& Node) const
+bool FBlueprintComponentReferenceViewSettings::TestNode(const TSharedPtr<FComponentInfo>& Node) const
 {
 	if (!Node.IsValid())
 		return false;
 
-	if (Node->GetDesiredMode() == EBlueprintComponentReferenceMode::ObjectPath && !bShowPathOnly)
-		return false;
-
-	if (Node->IsInstancedComponent())
+	const EBlueprintComponentReferenceMode Mode = Node->GetDesiredMode();
+	if (Mode == EBlueprintComponentReferenceMode::ObjectPath)
 	{
-		if (/*Node->GetDesiredMode() == EBlueprintComponentReferenceMode::VariableName && */!bShowInstanced)
-			return false;
+		return bShowPathOnly;
 	}
-	else
+	if (Mode == EBlueprintComponentReferenceMode::VariableName)
 	{
-		if (Node->IsNativeComponent() && !bShowNative)
-			return false;
-		if (!Node->IsNativeComponent() && !bShowBlueprint)
-			return false;
+		if (Node->IsInstancedComponent() && bShowInstanced)
+			return true;
+
+		if (Node->IsNativeComponent() && bShowNative)
+			return true;
+
+		if (!Node->IsNativeComponent() && bShowBlueprint)
+			return true;
 	}
 
-	return true;
+	return false;
 }
 
-bool FBlueprintComponentReferenceViewSettings::IsFilteredObject(const UObject* Object) const
+bool FBlueprintComponentReferenceViewSettings::TestObject(const UObject* Object) const
 {
 	if (!IsValid(Object))
 	{

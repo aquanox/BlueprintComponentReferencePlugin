@@ -49,8 +49,8 @@ struct FBlueprintComponentReferenceViewSettings // : public FBlueprintComponentR
 
 	void Reset();
 
-	bool IsFilteredNode(const TSharedPtr<FComponentInfo>& Node) const;
-	bool IsFilteredObject(const UObject* Object) const;
+	bool TestNode(const TSharedPtr<FComponentInfo>& Node) const;
+	bool TestObject(const UObject* Object) const;
 };
 
 /**
