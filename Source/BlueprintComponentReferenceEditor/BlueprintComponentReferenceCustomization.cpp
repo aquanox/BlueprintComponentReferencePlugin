@@ -473,7 +473,7 @@ TSharedRef<SWidget> FBlueprintComponentReferenceCustomization::OnGetMenuContent(
 			TArray<TSharedRef<FComponentInfo>> LocalArray;
 			for(auto& Node : HierarchyInfo->GetNodes())
 			{
-				if (Settings.IsFilteredNode(Node))
+				if (Settings.IsFilteredNode(Node) && Settings.IsFilteredObject(Node->GetComponentTemplate()))
 				{
 					LocalArray.Add(Node.ToSharedRef());
 				}
@@ -498,7 +498,14 @@ TSharedRef<SWidget> FBlueprintComponentReferenceCustomization::OnGetMenuContent(
 
 			for(auto& Node : Element.Value)
 			{
-				AddMenuNodes(MenuBuilder, Node);
+				MenuBuilder.AddMenuEntry(
+					Node->GetDisplayText(),
+					FText::GetEmpty(),
+					FSlateIconFinder::FindIconForClass(Node->GetComponentClass()),
+					FUIAction(
+						FExecuteAction::CreateSP(this, &FBlueprintComponentReferenceCustomization::OnComponentSelected, Node)
+					)
+				);
 			}
 
 			MenuBuilder.EndSection();
@@ -518,21 +525,6 @@ TSharedRef<SWidget> FBlueprintComponentReferenceCustomization::OnGetMenuContent(
 
 
 	return MenuBuilder.MakeWidget();
-}
-
-void FBlueprintComponentReferenceCustomization::AddMenuNodes(FMenuBuilder& MenuBuilder, TSharedRef<FComponentInfo> Node)
-{
-	if (Settings.IsFilteredObject(Node->GetComponentTemplate()))
-	{
-		MenuBuilder.AddMenuEntry(
-			Node->GetDisplayText(),
-			FText::GetEmpty(),
-			FSlateIconFinder::FindIconForClass(Node->GetComponentClass()),
-			FUIAction(
-				FExecuteAction::CreateSP(this, &FBlueprintComponentReferenceCustomization::OnComponentSelected, Node)
-			)
-		);
-	}
 }
 
 void FBlueprintComponentReferenceCustomization::OnMenuOpenChanged(bool bOpen)
@@ -649,7 +641,9 @@ bool FBlueprintComponentReferenceViewSettings::IsFilteredNode(const TSharedPtr<F
 bool FBlueprintComponentReferenceViewSettings::IsFilteredObject(const UObject* Object) const
 {
 	if (!IsValid(Object))
+	{
 		return false;
+	}
 
 	const UClass* ObjectClass = Object->GetClass();
 

@@ -107,10 +107,6 @@ private:
 	 */
 	TSharedRef<SWidget> OnGetMenuContent();
 	/**
-	 * Generate menu
-	 */
-	void AddMenuNodes(FMenuBuilder& MenuBuilder, TSharedRef<FComponentInfo> Node);
-	/**
 	 * Called when the menu is closed, we handle this to force the destruction of the menu
 	 */
 	void OnMenuOpenChanged(bool bOpen);
