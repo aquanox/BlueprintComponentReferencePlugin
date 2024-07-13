@@ -6,6 +6,9 @@
 #include "IDetailCustomization.h"
 #include "IDetailCustomNodeBuilder.h"
 
+class IBlueprintEditor;
+class UBlueprint;
+
 /**
  *
  */

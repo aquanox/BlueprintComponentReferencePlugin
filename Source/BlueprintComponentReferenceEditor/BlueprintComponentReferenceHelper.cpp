@@ -3,16 +3,29 @@
 #include "BlueprintComponentReferenceHelper.h"
 
 #include "BlueprintComponentReferenceEditor.h"
-#include "GameFramework/Pawn.h"
 #include "Engine/World.h"
+#include "GameFramework/Pawn.h"
 #include "Kismet2/ComponentEditorUtils.h"
 #include "Misc/CoreDelegates.h"
 #include "Modules/ModuleManager.h"
 #include "Settings/EditorStyleSettings.h"
+#include "UObject/UObjectIterator.h"
+#include "Misc/EngineVersionComparison.h"
 
 DEFINE_LOG_CATEGORY(LogComponentReferenceEditor);
 
 #define LOCTEXT_NAMESPACE "BlueprintComponentReference"
+
+#if UE_VERSION_OLDER_THAN(5,4,0)
+inline static FName GetFNameSafe(const UObject* InField)
+{
+	if (IsValid(InField))
+	{
+		return InField->GetFName();
+	}
+	return NAME_None;
+}
+#endif
 
 inline static FString BuildComponentInfo(const UActorComponent* Obj)
 {

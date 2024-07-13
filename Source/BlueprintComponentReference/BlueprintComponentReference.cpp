@@ -4,6 +4,7 @@
 #include "Modules/ModuleManager.h"
 #include "Components/ActorComponent.h"
 #include "Misc/OutputDevice.h"
+#include "Misc/EngineVersionComparison.h"
 #include "GameFramework/Actor.h"
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, BlueprintComponentReference);
@@ -146,7 +147,11 @@ bool FBlueprintComponentReference::ExportTextItem(FString& ValueStr, const FBlue
 bool FBlueprintComponentReference::SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot)
 {
 	static const FName ComponentReferenceContextName("BlueprintComponentReference");
+#if UE_VERSION_OLDER_THAN(5,4,0)
+	if (Tag.Type == NAME_StructProperty && Tag.StructName == ComponentReferenceContextName)
+#else
 	if (Tag.GetType().IsStruct(ComponentReferenceContextName))
+#endif
 	{
 		FBlueprintComponentReference Reference;
 		FBlueprintComponentReference::StaticStruct()->SerializeItem(Slot, &Reference, nullptr);

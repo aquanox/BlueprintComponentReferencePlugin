@@ -10,7 +10,7 @@ public class BlueprintComponentReferenceEditor : ModuleRules
 
 	public BlueprintComponentReferenceEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
+		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
 		if (bStrictIncludesCheck)
 		{

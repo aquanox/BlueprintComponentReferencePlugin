@@ -5,7 +5,9 @@
 #include "CoreMinimal.h"
 #include "BlueprintComponentReference.h"
 #include "GameFramework/Actor.h"
+#include "GameFramework/Info.h"
 #include "Engine/EngineTypes.h"
+#include "Engine/DataAsset.h"
 #include "BCRTestActor.generated.h"
 
 UCLASS(MinimalAPI, Blueprintable, HideCategories=("ActorTick", "Cooking", Activation, Rendering, Transform, Tags,"ComponentTick", "Collision", "Advanced", "Replication"))

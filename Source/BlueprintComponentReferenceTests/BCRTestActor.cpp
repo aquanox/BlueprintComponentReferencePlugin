@@ -96,5 +96,4 @@ ABCRTestActorWithChild::ABCRTestActorWithChild()
 {
 	LevelNope = CreateDefaultSubobject<UChildActorComponent>("LevelNope");
 	LevelNope->SetChildActorClass(ABCRTestActor::StaticClass());
-	LevelNope->SetChildActorName("InnerName");
 }

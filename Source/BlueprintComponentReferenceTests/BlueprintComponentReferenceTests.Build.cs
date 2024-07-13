@@ -10,7 +10,7 @@ public class BlueprintComponentReferenceTests : ModuleRules
 
 	public BlueprintComponentReferenceTests(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
+		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
 		if (bStrictIncludesCheck)
 		{
@@ -29,9 +29,11 @@ public class BlueprintComponentReferenceTests : ModuleRules
 				"BlueprintComponentReference"
 		});
 
-		PrivateDependencyModuleNames.AddRange(new string[]
+		if (Target.Version.MajorVersion >= 5)
 		{
-			"AutomationTest"
-		});
+			PrivateDependencyModuleNames.AddRange(new string[] {
+				"AutomationTest"
+			});
+		}
 	}
 }

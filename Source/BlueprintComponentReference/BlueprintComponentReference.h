@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Engine/TimerHandle.h"
 #include "Components/ActorComponent.h"
 #include "BlueprintComponentReference.generated.h"
 

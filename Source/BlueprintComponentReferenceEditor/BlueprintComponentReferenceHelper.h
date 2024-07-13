@@ -9,6 +9,7 @@
 #include "Engine/Blueprint.h"
 #include "Engine/SCS_Node.h"
 #include "Templates/TypeHash.h"
+#include "Misc/EngineVersionComparison.h"
 
 /**
  * @see FSCSEditorTreeNodeComponentBase
@@ -426,8 +427,10 @@ static const TMap<EObjectFlags, FString>& GetObjectFlagsMap()
 		ADD_FLAG(RF_NonPIEDuplicateTransient);
 		ADD_FLAG(RF_WillBeLoaded);
 		ADD_FLAG(RF_HasExternalPackage);
+#if UE_VERSION_NEWER_THAN(5,4,0)
 		ADD_FLAG(RF_HasPlaceholderType);
 		ADD_FLAG(RF_MirroredGarbage);
+#endif
 		ADD_FLAG(RF_AllocatedInSharedPage);
 #undef ADD_FLAG
 	}

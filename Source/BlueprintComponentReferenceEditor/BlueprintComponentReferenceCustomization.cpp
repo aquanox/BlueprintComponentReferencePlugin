@@ -154,7 +154,7 @@ void FBlueprintComponentReferenceCustomization::CustomizeChildren(TSharedRef<IPr
 
 FString FBlueprintComponentReferenceCustomization::GetLoggingContextString() const
 {
-	return PropertyHandle.IsValid() ? FString(PropertyHandle->GetPropertyPath()) : TEXT("Invalid");
+	return PropertyHandle.IsValid() ? FString(PropertyHandle->GeneratePathToProperty()) : TEXT("Invalid");
 }
 
 void FBlueprintComponentReferenceCustomization::BuildComboBox()
@@ -264,7 +264,7 @@ void FBlueprintComponentReferenceCustomization::DetermineOuterActor()
 		|| ComponentPickerContext->GetClass() != OuterActorClass)
 	{
 		ComponentPickerContext = ClassHelper->CreateChooserContext(
-			FString(PropertyHandle->GetPropertyPath()),
+			GetLoggingContextString(),
 			OuterActor,
 			OuterActorClass);
 	}

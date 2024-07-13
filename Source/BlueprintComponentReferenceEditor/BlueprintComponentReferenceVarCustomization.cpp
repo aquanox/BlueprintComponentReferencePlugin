@@ -9,6 +9,7 @@
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "ScopedTransaction.h"
 
 DEFINE_LOG_CATEGORY_STATIC(BCRVariableCustomization, Log, All);
 

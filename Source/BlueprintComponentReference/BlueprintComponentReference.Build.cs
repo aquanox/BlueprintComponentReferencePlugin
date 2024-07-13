@@ -10,7 +10,7 @@ public class BlueprintComponentReference : ModuleRules
 
 	public BlueprintComponentReference(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
+		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
 		if (bStrictIncludesCheck)
 		{
@@ -25,7 +25,8 @@ public class BlueprintComponentReference : ModuleRules
 		PublicDependencyModuleNames.AddRange(new string[] {
 				"Core",
 				"CoreUObject",
-				"Engine"
+				"Engine",
+				"InputCore"
 		});
 	}
 }

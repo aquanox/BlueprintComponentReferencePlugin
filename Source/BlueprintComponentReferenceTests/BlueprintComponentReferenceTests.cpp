@@ -3,6 +3,8 @@
 #include "BCRTestActor.h"
 #include "BlueprintComponentReference.h"
 #include "Misc/AutomationTest.h"
+#include "Engine/Engine.h"
+#include "Engine/World.h"
 #include "Modules/ModuleManager.h"
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, BlueprintComponentReferenceTests);
