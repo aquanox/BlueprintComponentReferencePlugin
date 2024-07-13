@@ -147,20 +147,24 @@ void FBlueprintComponentReferenceVarCustomization::LoadSettingsFromProperty(cons
 {
 	UE_LOG(BCRVariableCustomization, Log, TEXT("LoadSettingsFromProperty(%s)"), *InProp->GetFName().ToString());
 
+#ifdef MULTI
 	FBlueprintComponentReferenceMetadata Local;
 	FBlueprintComponentReferenceHelper::LoadSettingsFromProperty(Local, InProp);
-
-	// @todo: how to handle multiple?
+	// @todo: think on how to handle multiple different flags
 	FBlueprintComponentReferenceMetadata& Settings = *ScopedSettings->Get();
-	Settings.bUsePicker |= Local.bUsePicker;
-	Settings.bUseNavigate |= Local.bUseNavigate;
-	Settings.bUseClear |= Local.bUseClear;
-	Settings.bShowNative |= Local.bShowNative;
-	Settings.bShowBlueprint |= Local.bShowBlueprint;
-	Settings.bShowInstanced |= Local.bShowInstanced;
-	Settings.bShowPathOnly |= Local.bShowPathOnly;
+	Settings.bUsePicker = Local.bUsePicker;
+	Settings.bUseNavigate = Local.bUseNavigate;
+	Settings.bUseClear = Local.bUseClear;
+	Settings.bShowNative = Local.bShowNative;
+	Settings.bShowBlueprint = Local.bShowBlueprint;
+	Settings.bShowInstanced = Local.bShowInstanced;
+	Settings.bShowPathOnly = Local.bShowPathOnly;
 	Settings.AllowedClasses.Append(Local.AllowedClasses);
 	Settings.DisallowedClasses.Append(Local.DisallowedClasses);
+#else
+	FBlueprintComponentReferenceMetadata& Settings = *ScopedSettings->Get();
+	FBlueprintComponentReferenceHelper::LoadSettingsFromProperty(Settings, InProp);
+#endif
 }
 
 void FBlueprintComponentReferenceVarCustomization::ApplySettingsToProperty(FProperty* Property, const FName& InChanged)
