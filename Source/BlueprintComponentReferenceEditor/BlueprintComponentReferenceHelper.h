@@ -158,7 +158,7 @@ public:
 	FBlueprintComponentReferenceHelper();
 	~FBlueprintComponentReferenceHelper();
 
-	TSharedRef<FComponentPickerContext> CreateChooserContext(FString InLabel, AActor* InActor, UClass* InClass);
+	TSharedPtr<FComponentPickerContext> CreateChooserContext(AActor* InActor, UClass* InClass, const FString& InLabel);
 
 	void CleanupStaleData(bool bForce);
 
@@ -374,66 +374,4 @@ void FBlueprintComponentReferenceHelper::ApplySettingsToProperty(T& Settings, UB
 	{
 		SetMetaData(CRMeta::DisallowedClasses, ArrayToString(Settings.DisallowedClasses));
 	}
-}
-
-namespace AQDebug
-{
-template<typename T>
-FString FlagsToString(T InValue, TMap<T, FString> const& InFlagMap)
-{
-	TArray<FString, TInlineAllocator<8>> Result;
-	for(auto& FlagMapEntry : InFlagMap)
-	{
-		if ( ((uint32)InValue & (uint32)FlagMapEntry.Key) != 0 )
-		{
-			Result.Add(FlagMapEntry.Value);
-		}
-	}
-	return FString::Join(Result, TEXT("|"));
-}
-
-static const TMap<EObjectFlags, FString>& GetObjectFlagsMap()
-{
-	static  TMap<EObjectFlags, FString> Data;
-	if (Data.IsEmpty())
-	{
-#define ADD_FLAG(Name) Data.Add(EObjectFlags::Name, TEXT(#Name))
-		ADD_FLAG(RF_NoFlags);
-		ADD_FLAG(RF_Public);
-		ADD_FLAG(RF_Standalone);
-		ADD_FLAG(RF_MarkAsNative);
-		ADD_FLAG(RF_Transactional);
-		ADD_FLAG(RF_ClassDefaultObject);
-		ADD_FLAG(RF_ArchetypeObject);
-		ADD_FLAG(RF_Transient);
-		ADD_FLAG(RF_MarkAsRootSet);
-		ADD_FLAG(RF_TagGarbageTemp);
-		ADD_FLAG(RF_NeedInitialization);
-		ADD_FLAG(RF_NeedLoad);
-		ADD_FLAG(RF_KeepForCooker);
-		ADD_FLAG(RF_NeedPostLoad);
-		ADD_FLAG(RF_NeedPostLoadSubobjects);
-		ADD_FLAG(RF_NewerVersionExists);
-		ADD_FLAG(RF_BeginDestroyed);
-		ADD_FLAG(RF_FinishDestroyed);
-		ADD_FLAG(RF_BeingRegenerated);
-		ADD_FLAG(RF_DefaultSubObject);
-		ADD_FLAG(RF_WasLoaded);
-		ADD_FLAG(RF_TextExportTransient);
-		ADD_FLAG(RF_LoadCompleted);
-		ADD_FLAG(RF_InheritableComponentTemplate);
-		ADD_FLAG(RF_DuplicateTransient);
-		ADD_FLAG(RF_StrongRefOnFrame);
-		ADD_FLAG(RF_NonPIEDuplicateTransient);
-		ADD_FLAG(RF_WillBeLoaded);
-		ADD_FLAG(RF_HasExternalPackage);
-#if UE_VERSION_NEWER_THAN(5,4,0)
-		ADD_FLAG(RF_HasPlaceholderType);
-		ADD_FLAG(RF_MirroredGarbage);
-#endif
-		ADD_FLAG(RF_AllocatedInSharedPage);
-#undef ADD_FLAG
-	}
-	return Data;
-}
 }

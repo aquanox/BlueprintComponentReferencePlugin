@@ -29,10 +29,9 @@ inline static FName GetFNameSafe(const UObject* InField)
 
 inline static FString BuildComponentInfo(const UActorComponent* Obj)
 {
-	using namespace AQDebug;
 	FStringBuilderBase Base;
 	Base.Appendf(TEXT("%p:%s"), Obj, *Obj->GetName());
-	Base.Appendf(TEXT(" Flags=%s"), *FlagsToString(Obj->GetFlags(), GetObjectFlagsMap()));
+	Base.Appendf(TEXT(" Flags=%d"), Obj->GetFlags());
 	Base.Appendf(TEXT(" Method=%s"), *StaticEnum<EComponentCreationMethod>()->GetNameStringByValue((int64)Obj->CreationMethod));
 	return Base.ToString();
 }
@@ -377,9 +376,14 @@ FBlueprintComponentReferenceHelper::~FBlueprintComponentReferenceHelper()
 	FModuleManager::Get().OnModulesChanged().Remove(OnModulesChangedDelegateHandle);
 }
 
-TSharedRef<FComponentPickerContext> FBlueprintComponentReferenceHelper::CreateChooserContext(FString InLabel, AActor* InActor, UClass* InClass)
+TSharedPtr<FComponentPickerContext> FBlueprintComponentReferenceHelper::CreateChooserContext(AActor* InActor, UClass* InClass, const FString& InLabel)
 {
 	CleanupStaleData(false);
+
+	if (!IsValid(InActor) && !IsValid(InClass))
+	{ // we called from bad context that has no knowledge of owning class or blueprint
+		return nullptr;
+	}
 
 	TSharedRef<FComponentPickerContext> Ctx = MakeShared<FComponentPickerContext>();
 	Ctx->Label = InLabel;

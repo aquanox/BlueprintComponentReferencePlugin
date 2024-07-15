@@ -79,7 +79,7 @@ public:
 	 * @return
 	 */
 	UFUNCTION(BlueprintCallable, Category="Utilities|ComponentReference", DisplayName="Is Null")
-	static bool ComponentReference_IsNull(const FBlueprintComponentReference& Reference);
+	static bool IsNullReference(const FBlueprintComponentReference& Reference);
 
 	/**
 	 *
@@ -88,7 +88,7 @@ public:
 	 * @param PropertyName
 	 */
 	UFUNCTION(BlueprintCallable, Category="Utilities|ComponentReference", DisplayName="Set From Name")
-	static void ComponentReference_SetFromName(UPARAM(Ref) FBlueprintComponentReference& Reference, AActor* Actor, FName PropertyName);
+	static void SetReferencFromName(UPARAM(Ref) FBlueprintComponentReference& Reference, AActor* Actor, FName PropertyName);
 
 	/**
 	 *
@@ -97,7 +97,7 @@ public:
 	 * @param ObjectPath
 	 */
 	UFUNCTION(BlueprintCallable, Category="Utilities|ComponentReference", DisplayName="Set From Object Path")
-	static void ComponentReference_SetFromObjectPath(UPARAM(Ref) FBlueprintComponentReference& Reference, AActor* Actor, FString ObjectPath);
+	static void SetReferenceFromObjectPath(UPARAM(Ref) FBlueprintComponentReference& Reference, AActor* Actor, FString ObjectPath);
 
 	/**
 	 *
@@ -105,7 +105,7 @@ public:
 	 * @param Component
 	 */
 	UFUNCTION(BlueprintCallable, Category="Utilities|ComponentReference", DisplayName="Set From Component", meta=(BlueprintInternalUseOnly))
-	static void ComponentReference_SetFromComponent(UPARAM(Ref) FBlueprintComponentReference& Reference, UActorComponent* Component);
+	static void SetReferenceFromComponent(UPARAM(Ref) FBlueprintComponentReference& Reference, UActorComponent* Component);
 };
 
 /**

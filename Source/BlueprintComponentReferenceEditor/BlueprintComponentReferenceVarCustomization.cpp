@@ -73,6 +73,7 @@ void FBlueprintComponentReferenceVarCustomization::CustomizeDetails(IDetailLayou
 
 		bool bDoesMatch = false;
 
+		// todo: handle sets? but implementing GetTypeHash that will allow using BCR as map key
 		if (auto AsStruct = CastField<FStructProperty>(PropertyBeingCustomized))
 		{
 			bDoesMatch = AsStruct->Struct == FBlueprintComponentReference::StaticStruct();
@@ -172,7 +173,7 @@ void FBlueprintComponentReferenceVarCustomization::ApplySettingsToProperty(FProp
 {
 	UE_LOG(BCRVariableCustomization, Log, TEXT("ApplySettingsToProperty(%s)"), *Property->GetFName().ToString());
 
-	FScopedTransaction Transaction(FText::Format(INVTEXT("Set MetaData [{0}]"), FText::FromName(Property->GetFName())));
+	FScopedTransaction Transaction(FText::Format(INVTEXT("ApplySettingsToProperty [{0}]"), FText::FromName(Property->GetFName())));
 
 	FBlueprintComponentReferenceMetadata& Settings = *ScopedSettings->Get();
 

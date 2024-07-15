@@ -63,7 +63,7 @@ void FBlueprintComponentReferenceCustomization::CustomizeHeader(TSharedRef<IProp
 	// this will disable use of default "Reset To Defaults" for this header
 	InPropertyHandle->MarkResetToDefaultCustomized(true);
 
-	Settings = FBlueprintComponentReferenceViewSettings();
+	Settings.Reset();
 
 	if (FStructProperty* const Property = CastFieldChecked<FStructProperty>(InPropertyHandle->GetProperty()))
 	{
@@ -217,11 +217,16 @@ void FBlueprintComponentReferenceCustomization::DetermineOuterActor()
 
 	TArray<UObject*> ObjectList;
 	PropertyHandle->GetOuterObjects(ObjectList);
+
+	// Handle common cases:
+	// - blueprint of Actor
+	// - instance of Actor
+	// - instance of ActorComponent
 	for (UObject* OuterObject : ObjectList)
 	{
 		while (::IsValid(OuterObject))
 		{
-			UE_LOG(LogComponentReferenceEditor, Log, TEXT("%s DetermineOuterActor: Object=%s"), *GetLoggingContextString(), *GetNameSafe(OuterActor));
+			UE_LOG(LogComponentReferenceEditor, Log, TEXT("%s DetermineOuterActor: TestObject=%s"), *GetLoggingContextString(), *GetNameSafe(OuterActor));
 			if (AActor* Actor = Cast<AActor>(OuterObject))
 			{
 				UE_LOG(LogComponentReferenceEditor, Log, TEXT("%s ->  Actor=%s"), *GetLoggingContextString(), *GetNameSafe(Actor));
@@ -247,6 +252,23 @@ void FBlueprintComponentReferenceCustomization::DetermineOuterActor()
 		}
 	}
 
+	// handle case when BCR is a local variable in a function declared in blueprint of AActor
+	if (!OuterActor && !OuterActorClass && !ObjectList.Num())
+	{
+		FProperty* Property = PropertyHandle->GetProperty();
+		UFunction* OwnerFunction = Property && !Property->IsNative() ? Property->GetOwner<UFunction>() : nullptr;
+		if (OwnerFunction && OwnerFunction->GetOwnerClass())
+		{
+			UClass* const OwnerClass = OwnerFunction->GetOwnerClass();
+			if (ExactCast<UBlueprint>(OwnerClass->ClassGeneratedBy) && OwnerClass->IsChildOf(AActor::StaticClass()))
+			{
+				UE_LOG(LogComponentReferenceEditor, Log, TEXT("%s ->  FunctionClass=%s"), *GetLoggingContextString(), *GetNameSafe(OwnerClass));
+
+				OuterActorClass = OwnerClass;
+			}
+		}
+	}
+
 	if (!OuterActor && OuterActorClass)
 	{
 		OuterActor = OuterActorClass->GetDefaultObject<AActor>();
@@ -263,10 +285,7 @@ void FBlueprintComponentReferenceCustomization::DetermineOuterActor()
 		|| ComponentPickerContext->GetActor() != OuterActor
 		|| ComponentPickerContext->GetClass() != OuterActorClass)
 	{
-		ComponentPickerContext = ClassHelper->CreateChooserContext(
-			GetLoggingContextString(),
-			OuterActor,
-			OuterActorClass);
+		ComponentPickerContext = ClassHelper->CreateChooserContext(OuterActor, OuterActorClass, GetLoggingContextString());
 	}
 }
 

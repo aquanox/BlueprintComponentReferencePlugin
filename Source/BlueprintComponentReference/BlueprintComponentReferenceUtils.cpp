@@ -57,22 +57,22 @@ void UBlueprintComponentReferenceUtils::ResolveComponentReferenceArrayOfType(con
 	}
 }
 
-bool UBlueprintComponentReferenceUtils::ComponentReference_IsNull(const FBlueprintComponentReference& Reference)
+bool UBlueprintComponentReferenceUtils::IsNullReference(const FBlueprintComponentReference& Reference)
 {
 	return Reference.IsNull();
 }
 
-void UBlueprintComponentReferenceUtils::ComponentReference_SetFromName(FBlueprintComponentReference& Reference, AActor* Actor, FName PropertyName)
+void UBlueprintComponentReferenceUtils::SetReferencFromName(FBlueprintComponentReference& Reference, AActor* Actor, FName PropertyName)
 {
 	Reference = FBlueprintComponentReference(EBlueprintComponentReferenceMode::VariableName, PropertyName);
 }
 
-void UBlueprintComponentReferenceUtils::ComponentReference_SetFromObjectPath(FBlueprintComponentReference& Reference, AActor* Actor, FString ObjectPath)
+void UBlueprintComponentReferenceUtils::SetReferenceFromObjectPath(FBlueprintComponentReference& Reference, AActor* Actor, FString ObjectPath)
 {
 	Reference = FBlueprintComponentReference(EBlueprintComponentReferenceMode::ObjectPath, *ObjectPath);
 }
 
-void UBlueprintComponentReferenceUtils::ComponentReference_SetFromComponent(FBlueprintComponentReference& Reference, UActorComponent* Component)
+void UBlueprintComponentReferenceUtils::SetReferenceFromComponent(FBlueprintComponentReference& Reference, UActorComponent* Component)
 {
 	if (!Component)
 	{

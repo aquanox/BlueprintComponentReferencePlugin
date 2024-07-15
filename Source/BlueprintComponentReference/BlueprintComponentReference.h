@@ -31,6 +31,12 @@ enum class EBlueprintComponentReferenceMode
 /**
  * Struct that allows referencing actor components within blueprint.
  *
+ * Supported uses:
+ * - Class/Struct member property
+ * - Local Blueprint variable
+ * - Array property
+ * - Map property as Value
+ *
  * Supported meta-specifiers:
  *
  * - AllowedClasses=/Script/Engine.ClassA,/Script/Engine.Class.B
