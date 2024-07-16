@@ -131,7 +131,10 @@ public:
 	 */
 	UActorComponent* GetComponent(AActor* SearchActor) const;
 
-	/** Get the actual component pointer from this reference */
+	/**
+	 * Get the actual component pointer from this reference
+	 *
+	 */
 	template<typename T>
 	T* GetComponent(AActor* SearchActor) const
 	{
@@ -149,6 +152,20 @@ public:
 
 	bool SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
 
+	friend bool operator==(const FBlueprintComponentReference& Lhs, const FBlueprintComponentReference& Rhs)
+	{
+		return Lhs.Mode == Rhs.Mode && Lhs.Value == Rhs.Value;
+	}
+
+	friend bool operator!=(const FBlueprintComponentReference& Lhs, const FBlueprintComponentReference& Rhs)
+	{
+		return !(Lhs == Rhs);
+	}
+
+	friend uint32 GetTypeHash(const FBlueprintComponentReference& A)
+	{
+		return HashCombine(GetTypeHash(A.Mode), GetTypeHash(A.Value));
+	}
 
 protected:
 	friend class FBlueprintComponentReferenceCustomization;
@@ -166,8 +183,9 @@ struct TStructOpsTypeTraits<FBlueprintComponentReference> : TStructOpsTypeTraits
 {
 	enum
 	{
-		WithExportTextItem = false,
-		WithImportTextItem = false,
+		WithIdenticalViaEquality = true,
+		//WithExportTextItem = false,
+		//WithImportTextItem = false,
 		WithStructuredSerializeFromMismatchedTag = true,
 	};
 };

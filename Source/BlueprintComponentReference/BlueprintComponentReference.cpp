@@ -106,7 +106,6 @@ UActorComponent* FBlueprintComponentReference::GetComponent(AActor* SearchActor)
 	}
 
 	return Result;
-
 }
 
 bool FBlueprintComponentReference::IsNull() const
@@ -157,7 +156,7 @@ bool FBlueprintComponentReference::SerializeFromMismatchedTag(const FPropertyTag
 		FBlueprintComponentReference::StaticStruct()->SerializeItem(Slot, &Reference, nullptr);
 		if (!Reference.IsNull())
 		{
-			//Mode = Reference.Mode;
+			Mode = Reference.Mode;
 			Value = Reference.Value;
 		}
 		return true;

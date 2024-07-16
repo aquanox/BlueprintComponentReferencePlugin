@@ -70,34 +70,11 @@ void FBlueprintComponentReferenceVarCustomization::CustomizeDetails(IDetailLayou
 		if (!FBlueprintEditorUtils::IsVariableCreatedByBlueprint(LocalBlueprint, PropertyBeingCustomized))
 			continue;
 
-
-		bool bDoesMatch = false;
-
-		// todo: handle sets? but implementing GetTypeHash that will allow using BCR as map key
-		if (auto AsStruct = CastField<FStructProperty>(PropertyBeingCustomized))
+		if (FBlueprintComponentReferenceHelper::IsComponentReferenceProperty(PropertyBeingCustomized))
 		{
-			bDoesMatch = AsStruct->Struct == FBlueprintComponentReference::StaticStruct();
-		}
-		else if (auto AsArray = CastField<FArrayProperty>(PropertyBeingCustomized))
-		{
-			if (auto Inner = CastField<FStructProperty>(AsArray->Inner))
-			{
-				bDoesMatch = Inner->Struct == FBlueprintComponentReference::StaticStruct();
-			}
-		}
-		else if (auto AsMap = CastField<FMapProperty>(PropertyBeingCustomized))
-		{
-			if (auto Inner = CastField<FStructProperty>(AsMap->ValueProp))
-			{
-				bDoesMatch = Inner->Struct == FBlueprintComponentReference::StaticStruct();
-			}
-		}
-
-		if (bDoesMatch)
-		{
-			PropertiesBeingCustomized.Emplace(PropertyBeingCustomized);
-
 			LoadSettingsFromProperty(PropertyBeingCustomized);
+
+			PropertiesBeingCustomized.Emplace(PropertyBeingCustomized);
 		}
 	}
 

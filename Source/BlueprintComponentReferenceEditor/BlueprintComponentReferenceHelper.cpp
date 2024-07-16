@@ -8,7 +8,6 @@
 #include "Kismet2/ComponentEditorUtils.h"
 #include "Misc/CoreDelegates.h"
 #include "Modules/ModuleManager.h"
-#include "Settings/EditorStyleSettings.h"
 #include "UObject/UObjectIterator.h"
 #include "Misc/EngineVersionComparison.h"
 
@@ -374,6 +373,38 @@ FBlueprintComponentReferenceHelper::~FBlueprintComponentReferenceHelper()
 	FCoreUObjectDelegates::ReloadCompleteDelegate.Remove(OnReloadCompleteDelegateHandle);
 	FCoreUObjectDelegates::ReloadReinstancingCompleteDelegate.Remove(OnReloadReinstancingCompleteDelegateHandle);
 	FModuleManager::Get().OnModulesChanged().Remove(OnModulesChangedDelegateHandle);
+}
+
+bool FBlueprintComponentReferenceHelper::IsComponentReferenceProperty(const FProperty* InProperty)
+{
+	bool bDoesMatch = false;
+
+	// todo: handle sets? but implementing GetTypeHash that will allow using BCR as map key
+	if (auto AsStruct = CastField<FStructProperty>(InProperty))
+	{
+		bDoesMatch = IsComponentReferenceType(AsStruct->Struct);
+	}
+	else if (auto AsArray = CastField<FArrayProperty>(InProperty))
+	{
+		if (auto Inner = CastField<FStructProperty>(AsArray->Inner))
+		{
+			bDoesMatch = IsComponentReferenceType(Inner->Struct);
+		}
+	}
+	else if (auto AsMap = CastField<FMapProperty>(InProperty))
+	{
+		if (auto Inner = CastField<FStructProperty>(AsMap->ValueProp))
+		{
+			bDoesMatch = IsComponentReferenceType(Inner->Struct);
+		}
+	}
+
+	return bDoesMatch;
+}
+
+bool FBlueprintComponentReferenceHelper::IsComponentReferenceType(const UStruct* InStruct)
+{
+	return InStruct == FBlueprintComponentReference::StaticStruct();
 }
 
 TSharedPtr<FComponentPickerContext> FBlueprintComponentReferenceHelper::CreateChooserContext(AActor* InActor, UClass* InClass, const FString& InLabel)

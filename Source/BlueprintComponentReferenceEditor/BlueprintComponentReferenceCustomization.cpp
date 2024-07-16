@@ -65,10 +65,9 @@ void FBlueprintComponentReferenceCustomization::CustomizeHeader(TSharedRef<IProp
 
 	Settings.Reset();
 
-	if (FStructProperty* const Property = CastFieldChecked<FStructProperty>(InPropertyHandle->GetProperty()))
+	FStructProperty* const Property = CastFieldChecked<FStructProperty>(InPropertyHandle->GetProperty());
+	if (Property && ensureAlways(FBlueprintComponentReferenceHelper::IsComponentReferenceType(Property->Struct)))
 	{
-		check(FBlueprintComponentReference::StaticStruct() == Property->Struct);
-
 		const FProperty* MetadataProperty = InPropertyHandle->GetMetaDataProperty();
 		FBlueprintComponentReferenceHelper::LoadSettingsFromProperty(Settings, MetadataProperty);
 
@@ -132,17 +131,20 @@ void FBlueprintComponentReferenceCustomization::CustomizeHeader(TSharedRef<IProp
 
 void FBlueprintComponentReferenceCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> InStructPropertyHandle, IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
-	uint32 NumberOfChild;
+	uint32 NumberOfChild = 0;
 	if (InStructPropertyHandle->GetNumChildren(NumberOfChild) == FPropertyAccess::Success)
 	{
 		for (uint32 Index = 0; Index < NumberOfChild; ++Index)
 		{
 			TSharedRef<IPropertyHandle> ChildPropertyHandle = InStructPropertyHandle->GetChildHandle(Index).ToSharedRef();
-			FProperty* Property = ChildPropertyHandle->GetProperty();
 
 			ChildPropertyHandle->MarkResetToDefaultCustomized(true);
 
-			ChildPropertyHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FBlueprintComponentReferenceCustomization::OnPropertyValueChanged, Property->GetFName()));
+			ChildPropertyHandle->SetOnPropertyValueChanged(
+				FSimpleDelegate::CreateSP(this, &FBlueprintComponentReferenceCustomization::OnPropertyValueChanged,
+					ChildPropertyHandle->GetProperty()->GetFName()
+				)
+			);
 
 			StructBuilder.AddProperty(ChildPropertyHandle)
 				.ShowPropertyButtons(!Settings.bUsePicker)

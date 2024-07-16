@@ -158,6 +158,9 @@ public:
 	FBlueprintComponentReferenceHelper();
 	~FBlueprintComponentReferenceHelper();
 
+	static bool IsComponentReferenceProperty(const FProperty* InProperty);
+	static bool IsComponentReferenceType(const UStruct* InStruct);
+
 	TSharedPtr<FComponentPickerContext> CreateChooserContext(AActor* InActor, UClass* InClass, const FString& InLabel);
 
 	void CleanupStaleData(bool bForce);
