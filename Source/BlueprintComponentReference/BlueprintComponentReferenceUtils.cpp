@@ -5,11 +5,7 @@
 
 bool UBlueprintComponentReferenceUtils::ResolveComponentReference(const FBlueprintComponentReference& Reference, AActor* Actor, UActorComponent*& Component)
 {
-	if (!Reference.IsNull())
-	{
-		Component = Reference.GetComponent(Actor);
-	}
-	return IsValid(Component);
+	return ResolveComponentReferenceOfType(Reference, Actor, UActorComponent::StaticClass(), Component);
 }
 
 bool UBlueprintComponentReferenceUtils::ResolveComponentReferenceOfType(const FBlueprintComponentReference& Reference, AActor* Actor, TSubclassOf<UActorComponent> Class, UActorComponent*& Component)
@@ -17,7 +13,7 @@ bool UBlueprintComponentReferenceUtils::ResolveComponentReferenceOfType(const FB
 	Component = nullptr;
 
 	UActorComponent* Result = Reference.GetComponent(Actor);
-	if (IsValid(Result) && (!Class || Result->IsA(Class)))
+	if (IsValid(Result) && Result->IsA(Class))
 	{
 		Component = Result;
 	}
@@ -25,32 +21,20 @@ bool UBlueprintComponentReferenceUtils::ResolveComponentReferenceOfType(const FB
 	return IsValid(Component);
 }
 
-void UBlueprintComponentReferenceUtils::ResolveComponentReferenceArray(const TArray<FBlueprintComponentReference>& References, AActor* Actor, TArray<UActorComponent*>& Components)
+void UBlueprintComponentReferenceUtils::ResolveComponentReferenceArray(const TArray<FBlueprintComponentReference>& References, AActor* Actor, bool bPreserveOrder, TArray<UActorComponent*>& Components)
 {
-	for (const FBlueprintComponentReference& Reference : References)
-	{
-		UActorComponent* Component = nullptr;
-		if (!Reference.IsNull())
-		{
-			Component = Reference.GetComponent(Actor);
-		}
-		if (IsValid(Component))
-		{
-			Components.Add(Component);
-		}
-	}
+	ResolveComponentReferenceArrayOfType(References, Actor, UActorComponent::StaticClass(), bPreserveOrder, Components);
 }
 
-void UBlueprintComponentReferenceUtils::ResolveComponentReferenceArrayOfType(const TArray<FBlueprintComponentReference>& References, AActor* Actor, TSubclassOf<UActorComponent> Class, TArray<UActorComponent*>& Components)
+void UBlueprintComponentReferenceUtils::ResolveComponentReferenceArrayOfType(const TArray<FBlueprintComponentReference>& References, AActor* Actor, TSubclassOf<UActorComponent> Class, bool bPreserveOrder, TArray<UActorComponent*>& Components)
 {
+	Components.Empty();
+
 	for (const FBlueprintComponentReference& Reference : References)
 	{
-		UActorComponent* Component = nullptr;
-		if (!Reference.IsNull())
-		{
-			Component = Reference.GetComponent(Actor);
-		}
-		if (IsValid(Component) && (!Class || Component->IsA(Class)))
+		UActorComponent* Component = Reference.GetComponent(Actor);
+		Component = (!Class || Component->IsA(Class)) ? Component : nullptr;
+		if (IsValid(Component) || bPreserveOrder)
 		{
 			Components.Add(Component);
 		}

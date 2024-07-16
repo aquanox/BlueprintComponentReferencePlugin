@@ -56,10 +56,11 @@ public:
 	 *
 	 * @param References
 	 * @param Actor
+	 * @param bPreserveOrder
 	 * @param Components
 	 */
 	UFUNCTION(BlueprintCallable, Category="Utilities|ComponentReference", meta=( DefaultToSelf="Actor"))
-	static void ResolveComponentReferenceArray(const TArray<FBlueprintComponentReference>& References, AActor* Actor, TArray<UActorComponent*>& Components);
+	static void ResolveComponentReferenceArray(const TArray<FBlueprintComponentReference>& References, AActor* Actor, bool bPreserveOrder, TArray<UActorComponent*>& Components);
 
 	/**
 	 * Find component array of a specific type in specified actor.
@@ -67,10 +68,11 @@ public:
 	 * @param References
 	 * @param Actor
 	 * @param Class
+	 * @param bPreserveOrder
 	 * @param Components
 	 */
 	UFUNCTION(BlueprintCallable, Category="Utilities|ComponentReference", meta=(DefaultToSelf="Actor", DeterminesOutputType="Class", DynamicOutputParam="Components"))
-	static void ResolveComponentReferenceArrayOfType(const TArray<FBlueprintComponentReference>& References, AActor* Actor, TSubclassOf<UActorComponent> Class, TArray<UActorComponent*>& Components);
+	static void ResolveComponentReferenceArrayOfType(const TArray<FBlueprintComponentReference>& References, AActor* Actor, TSubclassOf<UActorComponent> Class, bool bPreserveOrder, TArray<UActorComponent*>& Components);
 
 	/**
 	 * Does the component reference has any value set
