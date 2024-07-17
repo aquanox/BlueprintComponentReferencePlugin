@@ -62,20 +62,18 @@ public:
 	/** Makes a new instance of this customization for a specific detail view requesting it */
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
 
-	/** IPropertyTypeCustomization interface */
 	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& PropertyTypeCustomizationUtils) override;
 	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> InPropertyHandle, IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& PropertyTypeCustomizationUtils) override;
 
 private:
-	/* Build a simple debug context for the property */
+	/** Build a simple debug context for the property */
 	FString GetLoggingContextString() const;
 
 	/** Build the combobox widget. */
 	void BuildComboBox();
 
 	/**
-	 * From the Detail panel outer hierarchy, find the first actor or component owner we find.
-	 * This is use in case we want only component on the Self actor and to check if we did a cross-level reference.
+	 * From suitable actor to collect datafrom.
 	 */
 	void DetermineOuterActor();
 
@@ -91,7 +89,6 @@ private:
 	/** Callback when the property value changed. */
 	void OnPropertyValueChanged(FName Source);
 
-	/** */
 	bool IsComponentReferenceValid(const FBlueprintComponentReference& Value) const;
 
 	bool CanEdit() const;
@@ -102,51 +99,31 @@ private:
 	FText OnGetComponentTooltip() const;
 	const FSlateBrush* GetStatusIcon() const;
 
-	/**
-	 * Get the content to be displayed in the picker menu
-	 */
 	TSharedRef<SWidget> OnGetMenuContent();
-	/**
-	 * Called when the menu is closed, we handle this to force the destruction of the menu
-	 */
 	void OnMenuOpenChanged(bool bOpen);
 
-	/**
-	 *
-	 */
 	void OnClear();
-
-	/**
-	 *
-	 */
 	void OnNavigateComponent();
-
-	/**
-	 * Delegate for handling selection in the scene outliner.
-	 */
 	void OnComponentSelected(TSharedRef<FComponentInfo> Node);
 
-	/**
-	 * Closes the combo button.
-	 */
 	void CloseComboButton();
 
 private:
 	/** The property handle we are customizing */
 	TSharedPtr<IPropertyHandle> PropertyHandle;
-	/* Cached hierarchy utilities */
+	/** Cached hierarchy utilities */
 	TSharedPtr<FBlueprintComponentReferenceHelper> ClassHelper;
 
 	/** Main combo button */
 	TSharedPtr<SComboButton> ComponentComboButton;
 
-	/** */
+	/** Container with customization view settings */
 	FBlueprintComponentReferenceViewSettings Settings;
 
-	/* component picker helper */
+	/** component picker helper */
 	TSharedPtr<FComponentPickerContext>	ComponentPickerContext;
-	/* currently selected node*/
+	/** currently selected node */
 	TWeakPtr<FComponentInfo> CachedComponentNode;
-	/* last call property access state */
+	/** last call property access state */
 	FPropertyAccess::Result CachedPropertyAccess = FPropertyAccess::Result::Fail;
 };
