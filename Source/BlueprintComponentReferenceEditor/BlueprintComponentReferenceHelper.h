@@ -48,7 +48,7 @@ protected:
 	TWeakObjectPtr<USCS_Node> SCSNode;
 	bool bIsInherited = false;
 public:
-	explicit FComponentInfo_Default(class USCS_Node* InSCSNode, bool bInIsInherited = false);
+	explicit FComponentInfo_Default(USCS_Node* InSCSNode, bool bInIsInherited = false);
 	explicit FComponentInfo_Default(UActorComponent* Component, bool bInIsInherited = false);
 
 	virtual bool IsNativeComponent() const override;

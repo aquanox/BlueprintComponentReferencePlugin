@@ -8,11 +8,14 @@
 
 class FOutputDevice;
 
+UDELEGATE()
+DECLARE_DYNAMIC_DELEGATE_RetVal_OneParam(bool, FBlueprintComponentFilter, UActorComponent*, Component);
+
 /**
  * Defines method which ComponentReference resolves the component from actor
  */
 UENUM()
-enum class EBlueprintComponentReferenceMode
+enum class EBlueprintComponentReferenceMode : uint8
 {
 	/**
 	 * Undefined referencing mode
@@ -73,8 +76,10 @@ enum class EBlueprintComponentReferenceMode
  *		Should include instanced components that have no variable bound to?
  *		Default: false
  *
+ * HasNativeMake="/Script/BlueprintComponentReference.BlueprintComponentReferenceUtils.MakeLiteralComponentReference"
+ * HasNativeBreak="/Script/BlueprintComponentReference.BlueprintComponentReferenceUtils.BreakLiteralComponentReference"
  */
-USTRUCT(BlueprintType)
+USTRUCT(BlueprintType, meta=(DisableSplitPin))
 struct BLUEPRINTCOMPONENTREFERENCE_API FBlueprintComponentReference
 {
 	GENERATED_BODY()
@@ -117,6 +122,13 @@ public:
 	EBlueprintComponentReferenceMode GetMode() const
 	{
 		return Mode;
+	}
+	/**
+	 * Get current component value
+	 */
+	const FName& GetValue() const
+	{
+		return Value;
 	}
 
 	/**
@@ -168,12 +180,15 @@ public:
 	}
 
 protected:
-	friend class FBlueprintComponentReferenceCustomization;
 	friend class FBlueprintComponentReferenceHelper;
-
+	/**
+	 *
+	 */
 	UPROPERTY(EditAnywhere, Category=Component)
 	EBlueprintComponentReferenceMode Mode;
-
+	/**
+	 *
+	 */
 	UPROPERTY(EditAnywhere, Category=Component)
 	FName Value;
 };

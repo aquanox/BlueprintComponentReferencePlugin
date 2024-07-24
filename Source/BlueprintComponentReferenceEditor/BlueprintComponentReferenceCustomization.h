@@ -47,6 +47,9 @@ struct FBlueprintComponentReferenceViewSettings // : public FBlueprintComponentR
 	/** Interfaces that must be implemented to be eligible for this property */
 	//TArray<TWeakObjectPtr<UClass>> RequiredInterfaces;
 
+	/** */
+	//FName ComponentFilter;
+
 	void Reset();
 
 	bool TestNode(const TSharedPtr<FComponentInfo>& Node) const;
@@ -73,9 +76,9 @@ private:
 	void BuildComboBox();
 
 	/**
-	 * From suitable actor to collect datafrom.
+	 * Determine the context the customization is used in
 	 */
-	void DetermineOuterActor();
+	void DetermineContext();
 
 	/**
 	 * Set the value of the asset referenced by this property editor.

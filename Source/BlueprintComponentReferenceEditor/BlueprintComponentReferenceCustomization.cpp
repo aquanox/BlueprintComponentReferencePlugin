@@ -212,7 +212,7 @@ void FBlueprintComponentReferenceCustomization::BuildComboBox()
 		];
 }
 
-void FBlueprintComponentReferenceCustomization::DetermineOuterActor()
+void FBlueprintComponentReferenceCustomization::DetermineContext()
 {
 	AActor* OuterActor = nullptr;
 	UClass* OuterActorClass = nullptr;
@@ -226,7 +226,7 @@ void FBlueprintComponentReferenceCustomization::DetermineOuterActor()
 	// - instance of ActorComponent
 	for (UObject* OuterObject : ObjectList)
 	{
-		while (::IsValid(OuterObject))
+		while (IsValid(OuterObject))
 		{
 			UE_LOG(LogComponentReferenceEditor, Log, TEXT("%s DetermineOuterActor: TestObject=%s"), *GetLoggingContextString(), *GetNameSafe(OuterActor));
 			if (AActor* Actor = Cast<AActor>(OuterObject))
@@ -390,7 +390,7 @@ void FBlueprintComponentReferenceCustomization::OnPropertyValueChanged(FName Sou
 	UE_LOG(LogComponentReferenceEditor, Log, TEXT("%s OnPropertyValueChanged"), *GetLoggingContextString());
 
 	CachedComponentNode.Reset();
-	DetermineOuterActor();
+	DetermineContext();
 
 	FBlueprintComponentReference TmpComponentReference;
 	CachedPropertyAccess = GetValue(TmpComponentReference);
