@@ -33,17 +33,17 @@ void FBlueprintComponentReference::SetValueFromString(const FString& InValue)
 
 	if (InValue.StartsWith(TEXT("path:"), ESearchCase::IgnoreCase))
 	{
-		Mode = EBlueprintComponentReferenceMode::ObjectPath;
+		Mode = EBlueprintComponentReferenceMode::Path;
 		Value = *InValue.RightChop(5);
 	}
 	else if (InValue.StartsWith(TEXT("var:"), ESearchCase::IgnoreCase))
 	{
-		Mode = EBlueprintComponentReferenceMode::VariableName;
+		Mode = EBlueprintComponentReferenceMode::Property;
 		Value = *InValue.RightChop(4);
 	}
 	else if (!InValue.IsEmpty())
 	{
-		Mode = EBlueprintComponentReferenceMode::VariableName;
+		Mode = EBlueprintComponentReferenceMode::Property;
 		Value = *InValue;
 	}
 }
@@ -55,11 +55,11 @@ FString FBlueprintComponentReference::GetValueString(bool bIncludeMode) const
 		FString Result;
 		switch(Mode)
 		{
-		case EBlueprintComponentReferenceMode::VariableName:
+		case EBlueprintComponentReferenceMode::Property:
 			Result.Append(TEXT("var:"));
 			Result.Append(Value.ToString());
 			break;
-		case EBlueprintComponentReferenceMode::ObjectPath:
+		case EBlueprintComponentReferenceMode::Path:
 			Result.Append(TEXT("path:"));
 			Result.Append(Value.ToString());
 			break;
@@ -76,7 +76,7 @@ FString FBlueprintComponentReference::GetValueString(bool bIncludeMode) const
 
 void FBlueprintComponentReference::Reset()
 {
-	Mode = EBlueprintComponentReferenceMode::VariableName;
+	Mode = EBlueprintComponentReferenceMode::Property;
 	Value = NAME_None;
 }
 
@@ -87,7 +87,7 @@ UActorComponent* FBlueprintComponentReference::GetComponent(AActor* SearchActor)
 	if(::IsValid(SearchActor) && !IsNull())
 	{
 		// Variation 1: property name
-		if(Mode == EBlueprintComponentReferenceMode::VariableName)
+		if(Mode == EBlueprintComponentReferenceMode::Property)
 		{
 			if(FObjectPropertyBase* ObjProp = FindFProperty<FObjectPropertyBase>(SearchActor->GetClass(), Value))
 			{
@@ -95,7 +95,7 @@ UActorComponent* FBlueprintComponentReference::GetComponent(AActor* SearchActor)
 			}
 		}
 		// Variation 2: subobject path
-		else if (Mode == EBlueprintComponentReferenceMode::ObjectPath)
+		else if (Mode == EBlueprintComponentReferenceMode::Path)
 		{
 			Result = FindObject<UActorComponent>(SearchActor, *Value.ToString());
 		}

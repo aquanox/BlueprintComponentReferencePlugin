@@ -184,7 +184,7 @@ USCS_Node* FComponentInfo::GetSCSNode() const
 
 EBlueprintComponentReferenceMode FComponentInfo::GetDesiredMode() const
 {
-	return !GetVariableName().IsNone() ? EBlueprintComponentReferenceMode::VariableName : EBlueprintComponentReferenceMode::ObjectPath;
+	return !GetVariableName().IsNone() ? EBlueprintComponentReferenceMode::Property : EBlueprintComponentReferenceMode::Path;
 }
 
 
@@ -323,9 +323,9 @@ USCS_Node* FBlueprintComponentReferenceHelper::FindSCSNodeForInstance(const UAct
 
 bool FBlueprintComponentReferenceHelper::DoesReferenceMatch(const FBlueprintComponentReference& InRef, const FComponentInfo& Value)
 {
-	if (InRef.Mode == EBlueprintComponentReferenceMode::ObjectPath)
+	if (InRef.Mode == EBlueprintComponentReferenceMode::Path)
 		return InRef.Value == Value.GetObjectName();
-	if (InRef.Mode == EBlueprintComponentReferenceMode::VariableName)
+	if (InRef.Mode == EBlueprintComponentReferenceMode::Property)
 		return InRef.Value == Value.GetVariableName();
 	return false;
 }

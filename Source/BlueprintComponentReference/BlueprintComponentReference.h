@@ -22,13 +22,13 @@ enum class EBlueprintComponentReferenceMode : uint8
 	 */
 	None UMETA(Hidden),
 	/**
-	 * Referencing via FProperty
+	 * Referencing via property
 	 */
-	VariableName UMETA(DisplayName="Variable"),
+	Property UMETA(DisplayName="Property Name"),
 	/**
-	 * Referencing via subobject path
+	 * Referencing via object path
 	 */
-	ObjectPath UMETA(DisplayName="Object Path"),
+	Path UMETA(DisplayName="Object Path"),
 };
 
 /**

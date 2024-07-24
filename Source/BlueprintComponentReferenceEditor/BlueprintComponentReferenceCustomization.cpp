@@ -623,13 +623,13 @@ void FBlueprintComponentReferenceCustomization::OnComponentSelected(TSharedRef<F
 
 	FBlueprintComponentReference Result;
 
-	if (Node->GetDesiredMode() == EBlueprintComponentReferenceMode::VariableName)
+	if (Node->GetDesiredMode() == EBlueprintComponentReferenceMode::Property)
 	{
-		Result = FBlueprintComponentReference(EBlueprintComponentReferenceMode::VariableName, Node->GetVariableName());
+		Result = FBlueprintComponentReference(EBlueprintComponentReferenceMode::Property, Node->GetVariableName());
 	}
 	else
 	{
-		Result = FBlueprintComponentReference(EBlueprintComponentReferenceMode::ObjectPath, Node->GetObjectName());
+		Result = FBlueprintComponentReference(EBlueprintComponentReferenceMode::Path, Node->GetObjectName());
 	}
 
 	SetValue(Result);
@@ -651,11 +651,11 @@ bool FBlueprintComponentReferenceViewSettings::TestNode(const TSharedPtr<FCompon
 		return false;
 
 	const EBlueprintComponentReferenceMode Mode = Node->GetDesiredMode();
-	if (Mode == EBlueprintComponentReferenceMode::ObjectPath)
+	if (Mode == EBlueprintComponentReferenceMode::Path)
 	{
 		return bShowPathOnly;
 	}
-	if (Mode == EBlueprintComponentReferenceMode::VariableName)
+	if (Mode == EBlueprintComponentReferenceMode::Property)
 	{
 		if (Node->IsInstancedComponent() && bShowInstanced)
 			return true;
