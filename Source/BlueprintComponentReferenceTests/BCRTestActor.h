@@ -50,6 +50,11 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Components)
 	TObjectPtr<UActorComponent> LevelZeroInstanced;
 
+	TWeakObjectPtr<USceneComponent> LevelOneConstructNP;
+	TWeakObjectPtr<UActorComponent> LevelZeroConstructNP;
+
+	TWeakObjectPtr<USceneComponent> LevelOneInstancedNP;
+	TWeakObjectPtr<UActorComponent> LevelZeroInstancedNP;
 
 protected:
 

@@ -41,6 +41,11 @@ void FBlueprintComponentReference::SetValueFromString(const FString& InValue)
 		Mode = EBlueprintComponentReferenceMode::Property;
 		Value = *InValue.RightChop(4);
 	}
+	else if (InValue.StartsWith(TEXT("prop:"), ESearchCase::IgnoreCase))
+	{
+		Mode = EBlueprintComponentReferenceMode::Property;
+		Value = *InValue.RightChop(5);
+	}
 	else if (!InValue.IsEmpty())
 	{
 		Mode = EBlueprintComponentReferenceMode::Property;
@@ -80,11 +85,11 @@ void FBlueprintComponentReference::Reset()
 	Value = NAME_None;
 }
 
-UActorComponent* FBlueprintComponentReference::GetComponent(AActor* SearchActor) const
+UActorComponent* FBlueprintComponentReference::GetComponent(AActor* SearchActor, bool bFallbackToRoot) const
 {
 	UActorComponent* Result = nullptr;
 
-	if(::IsValid(SearchActor) && !IsNull())
+	if(IsValid(SearchActor))
 	{
 		// Variation 1: property name
 		if(Mode == EBlueprintComponentReferenceMode::Property)
@@ -99,7 +104,8 @@ UActorComponent* FBlueprintComponentReference::GetComponent(AActor* SearchActor)
 		{
 			Result = FindObject<UActorComponent>(SearchActor, *Value.ToString());
 		}
-		else
+		// Fallback compatibility mode with engine references
+		if (!Result && bFallbackToRoot)
 		{
 			Result = SearchActor->GetRootComponent();
 		}

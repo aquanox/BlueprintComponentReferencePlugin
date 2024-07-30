@@ -41,16 +41,16 @@ void ABCRTestActor::OnConstruction(const FTransform& Transform)
 	LevelZeroConstruct->RegisterComponent();
 	AddInstanceComponent(LevelZeroConstruct);
 
-	// instanced components without property
+	// instanced components without uproperty (weak ptr just to debug)
 
-	auto LevelOneConstructNP = NewObject<UBCRTestSceneComponent>(this, "LevelOneConstructNPName");
+	LevelOneConstructNP = NewObject<UBCRTestSceneComponent>(this, "LevelOneConstructNPName");
 	LevelOneConstructNP->SetupAttachment(LevelOne);
 	LevelOneConstructNP->RegisterComponent();
-	AddInstanceComponent(LevelOneConstructNP);
+	AddInstanceComponent(LevelOneConstructNP.Get());
 
-	auto LevelZeroConstructNP = NewObject<UBCRTestActorComponent>(this, "LevelZeroConstructNPName");
+	LevelZeroConstructNP = NewObject<UBCRTestActorComponent>(this, "LevelZeroConstructNPName");
 	LevelZeroConstructNP->RegisterComponent();
-	AddInstanceComponent(LevelZeroConstructNP);
+	AddInstanceComponent(LevelZeroConstructNP.Get());
 }
 
 void ABCRTestActor::BeginPlay()
@@ -70,14 +70,14 @@ void ABCRTestActor::BeginPlay()
 
 	// instanced components without prop
 
-	auto LevelOneInstancedNP = NewObject<UBCRTestSceneComponent>(this, "LevelOneInstancedNPName");
+	LevelOneInstancedNP = NewObject<UBCRTestSceneComponent>(this, "LevelOneInstancedNPName");
 	LevelOneInstancedNP->SetupAttachment(LevelOne);
 	LevelOneInstancedNP->RegisterComponent();
-	AddInstanceComponent(LevelOneInstancedNP);
+	AddInstanceComponent(LevelOneInstancedNP.Get());
 
-	auto LevelZeroInstancedNP = NewObject<UBCRTestActorComponent>(this, "LevelZeroInstancedNPName");
+	LevelZeroInstancedNP = NewObject<UBCRTestActorComponent>(this, "LevelZeroInstancedNPName");
 	LevelZeroInstancedNP->RegisterComponent();
-	AddInstanceComponent(LevelZeroInstancedNP);
+	AddInstanceComponent(LevelZeroInstancedNP.Get());
 }
 
 void ABCRTestActor::DumpComponents()
