@@ -10,8 +10,8 @@
 /**
  * Various helper functions to interact with blueprint components
  */
-UCLASS(MinimalAPI)
-class UBlueprintComponentReferenceLibrary : public UBlueprintFunctionLibrary
+UCLASS()
+class BLUEPRINTCOMPONENTREFERENCE_API UBlueprintComponentReferenceLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 public:
@@ -44,10 +44,10 @@ public:
 	 * @param References References to resolve
 	 * @param Actor Target actor
 	 * @param Components Resolved components
-	 * @param bAllowNull Allow adding nulls if resolve failed
+	 * @param bKeepNulls Allow adding nulls if resolve failed
 	 */
 	UFUNCTION(BlueprintCallable, Category="Utilities|ComponentReference", meta=( DefaultToSelf="Actor", bAllowNull = false))
-	static void GetReferencedComponents(const TArray<FBlueprintComponentReference>& References, AActor* Actor, bool bAllowNull, TArray<UActorComponent*>& Components);
+	static void GetReferencedComponents(const TArray<FBlueprintComponentReference>& References, AActor* Actor, bool bKeepNulls, TArray<UActorComponent*>& Components);
 
 	/**
 	 * Resolve array of component references in specific actor
@@ -56,10 +56,10 @@ public:
 	 * @param Actor Target actor
 	 * @param Class Expected component class
 	 * @param Components Resolved components
-	 * @param bAllowNull Allow adding nulls if resolve failed
+	 * @param bKeepNulls Allow adding nulls if resolve failed
 	 */
 	UFUNCTION(BlueprintCallable, Category="Utilities|ComponentReference", meta=(DefaultToSelf="Actor", bAllowNull = false, DeterminesOutputType="Class", DynamicOutputParam="Components"))
-	static void GetReferencedComponentsOfType(const TArray<FBlueprintComponentReference>& References, AActor* Actor, TSubclassOf<UActorComponent> Class, bool bAllowNull, TArray<UActorComponent*>& Components);
+	static void GetReferencedComponentsOfType(const TArray<FBlueprintComponentReference>& References, AActor* Actor, TSubclassOf<UActorComponent> Class, bool bKeepNulls, TArray<UActorComponent*>& Components);
 
 	/**
 	 * Does the component reference has any value set

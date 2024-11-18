@@ -9,26 +9,31 @@
 #include "Misc/CoreDelegates.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/UObjectIterator.h"
+#include "UObject/PropertyOptional.h"
 #include "Misc/EngineVersionComparison.h"
-
-DEFINE_LOG_CATEGORY(LogComponentReferenceEditor);
 
 #define LOCTEXT_NAMESPACE "BlueprintComponentReference"
 
-#if UE_VERSION_OLDER_THAN(5,4,0)
-inline static FName GetFNameSafe(const UObject* InField)
+static FBlueprintComponentReferenceHelper::FInstanceKey MakeInstanceKey(const AActor* InActor)
 {
-	if (IsValid(InField))
-	{
-		return InField->GetFName();
-	}
-	return NAME_None;
+	return FBlueprintComponentReferenceHelper::FInstanceKey {
+		GetFNameSafe(InActor->GetWorld()),
+		GetFNameSafe(InActor),
+		GetFNameSafe(InActor->GetClass())
+	};
 }
-#endif
+	
+static FBlueprintComponentReferenceHelper::FClassKey MakeClassKey(const UClass* InClass)
+{
+	return FBlueprintComponentReferenceHelper::FClassKey {
+		GetFNameSafe(InClass->GetOuter()) ,
+		GetFNameSafe(InClass)
+	};
+}
 
 inline static FString BuildComponentInfo(const UActorComponent* Obj)
 {
-	FStringBuilderBase Base;
+	TStringBuilder<64> Base;
 	Base.Appendf(TEXT("%p:%s"), Obj, *Obj->GetName());
 	Base.Appendf(TEXT(" Flags=%d"), Obj->GetFlags());
 	Base.Appendf(TEXT(" Method=%s"), *StaticEnum<EComponentCreationMethod>()->GetNameStringByValue((int64)Obj->CreationMethod));
@@ -42,6 +47,8 @@ UActorComponent* FComponentInfo::GetComponentTemplate() const
 
 UClass* FComponentInfo::GetComponentClass() const
 {
+	if (ObjectClass.IsValid())
+		return ObjectClass.Get();
 	return Object.IsValid() ? Object->GetClass() : nullptr;
 }
 
@@ -138,7 +145,7 @@ FText FComponentInfo::GetDisplayText() const
 		FString UnnamedString = LOCTEXT("UnnamedToolTip", "Unnamed").ToString();
 		FString NativeString = IsNativeComponent() ? LOCTEXT("NativeToolTip", "Native ").ToString() : TEXT("");
 
-		if (ComponentTemplate != NULL)
+		if (ComponentTemplate != nullptr)
 		{
 			Value = FString::Printf(TEXT("[%s %s%s]"), *UnnamedString, *NativeString, *ComponentTemplate->GetClass()->GetName());
 		}
@@ -191,11 +198,13 @@ EBlueprintComponentReferenceMode FComponentInfo::GetDesiredMode() const
 FComponentInfo_Default::FComponentInfo_Default(USCS_Node* SCSNode, bool bInIsInherited) : SCSNode(SCSNode)
 {
 	Object = SCSNode->ComponentTemplate;
+	ObjectClass = SCSNode->ComponentClass;
 }
 
 FComponentInfo_Default::FComponentInfo_Default(UActorComponent* Component, bool bInherited)
 {
 	Object = Component;
+	ObjectClass = Component ? Component->GetClass() : nullptr;
 
 	AActor* Owner = Component->GetOwner();
 	if (Owner != nullptr)
@@ -364,43 +373,31 @@ TSharedPtr<FComponentInfo> FComponentPickerContext::FindComponent(const FName& I
 
 FBlueprintComponentReferenceHelper::FBlueprintComponentReferenceHelper()
 {
-	OnReloadCompleteDelegateHandle = FCoreUObjectDelegates::ReloadCompleteDelegate.AddRaw(this, &FBlueprintComponentReferenceHelper::OnReloadComplete);
-	OnReloadReinstancingCompleteDelegateHandle = FCoreUObjectDelegates::ReloadReinstancingCompleteDelegate.AddRaw(this, &FBlueprintComponentReferenceHelper::OnReinstancingComplete);
-	OnModulesChangedDelegateHandle = FModuleManager::Get().OnModulesChanged().AddRaw(this, &FBlueprintComponentReferenceHelper::OnModulesChanged);
-}
-
-FBlueprintComponentReferenceHelper::~FBlueprintComponentReferenceHelper()
-{
-	InstanceCache.Empty();
-	ClassCache.Empty();
-
-	FCoreUObjectDelegates::ReloadCompleteDelegate.Remove(OnReloadCompleteDelegateHandle);
-	FCoreUObjectDelegates::ReloadReinstancingCompleteDelegate.Remove(OnReloadReinstancingCompleteDelegateHandle);
-	FModuleManager::Get().OnModulesChanged().Remove(OnModulesChangedDelegateHandle);
 }
 
 bool FBlueprintComponentReferenceHelper::IsComponentReferenceProperty(const FProperty* InProperty)
 {
 	bool bDoesMatch = false;
 
-	// todo: handle sets? but implementing GetTypeHash that will allow using BCR as map key
 	if (auto AsStruct = CastField<FStructProperty>(InProperty))
 	{
 		bDoesMatch = IsComponentReferenceType(AsStruct->Struct);
 	}
+	//else if (auto AsOptional = CastField<FOptionalProperty>(InProperty))
+	//{
+	//	bDoesMatch = IsComponentReferenceProperty(AsOptional->GetValueProperty());
+	//}
 	else if (auto AsArray = CastField<FArrayProperty>(InProperty))
 	{
-		if (auto Inner = CastField<FStructProperty>(AsArray->Inner))
-		{
-			bDoesMatch = IsComponentReferenceType(Inner->Struct);
-		}
+		bDoesMatch = IsComponentReferenceProperty(AsArray->Inner);
+	}
+	else if (auto AsSet = CastField<FSetProperty>(InProperty))
+	{
+		bDoesMatch = IsComponentReferenceProperty(AsSet->ElementProp);
 	}
 	else if (auto AsMap = CastField<FMapProperty>(InProperty))
 	{
-		if (auto Inner = CastField<FStructProperty>(AsMap->ValueProp))
-		{
-			bDoesMatch = IsComponentReferenceType(Inner->Struct);
-		}
+		bDoesMatch = IsComponentReferenceProperty(AsMap->ValueProp);
 	}
 
 	return bDoesMatch;
@@ -439,7 +436,7 @@ TSharedPtr<FComponentPickerContext> FBlueprintComponentReferenceHelper::CreateCh
 		TArray<UClass*, TInlineAllocator<16>> Classes;
 		GetHierarchyFromClass(Ctx->Class.Get(), Classes);
 
-		for (auto* Class : Classes)
+		for (UClass* Class : Classes)
 		{
 			if (auto ClassData = GetOrCreateClassData(InLabel, Class))
 			{
@@ -499,7 +496,7 @@ void FBlueprintComponentReferenceHelper::CleanupStaleData(bool bForce)
 
 TSharedPtr<FHierarchyInfo> FBlueprintComponentReferenceHelper::GetOrCreateInstanceData(FString const& InLabel, AActor* InActor)
 {
-	const FInstanceKey EntryKey { GetFNameSafe(InActor->GetWorld()), GetFNameSafe(InActor), GetFNameSafe(InActor->GetClass())  };
+	const FInstanceKey EntryKey = MakeInstanceKey(InActor);
 
 	TSharedPtr<FHierarchyInstanceInfo>  Entry;
 
@@ -535,7 +532,7 @@ TSharedPtr<FHierarchyInfo> FBlueprintComponentReferenceHelper::GetOrCreateInstan
 
 TSharedPtr<FHierarchyInfo> FBlueprintComponentReferenceHelper::GetOrCreateClassData(FString const& InLabel, UClass* InClass)
 {
-	const FClassKey EntryKey { GetFNameSafe(InClass->GetOuter()) , GetFNameSafe(InClass) };
+	const FClassKey EntryKey = MakeClassKey(InClass);
 
 	TSharedPtr<FHierarchyClassInfo>  Entry;
 
@@ -552,13 +549,13 @@ TSharedPtr<FHierarchyInfo> FBlueprintComponentReferenceHelper::GetOrCreateClassD
 		/**
 		 * If we looking a blueprint - skim its construction script for components
 		 */
-		if (auto BPClass = Entry->GetClass<UBlueprintGeneratedClass>())
+		if (auto* BPClass = Entry->GetClass<UBlueprintGeneratedClass>())
 		{
 			Entry->bIsBlueprint = true;
 
 			if (auto Blueprint = Cast<UBlueprint>(BPClass->ClassGeneratedBy))
 			{
-				Entry->CompileDelegateHandle = Blueprint->OnCompiled().AddRaw(this, &FBlueprintComponentReferenceHelper::OnBlueprintCompiled, Entry);
+				Entry->CompileDelegateHandle = Blueprint->OnCompiled().AddSP(this, &FBlueprintComponentReferenceHelper::OnBlueprintCompiled, Entry);
 			}
 
 			for(USCS_Node* SCSNode : BPClass->SimpleConstructionScript->GetAllNodes())
@@ -572,7 +569,7 @@ TSharedPtr<FHierarchyInfo> FBlueprintComponentReferenceHelper::GetOrCreateClassD
 		/**
 		 * If we looking a native class - look in default subobjects
 		 */
-		else if (auto NtClass = Entry->GetClass<UClass>())
+		else if (auto* NtClass = Entry->GetClass<UClass>())
 		{
 			TInlineComponentArray<UActorComponent*> Components;
 			NtClass->GetDefaultObject<AActor>()->GetComponents(Components);
@@ -589,7 +586,6 @@ TSharedPtr<FHierarchyInfo> FBlueprintComponentReferenceHelper::GetOrCreateClassD
 
 	return Entry;
 }
-
 
 TSharedPtr<FComponentInfo> FBlueprintComponentReferenceHelper::CreateFromNode(USCS_Node* InComponentNode)
 {
@@ -612,165 +608,17 @@ TSharedPtr<FComponentInfo> FBlueprintComponentReferenceHelper::CreateFromInstanc
 
 bool FBlueprintComponentReferenceHelper::IsBlueprintProperty(const FProperty* VariableProperty)
 {
-	if(UClass* const VarSourceClass = VariableProperty ? VariableProperty->GetOwner<UClass>() : NULL)
+	if(UClass* const VarSourceClass = VariableProperty ? VariableProperty->GetOwner<UClass>() : nullptr)
 	{
-		return (VarSourceClass->ClassGeneratedBy != NULL);
+		return (VarSourceClass->ClassGeneratedBy != nullptr);
 	}
 	return false;
 }
 
-bool FBlueprintComponentReferenceHelper::HasMetaDataValue(const FProperty* Property, const FName& InName)
-{
-	return Property->HasMetaData(InName);
-}
-
-TOptional<bool> FBlueprintComponentReferenceHelper::GetBoolMetaDataOptional(const FProperty* Property, const FName& InName)
-{
-	if (Property->HasMetaData(InName))
-	{
-		bool bResult = true;
-
-		const FString& ValueString = Property->GetMetaData(InName);
-		if (!ValueString.IsEmpty())
-		{
-			if (ValueString == TEXT("true"))
-			{
-				bResult = true;
-			}
-			else if (ValueString == TEXT("false"))
-			{
-				bResult = false;
-			}
-		}
-
-		return TOptional<bool>(bResult);
-	}
-
-	return TOptional<bool>();
-}
-
-bool FBlueprintComponentReferenceHelper::GetBoolMetaDataValue(const FProperty* Property, const FName& InName, bool bDefaultValue)
-{
-	bool bResult = bDefaultValue;
-
-	if (Property->HasMetaData(InName))
-	{
-		bResult = true;
-
-		const FString& ValueString = Property->GetMetaData(InName);
-		if (!ValueString.IsEmpty())
-		{
-			if (ValueString == TEXT("true"))
-			{
-				bResult = true;
-			}
-			else if (ValueString == TEXT("false"))
-			{
-				bResult = false;
-			}
-		}
-	}
-
-	return bResult;
-}
-
-void FBlueprintComponentReferenceHelper::SetBoolMetaDataValue(FProperty* Property, const FName& InName, TOptional<bool> Value)
-{
-	if (Value.IsSet())
-	{
-		Property->SetMetaData(InName, Value.GetValue() ? TEXT("true") : TEXT("false"));
-	}
-	else
-	{
-		Property->RemoveMetaData(InName);
-	}
-
-	if (UObject* ParamOwner = Property->GetOwnerUObject())
-	{
-		ParamOwner->Modify();
-	}
-}
-
-void FBlueprintComponentReferenceHelper::GetClassListMetadata(const FProperty* Property, const FName& InName, const TFunctionRef<void(UClass*)>& Func)
-{
-	const FString& MetaDataString = Property->GetMetaData(InName);
-	if (MetaDataString.IsEmpty())
-	{
-		return;
-	}
-
-	TArray<FString> ClassFilterNames;
-	MetaDataString.ParseIntoArrayWS(ClassFilterNames, TEXT(","), true);
-
-	for (const FString& ClassName : ClassFilterNames)
-	{
-		if (UClass* Class = FBlueprintComponentReferenceHelper::FindClassByName(ClassName))
-		{
-			// If the class is an interface, expand it to be all classes in memory that implement the class.
-			if (Class->HasAnyClassFlags(CLASS_Interface))
-			{
-				for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
-				{
-					UClass* const ClassWithInterface = (*ClassIt);
-					if (ClassWithInterface->IsChildOf(UActorComponent::StaticClass()) && ClassWithInterface->ImplementsInterface(Class))
-					{
-						Func(ClassWithInterface);
-					}
-				}
-			}
-			else if (Class->IsChildOf(UActorComponent::StaticClass()))
-			{
-				Func(Class);
-			}
-		}
-	}
-}
-
-void FBlueprintComponentReferenceHelper::SetClassListMetadata(FProperty* Property, const FName& InName, const TFunctionRef<void(TArray<FString>&)>& PathSource)
-{
-	TArray<FString> Result;
-	PathSource(Result);
-
-	FString Complete = FString::Join(Result, TEXT(","));
-	if (Complete.IsEmpty())
-	{
-		Property->RemoveMetaData(InName);
-	}
-	else
-	{
-		Property->SetMetaData(InName, MoveTemp(Complete));
-	}
-
-	if (UObject* ParamOwner = Property->GetOwnerUObject())
-	{
-		ParamOwner->Modify();
-	}
-}
-
-void FBlueprintComponentReferenceHelper::OnReloadComplete(EReloadCompleteReason ReloadCompleteReason)
-{
-	UE_LOG(LogComponentReferenceEditor, Log, TEXT("OnReloadComplete"));
-}
-
-void FBlueprintComponentReferenceHelper::OnReinstancingComplete()
-{
-	UE_LOG(LogComponentReferenceEditor, Log, TEXT("OnReinstancingComplete"));
-}
-
-void FBlueprintComponentReferenceHelper::OnModulesChanged(FName Name, EModuleChangeReason ModuleChangeReason)
-{
-	UE_LOG(LogComponentReferenceEditor, Log, TEXT("OnModulesChanged"));
-}
-
-void FBlueprintComponentReferenceHelper::OnObjectReloaded(UObject* Object)
-{
-	UE_LOG(LogComponentReferenceEditor, Log, TEXT("OnObjectReloaded"));
-}
-
 void FBlueprintComponentReferenceHelper::OnBlueprintCompiled(UBlueprint* Blueprint, TSharedPtr<FHierarchyClassInfo> Entry)
 {
-	UE_LOG(LogComponentReferenceEditor, Log, TEXT("OnBlueprintCompiled"));
+	UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("OnBlueprintCompiled"));
+	CleanupStaleData(false);
 }
-
 
 #undef LOCTEXT_NAMESPACE

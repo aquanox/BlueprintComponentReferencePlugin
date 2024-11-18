@@ -7,10 +7,24 @@
 #include "BlueprintComponentReferenceLibrary.h"
 #include "BlueprintComponentReferenceMetadata.h"
 #include "Components/ActorComponent.h"
+#include "GameFramework/Actor.h"
+#include "Engine/World.h"
 #include "Engine/Blueprint.h"
 #include "Engine/SCS_Node.h"
 #include "Templates/TypeHash.h"
 #include "Misc/EngineVersionComparison.h"
+
+#if UE_VERSION_OLDER_THAN(5,4,0)
+inline static FName GetFNameSafe(const UObject* InField)
+{
+	if (IsValid(InField))
+	{
+		return InField->GetFName();
+	}
+	return NAME_None;
+}
+#endif
+
 
 /**
  * @see FSCSEditorTreeNodeComponentBase
@@ -19,6 +33,7 @@ struct FComponentInfo
 {
 protected:
 	TWeakObjectPtr<UActorComponent> Object;
+	TWeakObjectPtr<UClass>			ObjectClass;
 public:
 	FComponentInfo() = default;
 	virtual ~FComponentInfo() = default;
@@ -46,8 +61,8 @@ struct FComponentInfo_Default : public FComponentInfo
 private:
 	using Super = FComponentInfo;
 protected:
-	TWeakObjectPtr<USCS_Node> SCSNode;
-	bool bIsInherited = false;
+	TWeakObjectPtr<USCS_Node>	SCSNode;
+	bool						bIsInherited = false;
 public:
 	explicit FComponentInfo_Default(USCS_Node* InSCSNode, bool bInIsInherited = false);
 	explicit FComponentInfo_Default(UActorComponent* Component, bool bInIsInherited = false);
@@ -63,8 +78,8 @@ struct FComponentInfo_Instanced : public FComponentInfo
 private:
 	using Super = FComponentInfo;
 protected:
-	FName InstancedComponentName;
-	TWeakObjectPtr<AActor> InstancedComponentOwnerPtr;
+	FName					InstancedComponentName;
+	TWeakObjectPtr<AActor>	InstancedComponentOwnerPtr;
 public:
 	explicit FComponentInfo_Instanced(AActor* Owner, UActorComponent* Component);
 	virtual bool IsInstancedComponent() const override { return true; }
@@ -136,16 +151,15 @@ struct FComponentPickerContext
 };
 
 /**
+ * BCR customization manager.
  *
+ * Holds internal data about hierarchies and components.
+ *
+ * maybe merge back to module class?
  */
-class FBlueprintComponentReferenceHelper
+class FBlueprintComponentReferenceHelper : public TSharedFromThis<FBlueprintComponentReferenceHelper> 
 {
-protected:
-
-	FDelegateHandle OnReloadCompleteDelegateHandle;
-	FDelegateHandle OnReloadReinstancingCompleteDelegateHandle;
-	FDelegateHandle OnModulesChangedDelegateHandle;
-
+public:
 	float LastCacheCleanup = 0;
 
 	using FInstanceKey = TTuple<FName /* owner */, FName /* actor */, FName /* class */>;
@@ -154,18 +168,15 @@ protected:
 	using FClassKey = TTuple<FName /* outer */, FName /* class */>;
 	TMap<FClassKey, TSharedPtr<FHierarchyClassInfo>> ClassCache;
 
-public:
-
 	FBlueprintComponentReferenceHelper();
-	~FBlueprintComponentReferenceHelper();
-
+	
 	static bool IsComponentReferenceProperty(const FProperty* InProperty);
 	static bool IsComponentReferenceType(const UStruct* InStruct);
 
 	TSharedPtr<FComponentPickerContext> CreateChooserContext(AActor* InActor, UClass* InClass, const FString& InLabel);
 
-	void CleanupStaleData(bool bForce);
-
+	void CleanupStaleData(bool bForce = false);
+	
 	TSharedPtr<FHierarchyInfo> GetOrCreateInstanceData(FString const& InLabel, AActor* InActor);
 	TSharedPtr<FHierarchyInfo> GetOrCreateClassData(FString const& InLabel, UClass* InClass);
 
@@ -191,185 +202,6 @@ public:
 
 	static bool DoesReferenceMatch(const FBlueprintComponentReference& InRef, const FComponentInfo& Value);
 
-	template<typename T>
-	static void ResetSettings(T& Settings);
-	template<typename T>
-	static void LoadSettingsFromProperty(T& Settings, const FProperty* InProp);
-	template<typename T>
-	static void ApplySettingsToProperty(T& Settings, UBlueprint* InBlueprint, FProperty* InProperty, const FName& InChanged);
-
-	static bool HasMetaDataValue(const FProperty* Property, const FName& InName);
-	static TOptional<bool> GetBoolMetaDataOptional(const FProperty* Property, const FName& InName);
-	static bool GetBoolMetaDataValue(const FProperty* Property, const FName& InName, bool bDefaultValue);
-	static void SetBoolMetaDataValue(FProperty* Property, const FName& InName, TOptional<bool> Value);
-	static void GetClassListMetadata(const FProperty* Property, const FName& InName, const TFunctionRef<void(UClass*)>& Func);
-	static void SetClassListMetadata(FProperty* Property, const FName& InName, const TFunctionRef<void(TArray<FString>&)>& PathSource);
-
 private:
-
-	void OnReloadComplete(EReloadCompleteReason ReloadCompleteReason);
-	void OnReinstancingComplete();
-	void OnModulesChanged(FName Name, EModuleChangeReason ModuleChangeReason);
-	void OnObjectReloaded(UObject* Object);
 	void OnBlueprintCompiled(UBlueprint* Blueprint, TSharedPtr<FHierarchyClassInfo> Entry);
 };
-
-template <typename T>
-void FBlueprintComponentReferenceHelper::ResetSettings(T& Settings)
-{
-	static const FBlueprintComponentReferenceMetadata DefaultValues;
-
-	Settings.AllowedClasses.Empty();
-	Settings.DisallowedClasses.Empty();
-
-	Settings.bUsePicker = DefaultValues.bUsePicker;
-
-	Settings.bUseNavigate = DefaultValues.bUseNavigate;
-	Settings.bUseClear = DefaultValues.bUseClear;
-
-	Settings.bShowNative = DefaultValues.bShowNative;
-	Settings.bShowBlueprint = DefaultValues.bShowBlueprint;
-	Settings.bShowInstanced = DefaultValues.bShowInstanced;
-	Settings.bShowPathOnly = DefaultValues.bShowPathOnly;
-}
-
-template <typename T>
-void FBlueprintComponentReferenceHelper::LoadSettingsFromProperty(T& Settings, const FProperty* InProp)
-{
-	// picker
-	Settings.bUsePicker = !HasMetaDataValue(InProp, FCRMetadataKey::NoPicker);
-	// actions
-	Settings.bUseNavigate = !HasMetaDataValue(InProp, FCRMetadataKey::NoNavigate);
-	Settings.bUseClear = !(InProp->PropertyFlags & CPF_NoClear) && !HasMetaDataValue(InProp, FCRMetadataKey::NoClear);
-	// filters
-	Settings.bShowNative = GetBoolMetaDataValue(InProp, FCRMetadataKey::ShowNative, Settings.bShowNative);
-	Settings.bShowBlueprint = GetBoolMetaDataValue(InProp, FCRMetadataKey::ShowBlueprint, Settings.bShowBlueprint);
-	Settings.bShowInstanced = GetBoolMetaDataValue(InProp, FCRMetadataKey::ShowInstanced,  Settings.bShowInstanced);
-	Settings.bShowPathOnly = GetBoolMetaDataValue(InProp, FCRMetadataKey::ShowPathOnly,  Settings.bShowPathOnly);
-
-	GetClassListMetadata(InProp, FCRMetadataKey::AllowedClasses, [&](UClass* InClass)
-	{
-		Settings.AllowedClasses.AddUnique(InClass);
-	});
-
-	GetClassListMetadata(InProp, FCRMetadataKey::DisallowedClasses, [&](UClass* InClass)
-	{
-		Settings.DisallowedClasses.AddUnique(InClass);
-	});
-}
-
-template <typename T>
-void FBlueprintComponentReferenceHelper::ApplySettingsToProperty(T& Settings, UBlueprint* InBlueprint, FProperty* InProperty, const FName& InChanged)
-{
-	auto BoolToString = [](bool b)
-	{
-		return b ? TEXT("true") : TEXT("false");
-	};
-
-	auto ArrayToString = [](const TArray<TSoftClassPtr<UActorComponent>>& InArray)
-	{
-		TArray<FString> Paths;
-		for (auto& Class : InArray)
-		{
-			if (!Class.IsNull() && Class.IsValid())
-			{
-				Paths.AddUnique(Class->GetClassPathName().ToString());
-			}
-		}
-		return FString::Join(Paths, TEXT(","));
-	};
-
-	auto SetMetaData = [InProperty, InBlueprint](const FName& InName, const FString& InValue)
-	{
-		if (InProperty)
-		{
-			if (::IsValid(InBlueprint))
-			{
-				for (FBPVariableDescription& VariableDescription : InBlueprint->NewVariables)
-				{
-					if (VariableDescription.VarName == InProperty->GetFName())
-					{
-						if (!InValue.IsEmpty())
-						{
-							InProperty->SetMetaData(InName, *InValue);
-							VariableDescription.SetMetaData(InName, InValue);
-						}
-						else
-						{
-							InProperty->RemoveMetaData(InName);
-							VariableDescription.RemoveMetaData(InName);
-						}
-
-						InBlueprint->Modify();
-					}
-				}
-			}
-		}
-	};
-
-	auto SetMetaDataFlag = [InProperty, InBlueprint](const FName& InName, bool InValue)
-	{
-		if (InProperty)
-		{
-			if (::IsValid(InBlueprint))
-			{
-				for (FBPVariableDescription& VariableDescription : InBlueprint->NewVariables)
-				{
-					if (VariableDescription.VarName == InProperty->GetFName())
-					{
-						if (InValue)
-						{
-							InProperty->SetMetaData(InName, TEXT(""));
-							VariableDescription.SetMetaData(InName, TEXT(""));
-						}
-						else
-						{
-							InProperty->RemoveMetaData(InName);
-							VariableDescription.RemoveMetaData(InName);
-						}
-
-						InBlueprint->Modify();
-					}
-				}
-			}
-		}
-	};
-
-	if (InChanged.IsNone() || InChanged == GET_MEMBER_NAME_CHECKED(FBlueprintComponentReferenceMetadata, bUsePicker))
-	{
-		SetMetaDataFlag(FCRMetadataKey::NoPicker, !Settings.bUsePicker);
-	}
-	if (InChanged.IsNone() || InChanged == GET_MEMBER_NAME_CHECKED(FBlueprintComponentReferenceMetadata, bUseNavigate))
-	{
-		SetMetaDataFlag(FCRMetadataKey::NoNavigate, !Settings.bUseNavigate);
-	}
-	if (InChanged.IsNone() || InChanged == GET_MEMBER_NAME_CHECKED(FBlueprintComponentReferenceMetadata, bUseClear))
-	{
-		SetMetaDataFlag(FCRMetadataKey::NoClear, !Settings.bUseClear);
-	}
-
-	if (InChanged.IsNone() || InChanged == GET_MEMBER_NAME_CHECKED(FBlueprintComponentReferenceMetadata, bShowNative))
-	{
-		SetMetaData(FCRMetadataKey::ShowNative, BoolToString(Settings.bShowNative));
-	}
-	if (InChanged.IsNone() || InChanged == GET_MEMBER_NAME_CHECKED(FBlueprintComponentReferenceMetadata, bShowBlueprint))
-	{
-		SetMetaData(FCRMetadataKey::ShowBlueprint, BoolToString(Settings.bShowBlueprint));
-	}
-	if (InChanged.IsNone() || InChanged == GET_MEMBER_NAME_CHECKED(FBlueprintComponentReferenceMetadata, bShowInstanced))
-	{
-		SetMetaData(FCRMetadataKey::ShowInstanced, BoolToString(Settings.bShowInstanced));
-	}
-	if (InChanged.IsNone() || InChanged == GET_MEMBER_NAME_CHECKED(FBlueprintComponentReferenceMetadata, bShowPathOnly))
-	{
-		SetMetaData(FCRMetadataKey::ShowPathOnly, BoolToString(Settings.bShowPathOnly));
-	}
-	if (InChanged.IsNone() || InChanged == GET_MEMBER_NAME_CHECKED(FBlueprintComponentReferenceMetadata, AllowedClasses))
-	{
-		SetMetaData(FCRMetadataKey::AllowedClasses, ArrayToString(Settings.AllowedClasses));
-	}
-	if (InChanged.IsNone() || InChanged == GET_MEMBER_NAME_CHECKED(FBlueprintComponentReferenceMetadata, DisallowedClasses))
-	{
-		SetMetaData(FCRMetadataKey::DisallowedClasses, ArrayToString(Settings.DisallowedClasses));
-	}
-}

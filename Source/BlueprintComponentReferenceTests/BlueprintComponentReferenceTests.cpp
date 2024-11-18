@@ -39,7 +39,7 @@ struct FTestWorldScope
 };
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBlueprintComponentReferenceTests_Basic,
-	"BlueprintComponentReference.Basic", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter);
+	"BlueprintComponentReference.Core", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter | EAutomationTestFlags::HighPriority);
 
 bool FBlueprintComponentReferenceTests_Basic::RunTest(FString const&)
 {
@@ -62,8 +62,7 @@ bool FBlueprintComponentReferenceTests_Basic::RunTest(FString const&)
 		{
 			FBlueprintComponentReference Reference;
 			TestTrue("Empty.IsNull", Reference.IsNull());
-			TestEqual("Empty.IsEqual", Reference.ToString(), TEXT(""));
-			TestEqual("Empty.IsEqual2", Reference.ToString(), TEXT(""));
+			TestEqual("Empty.ToString", Reference.ToString(), TEXT(""));
 			TestTrue("Empty.GetComponent", Reference.GetComponent(TestActor, false) == nullptr);
 			TestTrue("Empty.GetComponent2", Reference.GetComponent(TestActor, true) == RootComponent);
 		}
@@ -72,12 +71,11 @@ bool FBlueprintComponentReferenceTests_Basic::RunTest(FString const&)
 			FBlueprintComponentReference Reference;
 			Reference.ParseString(TEXT("LevelOne"));
 
-			TestTrue("Basic.IsEqual", Reference == FBlueprintComponentReference(EBlueprintComponentReferenceMode::Property, "LevelOne"));
+			TestTrue("Basic.IsEqual1", Reference == FBlueprintComponentReference(EBlueprintComponentReferenceMode::Property, "LevelOne"));
 			TestTrue("Basic.IsEqual2", Reference == FBlueprintComponentReference(TEXT("property:LevelOne")));
 			TestTrue("Basic.IsEqual3", Reference != FBlueprintComponentReference(TEXT("LevelTwo")));
 			TestTrue("Basic.IsNull", !Reference.IsNull());
-			TestEqual("Basic.IsEqual", Reference.ToString(), TEXT("LevelOne"));
-			TestEqual("Basic.IsEqual2", Reference.ToString(), TEXT("property:LevelOne"));
+			TestEqual("Basic.ToString", Reference.ToString(), TEXT("property:LevelOne"));
 			TestTrue("Basic.GetComponent", Reference.GetComponent(TestActor, false) == LevelOneComponent);
 			TestTrue("Basic.GetComponent2", Reference.GetComponent(TestActor, true) == LevelOneComponent);
 		}
@@ -86,12 +84,11 @@ bool FBlueprintComponentReferenceTests_Basic::RunTest(FString const&)
 			FBlueprintComponentReference Reference;
 			Reference.ParseString(TEXT("property:Root"));
 
-			TestTrue("Full.IsEqual", Reference == FBlueprintComponentReference(EBlueprintComponentReferenceMode::Property, "Root"));
+			TestTrue("Full.IsEqual1", Reference == FBlueprintComponentReference(EBlueprintComponentReferenceMode::Property, "Root"));
 			TestTrue("Full.IsEqual2", Reference == FBlueprintComponentReference(TEXT("property:Root")));
 			TestTrue("Full.IsEqual3", Reference != FBlueprintComponentReference(TEXT("path:Root")));
 			TestTrue("Full.IsNull", !Reference.IsNull());
-			TestEqual("Full.IsEqual", Reference.ToString(), TEXT("Root"));
-			TestEqual("Full.IsEqual2", Reference.ToString(), TEXT("property:Root"));
+			TestEqual("Full.ToString", Reference.ToString(), TEXT("property:Root"));
 			TestTrue("Full.GetComponent", Reference.GetComponent(TestActor, false) == RootComponent);
 			TestTrue("Full.GetComponent2", Reference.GetComponent(TestActor, true) == RootComponent);
 		}
@@ -100,12 +97,11 @@ bool FBlueprintComponentReferenceTests_Basic::RunTest(FString const&)
 			FBlueprintComponentReference Reference;
 			Reference.ParseString(TEXT("path:LevelOneConstructNPName"));
 
-			TestTrue("Path.IsEqual", Reference == FBlueprintComponentReference(EBlueprintComponentReferenceMode::Path, "LevelOneConstructNPName"));
+			TestTrue("Path.IsEqual1", Reference == FBlueprintComponentReference(EBlueprintComponentReferenceMode::Path, "LevelOneConstructNPName"));
 			TestTrue("Path.IsEqual2", Reference != FBlueprintComponentReference(TEXT("LevelOneConstructNPName")));
 			TestTrue("Path.IsEqual3", Reference == FBlueprintComponentReference(TEXT("path:LevelOneConstructNPName")));
 			TestTrue("Path.IsNull", !Reference.IsNull());
-			TestEqual("Path.IsEqual", Reference.ToString(), TEXT("LevelOneConstructNPName"));
-			TestEqual("Path.IsEqual2", Reference.ToString(), TEXT("path:LevelOneConstructNPName"));
+			TestEqual("Path.ToString", Reference.ToString(), TEXT("path:LevelOneConstructNPName"));
 			TestTrue("Path.GetComponent", Reference.GetComponent(TestActor, false) == LevelOneConstructNPComponent);
 		}
 

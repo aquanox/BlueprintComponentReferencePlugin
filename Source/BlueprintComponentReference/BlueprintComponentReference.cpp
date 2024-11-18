@@ -89,7 +89,7 @@ UActorComponent* FBlueprintComponentReference::GetComponent(AActor* SearchActor,
 		// Variation 2: subobject path
 		else if (Mode == EBlueprintComponentReferenceMode::Path)
 		{
-			Result = FindObject<UActorComponent>(SearchActor, *Value.ToString());
+			Result = FindObjectFast<UActorComponent>(SearchActor, Value);
 		}
 		// Fallback compatibility mode with engine references
 		if (!Result && bFallbackToRoot)

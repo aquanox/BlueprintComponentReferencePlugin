@@ -3,6 +3,7 @@
 #pragma once
 
 #include "BlueprintComponentReferenceLibrary.h"
+#include "BlueprintComponentReferenceMetadata.h"
 #include "IDetailCustomization.h"
 #include "IDetailCustomNodeBuilder.h"
 
@@ -23,9 +24,6 @@ protected:
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
 
 	void OnPropertyChanged(FName InName);
-
-	void LoadSettingsFromProperty(const FProperty* InProp);
-	void ApplySettingsToProperty(FProperty* InProp, const FName& InChanged);
 
 private:
 	/** The blueprint editor instance */

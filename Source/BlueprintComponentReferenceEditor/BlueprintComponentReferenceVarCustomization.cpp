@@ -4,14 +4,12 @@
 
 #include "BlueprintComponentReferenceCustomization.h"
 #include "BlueprintComponentReferenceHelper.h"
-#include "BlueprintComponentReferenceLibrary.h"
+#include "BlueprintComponentReferenceEditor.h"
 #include "BlueprintEditorModule.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "ScopedTransaction.h"
-
-DEFINE_LOG_CATEGORY_STATIC(BCRVariableCustomization, Log, All);
 
 FBlueprintComponentReferenceVarCustomization::FBlueprintComponentReferenceVarCustomization(TSharedPtr<IBlueprintEditor> InBlueprintEditor, TWeakObjectPtr<UBlueprint> InBlueprintPtr)
 	: ScopedSettings(MakeShared<TStructOnScope<FBlueprintComponentReferenceMetadata>>())
@@ -52,6 +50,8 @@ TSharedPtr<IDetailCustomization> FBlueprintComponentReferenceVarCustomization::M
 void FBlueprintComponentReferenceVarCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 {
 	ScopedSettings->InitializeFrom(MakeStructOnScope<FBlueprintComponentReferenceMetadata>());
+	
+	FBlueprintComponentReferenceMetadata& Settings = *ScopedSettings->Get();
 
 	PropertiesBeingCustomized.Reset();
 
@@ -72,7 +72,7 @@ void FBlueprintComponentReferenceVarCustomization::CustomizeDetails(IDetailLayou
 
 		if (FBlueprintComponentReferenceHelper::IsComponentReferenceProperty(PropertyBeingCustomized))
 		{
-			LoadSettingsFromProperty(PropertyBeingCustomized);
+			Settings.LoadSettingsFromProperty(PropertyBeingCustomized);
 
 			PropertiesBeingCustomized.Emplace(PropertyBeingCustomized);
 		}
@@ -111,48 +111,15 @@ void FBlueprintComponentReferenceVarCustomization::CustomizeDetails(IDetailLayou
 
 void FBlueprintComponentReferenceVarCustomization::OnPropertyChanged(FName InName)
 {
-	UE_LOG(BCRVariableCustomization, Verbose, TEXT("OnPropertyChanged(%s)"), *InName.ToString());
+	FScopedTransaction Transaction(INVTEXT("ApplySettingsToProperty"));
 
-	for (auto& Property : PropertiesBeingCustomized)
+	FBlueprintComponentReferenceMetadata& Settings = *ScopedSettings->Get();
+	
+	for (const TWeakFieldPtr<FProperty>& Property : PropertiesBeingCustomized)
 	{
-		if (auto Local = Property.Get())
+		if (FProperty* Local = Property.Get())
 		{
-			ApplySettingsToProperty(Local, InName);
+			Settings.ApplySettingsToProperty(BlueprintPtr.Get(), Local, InName);
 		}
 	}
-}
-
-void FBlueprintComponentReferenceVarCustomization::LoadSettingsFromProperty(const FProperty* InProp)
-{
-	UE_LOG(BCRVariableCustomization, Verbose, TEXT("LoadSettingsFromProperty(%s)"), *InProp->GetFName().ToString());
-
-#ifdef MULTI
-	FBlueprintComponentReferenceMetadata Local;
-	FBlueprintComponentReferenceHelper::LoadSettingsFromProperty(Local, InProp);
-	// @todo: think on how to handle multiple different flags
-	FBlueprintComponentReferenceMetadata& Settings = *ScopedSettings->Get();
-	Settings.bUsePicker = Local.bUsePicker;
-	Settings.bUseNavigate = Local.bUseNavigate;
-	Settings.bUseClear = Local.bUseClear;
-	Settings.bShowNative = Local.bShowNative;
-	Settings.bShowBlueprint = Local.bShowBlueprint;
-	Settings.bShowInstanced = Local.bShowInstanced;
-	Settings.bShowPathOnly = Local.bShowPathOnly;
-	Settings.AllowedClasses.Append(Local.AllowedClasses);
-	Settings.DisallowedClasses.Append(Local.DisallowedClasses);
-#else
-	FBlueprintComponentReferenceMetadata& Settings = *ScopedSettings->Get();
-	FBlueprintComponentReferenceHelper::LoadSettingsFromProperty(Settings, InProp);
-#endif
-}
-
-void FBlueprintComponentReferenceVarCustomization::ApplySettingsToProperty(FProperty* Property, const FName& InChanged)
-{
-	UE_LOG(BCRVariableCustomization, Verbose, TEXT("ApplySettingsToProperty(%s)"), *Property->GetFName().ToString());
-
-	FScopedTransaction Transaction(FText::Format(INVTEXT("ApplySettingsToProperty [{0}]"), FText::FromName(Property->GetFName())));
-
-	FBlueprintComponentReferenceMetadata& Settings = *ScopedSettings->Get();
-
-	FBlueprintComponentReferenceHelper::ApplySettingsToProperty(Settings, BlueprintPtr.Get(), Property, InChanged);
 }

@@ -46,14 +46,14 @@ bool UBlueprintComponentReferenceLibrary::GetReferencedComponentOfType(const FBl
 	return ResolveComponentInternal(Reference, Actor, Class, Component);
 }
 
-void UBlueprintComponentReferenceLibrary::GetReferencedComponents(const TArray<FBlueprintComponentReference>& References, AActor* Actor, bool bAllowNull, TArray<UActorComponent*>& Components)
+void UBlueprintComponentReferenceLibrary::GetReferencedComponents(const TArray<FBlueprintComponentReference>& References, AActor* Actor, bool bKeepNulls, TArray<UActorComponent*>& Components)
 {
-	GetReferencedComponentsOfType(References, Actor, nullptr, bAllowNull, Components);
+	GetReferencedComponentsOfType(References, Actor, nullptr, bKeepNulls, Components);
 }
 
-void UBlueprintComponentReferenceLibrary::GetReferencedComponentsOfType(const TArray<FBlueprintComponentReference>& References, AActor* Actor, TSubclassOf<UActorComponent> Class, bool bAllowNull, TArray<UActorComponent*>& Components)
+void UBlueprintComponentReferenceLibrary::GetReferencedComponentsOfType(const TArray<FBlueprintComponentReference>& References, AActor* Actor, TSubclassOf<UActorComponent> Class, bool bKeepNulls, TArray<UActorComponent*>& Components)
 {
-	ResolveComponentArrayInternal(References, Actor, Class, bAllowNull, Components);
+	ResolveComponentArrayInternal(References, Actor, Class, bKeepNulls, Components);
 }
 
 bool UBlueprintComponentReferenceLibrary::IsNullReference(const FBlueprintComponentReference& Reference)

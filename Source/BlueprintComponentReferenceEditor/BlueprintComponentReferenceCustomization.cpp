@@ -63,13 +63,12 @@ void FBlueprintComponentReferenceCustomization::CustomizeHeader(TSharedRef<IProp
 	// this will disable use of default "Reset To Defaults" for this header
 	InPropertyHandle->MarkResetToDefaultCustomized(true);
 
-	ViewSettings.Reset();
+	ViewSettings.ResetSettings();
 
 	FStructProperty* const Property = CastFieldChecked<FStructProperty>(InPropertyHandle->GetProperty());
 	if (Property && ensureAlways(FBlueprintComponentReferenceHelper::IsComponentReferenceType(Property->Struct)))
 	{
-		const FProperty* MetadataProperty = InPropertyHandle->GetMetaDataProperty();
-		FBlueprintComponentReferenceHelper::LoadSettingsFromProperty(ViewSettings, MetadataProperty);
+		ViewSettings.LoadSettingsFromProperty(InPropertyHandle->GetMetaDataProperty());
 
 		BuildComboBox();
 
@@ -297,7 +296,7 @@ bool FBlueprintComponentReferenceCustomization::IsComponentReferenceValid(const 
 	AActor* const SearchActor = ComponentPickerContext.IsValid() ? ComponentPickerContext->GetActor() : nullptr;
 	if (UActorComponent* NewComponent = Value.GetComponent(SearchActor))
 	{
-		if (!ViewSettings.TestObject(NewComponent))
+		if (!TestObject(NewComponent))
 		{
 			return false;
 		}
@@ -505,7 +504,7 @@ TSharedRef<SWidget> FBlueprintComponentReferenceCustomization::OnGetMenuContent(
 			TArray<TSharedRef<FComponentInfo>> LocalArray;
 			for(auto& Node : HierarchyInfo->GetNodes())
 			{
-				if (ViewSettings.TestNode(Node) && ViewSettings.TestObject(Node->GetComponentTemplate()))
+				if (TestNode(Node) && TestObject(Node->GetComponentTemplate()))
 				{
 					LocalArray.Add(Node.ToSharedRef());
 				}
@@ -641,12 +640,12 @@ void FBlueprintComponentReferenceCustomization::CloseComboButton()
 	ComponentComboButton->SetIsOpen(false);
 }
 
-void FBlueprintComponentReferenceViewSettings::Reset()
+void FBlueprintComponentReferenceCustomization::ResetViewSettings()
 {
-	FBlueprintComponentReferenceHelper::ResetSettings(*this);
+	ViewSettings.ResetSettings();
 }
 
-bool FBlueprintComponentReferenceViewSettings::TestNode(const TSharedPtr<FComponentInfo>& Node) const
+bool FBlueprintComponentReferenceCustomization::TestNode(const TSharedPtr<FComponentInfo>& Node) const
 {
 	if (!Node.IsValid())
 		return false;
@@ -654,24 +653,24 @@ bool FBlueprintComponentReferenceViewSettings::TestNode(const TSharedPtr<FCompon
 	const EBlueprintComponentReferenceMode Mode = Node->GetDesiredMode();
 	if (Mode == EBlueprintComponentReferenceMode::Path)
 	{
-		return bShowPathOnly;
+		return ViewSettings.bShowPathOnly;
 	}
 	if (Mode == EBlueprintComponentReferenceMode::Property)
 	{
-		if (Node->IsInstancedComponent() && bShowInstanced)
+		if (Node->IsInstancedComponent() && ViewSettings.bShowInstanced)
 			return true;
 
-		if (Node->IsNativeComponent() && bShowNative)
+		if (Node->IsNativeComponent() && ViewSettings.bShowNative)
 			return true;
 
-		if (!Node->IsNativeComponent() && bShowBlueprint)
+		if (!Node->IsNativeComponent() && ViewSettings.bShowBlueprint)
 			return true;
 	}
 
 	return false;
 }
 
-bool FBlueprintComponentReferenceViewSettings::TestObject(const UObject* Object) const
+bool FBlueprintComponentReferenceCustomization::TestObject(const UObject* Object) const
 {
 	if (!IsValid(Object))
 	{
@@ -682,10 +681,10 @@ bool FBlueprintComponentReferenceViewSettings::TestObject(const UObject* Object)
 
 	bool bAllowedToSetBasedOnFilter = true;
 
-	if (AllowedClasses.Num() > 0 && bAllowedToSetBasedOnFilter)
+	if (ViewSettings.AllowedClasses.Num() > 0 && bAllowedToSetBasedOnFilter)
 	{
 		bAllowedToSetBasedOnFilter = false;
-		for (auto& AllowedClass : AllowedClasses)
+		for (auto& AllowedClass : ViewSettings.AllowedClasses)
 		{
 			if (UClass* Class = AllowedClass.Get())
 			{
@@ -700,9 +699,9 @@ bool FBlueprintComponentReferenceViewSettings::TestObject(const UObject* Object)
 		}
 	}
 
-	if (DisallowedClasses.Num() > 0 && bAllowedToSetBasedOnFilter)
+	if (ViewSettings.DisallowedClasses.Num() > 0 && bAllowedToSetBasedOnFilter)
 	{
-		for (auto& DisallowedClass : DisallowedClasses)
+		for (auto& DisallowedClass : ViewSettings.DisallowedClasses)
 		{
 			if (UClass* Class = DisallowedClass.Get())
 			{

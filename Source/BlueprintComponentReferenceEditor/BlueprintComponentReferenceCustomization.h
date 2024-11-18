@@ -3,6 +3,7 @@
 #pragma once
 
 #include "BlueprintComponentReference.h"
+#include "BlueprintComponentReferenceMetadata.h"
 #include "BlueprintComponentReferenceHelper.h"
 #include "IDetailCustomNodeBuilder.h"
 #include "IPropertyTypeCustomization.h"
@@ -15,40 +16,6 @@
 
 class FMenuBuilder;
 class SComboButton;
-
-/**
- * Clas holding BCR filter settings
- */
-struct FBlueprintComponentReferenceViewSettings
-{
-	/** Whether we allow to use Picker feature */
-	bool bUsePicker = true;
-
-	/** Whether we allow to use Navigate/Browse feature */
-	bool bUseNavigate = true;
-	/** Whether the asset can be 'None' in this case */
-	bool bUseClear = true;
-
-	/** Whether we allow to pick native components */
-	bool bShowNative = true;
-	/** Whether we allow to pick blueprint components */
-	bool bShowBlueprint = true;
-	/** Whether we allow to pick instanced components */
-	bool bShowInstanced = true;
-	/** Whether we allow to pick path-only components */
-	bool bShowPathOnly = true;
-
-	/** Classes that can be used with this property */
-	TArray<TWeakObjectPtr<UClass>> AllowedClasses;
-
-	/** Classes that can NOT be used with this property */
-	TArray<TWeakObjectPtr<UClass>> DisallowedClasses;
-
-	void Reset();
-
-	bool TestNode(const TSharedPtr<FComponentInfo>& Node) const;
-	bool TestObject(const UObject* Object) const;
-};
 
 /**
  * Component reference cutomization class
@@ -105,6 +72,10 @@ private:
 
 	void CloseComboButton();
 
+	void ResetViewSettings();
+	bool TestNode(const TSharedPtr<FComponentInfo>& Node) const;
+	bool TestObject(const UObject* Object) const;
+
 private:
 	/** The property handle we are customizing */
 	TSharedPtr<IPropertyHandle> PropertyHandle;
@@ -115,7 +86,7 @@ private:
 	TSharedPtr<SComboButton> ComponentComboButton;
 
 	/** Container with customization view settings */
-	FBlueprintComponentReferenceViewSettings ViewSettings;
+	FBlueprintComponentReferenceMetadata ViewSettings;
 
 	/** component picker helper */
 	TSharedPtr<FComponentPickerContext>	ComponentPickerContext;
