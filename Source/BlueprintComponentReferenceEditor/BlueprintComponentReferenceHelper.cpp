@@ -323,11 +323,15 @@ USCS_Node* FBlueprintComponentReferenceHelper::FindSCSNodeForInstance(const UAct
 
 bool FBlueprintComponentReferenceHelper::DoesReferenceMatch(const FBlueprintComponentReference& InRef, const FComponentInfo& Value)
 {
-	if (InRef.Mode == EBlueprintComponentReferenceMode::Path)
-		return InRef.Value == Value.GetObjectName();
-	if (InRef.Mode == EBlueprintComponentReferenceMode::Property)
-		return InRef.Value == Value.GetVariableName();
-	return false;
+	switch (InRef.Mode)
+	{
+	case EBlueprintComponentReferenceMode::Property:
+		return Value.GetVariableName() == InRef.Value;
+	case EBlueprintComponentReferenceMode::Path:
+		return Value.GetObjectName() == InRef.Value;
+	default:
+		return false;
+	}
 }
 
 TSharedPtr<FComponentInfo> FComponentPickerContext::FindComponent(const FBlueprintComponentReference& InName) const

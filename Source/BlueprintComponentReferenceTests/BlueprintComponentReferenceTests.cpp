@@ -62,50 +62,50 @@ bool FBlueprintComponentReferenceTests_Basic::RunTest(FString const&)
 		{
 			FBlueprintComponentReference Reference;
 			TestTrue("Empty.IsNull", Reference.IsNull());
-			TestEqual("Empty.IsEqual", Reference.GetValueString(false), TEXT(""));
-			TestEqual("Empty.IsEqual2", Reference.GetValueString(true), TEXT(""));
+			TestEqual("Empty.IsEqual", Reference.ToString(), TEXT(""));
+			TestEqual("Empty.IsEqual2", Reference.ToString(), TEXT(""));
 			TestTrue("Empty.GetComponent", Reference.GetComponent(TestActor, false) == nullptr);
 			TestTrue("Empty.GetComponent2", Reference.GetComponent(TestActor, true) == RootComponent);
 		}
 
 		{
 			FBlueprintComponentReference Reference;
-			Reference.SetValueFromString(TEXT("LevelOne"));
+			Reference.ParseString(TEXT("LevelOne"));
 
 			TestTrue("Basic.IsEqual", Reference == FBlueprintComponentReference(EBlueprintComponentReferenceMode::Property, "LevelOne"));
-			TestTrue("Basic.IsEqual2", Reference == FBlueprintComponentReference(TEXT("var:LevelOne")));
+			TestTrue("Basic.IsEqual2", Reference == FBlueprintComponentReference(TEXT("property:LevelOne")));
 			TestTrue("Basic.IsEqual3", Reference != FBlueprintComponentReference(TEXT("LevelTwo")));
 			TestTrue("Basic.IsNull", !Reference.IsNull());
-			TestEqual("Basic.IsEqual", Reference.GetValueString(false), TEXT("LevelOne"));
-			TestEqual("Basic.IsEqual2", Reference.GetValueString(true), TEXT("var:LevelOne"));
+			TestEqual("Basic.IsEqual", Reference.ToString(), TEXT("LevelOne"));
+			TestEqual("Basic.IsEqual2", Reference.ToString(), TEXT("property:LevelOne"));
 			TestTrue("Basic.GetComponent", Reference.GetComponent(TestActor, false) == LevelOneComponent);
 			TestTrue("Basic.GetComponent2", Reference.GetComponent(TestActor, true) == LevelOneComponent);
 		}
 
 		{
 			FBlueprintComponentReference Reference;
-			Reference.SetValueFromString(TEXT("var:Root"));
+			Reference.ParseString(TEXT("property:Root"));
 
 			TestTrue("Full.IsEqual", Reference == FBlueprintComponentReference(EBlueprintComponentReferenceMode::Property, "Root"));
-			TestTrue("Full.IsEqual2", Reference == FBlueprintComponentReference(TEXT("var:Root")));
+			TestTrue("Full.IsEqual2", Reference == FBlueprintComponentReference(TEXT("property:Root")));
 			TestTrue("Full.IsEqual3", Reference != FBlueprintComponentReference(TEXT("path:Root")));
 			TestTrue("Full.IsNull", !Reference.IsNull());
-			TestEqual("Full.IsEqual", Reference.GetValueString(false), TEXT("Root"));
-			TestEqual("Full.IsEqual2", Reference.GetValueString(true), TEXT("var:Root"));
+			TestEqual("Full.IsEqual", Reference.ToString(), TEXT("Root"));
+			TestEqual("Full.IsEqual2", Reference.ToString(), TEXT("property:Root"));
 			TestTrue("Full.GetComponent", Reference.GetComponent(TestActor, false) == RootComponent);
 			TestTrue("Full.GetComponent2", Reference.GetComponent(TestActor, true) == RootComponent);
 		}
 
 		{
 			FBlueprintComponentReference Reference;
-			Reference.SetValueFromString(TEXT("path:LevelOneConstructNPName"));
+			Reference.ParseString(TEXT("path:LevelOneConstructNPName"));
 
 			TestTrue("Path.IsEqual", Reference == FBlueprintComponentReference(EBlueprintComponentReferenceMode::Path, "LevelOneConstructNPName"));
 			TestTrue("Path.IsEqual2", Reference != FBlueprintComponentReference(TEXT("LevelOneConstructNPName")));
 			TestTrue("Path.IsEqual3", Reference == FBlueprintComponentReference(TEXT("path:LevelOneConstructNPName")));
 			TestTrue("Path.IsNull", !Reference.IsNull());
-			TestEqual("Path.IsEqual", Reference.GetValueString(false), TEXT("LevelOneConstructNPName"));
-			TestEqual("Path.IsEqual2", Reference.GetValueString(true), TEXT("path:LevelOneConstructNPName"));
+			TestEqual("Path.IsEqual", Reference.ToString(), TEXT("LevelOneConstructNPName"));
+			TestEqual("Path.IsEqual2", Reference.ToString(), TEXT("path:LevelOneConstructNPName"));
 			TestTrue("Path.GetComponent", Reference.GetComponent(TestActor, false) == LevelOneConstructNPComponent);
 		}
 
@@ -120,7 +120,7 @@ bool FBlueprintComponentReferenceTests_Basic::RunTest(FString const&)
 
 		{
 			FBlueprintComponentReference Reference;
-			Reference.SetValueFromString(TEXT("DoesNotExist"));
+			Reference.ParseString(TEXT("DoesNotExist"));
 
 			TestTrue("Bad.IsEqual", Reference == FBlueprintComponentReference(EBlueprintComponentReferenceMode::Property, "DoesNotExist"));
 			TestTrue("Bad.IsEqual2", Reference == FBlueprintComponentReference(TEXT("DoesNotExist")));

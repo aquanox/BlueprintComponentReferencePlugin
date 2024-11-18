@@ -53,7 +53,7 @@ void FBlueprintComponentReferenceCustomization::CustomizeHeader(TSharedRef<IProp
 {
 	PropertyHandle = InPropertyHandle;
 
-	ClassHelper = FBCREditorModule::Get().GetClassHelper();
+	ClassHelper = FBCREditorModule::GetReflectionHelper();
 	check(ClassHelper.IsValid());
 
 	ComponentPickerContext.Reset();
@@ -63,13 +63,13 @@ void FBlueprintComponentReferenceCustomization::CustomizeHeader(TSharedRef<IProp
 	// this will disable use of default "Reset To Defaults" for this header
 	InPropertyHandle->MarkResetToDefaultCustomized(true);
 
-	Settings.Reset();
+	ViewSettings.Reset();
 
 	FStructProperty* const Property = CastFieldChecked<FStructProperty>(InPropertyHandle->GetProperty());
 	if (Property && ensureAlways(FBlueprintComponentReferenceHelper::IsComponentReferenceType(Property->Struct)))
 	{
 		const FProperty* MetadataProperty = InPropertyHandle->GetMetaDataProperty();
-		FBlueprintComponentReferenceHelper::LoadSettingsFromProperty(Settings, MetadataProperty);
+		FBlueprintComponentReferenceHelper::LoadSettingsFromProperty(ViewSettings, MetadataProperty);
 
 		BuildComboBox();
 
@@ -84,7 +84,7 @@ void FBlueprintComponentReferenceCustomization::CustomizeHeader(TSharedRef<IProp
 			ComponentComboButton.ToSharedRef()
 		];
 
-		if (Settings.bUseNavigate)
+		if (ViewSettings.bUseNavigate)
 		{
 			ValueContent->AddSlot()
 			.AutoWidth()
@@ -100,7 +100,7 @@ void FBlueprintComponentReferenceCustomization::CustomizeHeader(TSharedRef<IProp
 			];
 		}
 
-		if (Settings.bUseClear)
+		if (ViewSettings.bUseClear)
 		{
 			ValueContent->AddSlot()
 			.AutoWidth()
@@ -147,8 +147,8 @@ void FBlueprintComponentReferenceCustomization::CustomizeChildren(TSharedRef<IPr
 			);
 
 			StructBuilder.AddProperty(ChildPropertyHandle)
-				.ShowPropertyButtons(!Settings.bUsePicker)
-				.ShouldAutoExpand(!Settings.bUsePicker)
+				.ShowPropertyButtons(!ViewSettings.bUsePicker)
+				.ShouldAutoExpand(!ViewSettings.bUsePicker)
 				.IsEnabled(MakeAttributeSP(this, &FBlueprintComponentReferenceCustomization::CanEditChildren));
 		}
 	}
@@ -190,7 +190,7 @@ void FBlueprintComponentReferenceCustomization::BuildComboBox()
 		.OnGetMenuContent(this, &FBlueprintComponentReferenceCustomization::OnGetMenuContent)
 		.OnMenuOpenChanged(this, &FBlueprintComponentReferenceCustomization::OnMenuOpenChanged)
 		.ContentPadding(FMargin(2,2,2,1))
-		.Visibility(Settings.bUsePicker ? EVisibility::Visible : EVisibility::Collapsed)
+		.Visibility(ViewSettings.bUsePicker ? EVisibility::Visible : EVisibility::Collapsed)
 		.ButtonContent()
 		[
 			SNew(SHorizontalBox)
@@ -244,7 +244,8 @@ void FBlueprintComponentReferenceCustomization::DetermineContext()
 					break;
 				}
 			}
-			if (UBlueprintGeneratedClass* Class = Cast<UBlueprintGeneratedClass>(OuterObject))
+			// only support regular blueprints (not anim or others)
+			if (UBlueprintGeneratedClass* Class = ExactCast<UBlueprintGeneratedClass>(OuterObject))
 			{
 				UE_LOG(LogComponentReferenceEditor, Log, TEXT("%s ->  Class=%s"), *GetLoggingContextString(), *GetNameSafe(Class));
 				OuterActorClass = Class;
@@ -296,7 +297,7 @@ bool FBlueprintComponentReferenceCustomization::IsComponentReferenceValid(const 
 	AActor* const SearchActor = ComponentPickerContext.IsValid() ? ComponentPickerContext->GetActor() : nullptr;
 	if (UActorComponent* NewComponent = Value.GetComponent(SearchActor))
 	{
-		if (!Settings.TestObject(NewComponent))
+		if (!ViewSettings.TestObject(NewComponent))
 		{
 			return false;
 		}
@@ -336,7 +337,7 @@ bool FBlueprintComponentReferenceCustomization::IsComponentReferenceValid(const 
 
 void FBlueprintComponentReferenceCustomization::SetValue(const FBlueprintComponentReference& Value)
 {
-	UE_LOG(LogComponentReferenceEditor, Log, TEXT("%s SetValue %s"), *GetLoggingContextString(), *Value.GetValueString());
+	UE_LOG(LogComponentReferenceEditor, Log, TEXT("%s SetValue %s"), *GetLoggingContextString(), *Value.ToString());
 
 	ComponentComboButton->SetIsOpen(false);
 
@@ -418,12 +419,12 @@ bool FBlueprintComponentReferenceCustomization::CanEdit() const
 	{
 		return !PropertyHandle->IsEditConst();
 	}
-	return Settings.bUsePicker;
+	return ViewSettings.bUsePicker;
 }
 
 bool FBlueprintComponentReferenceCustomization::CanEditChildren() const
 {
-	if (!Settings.bUsePicker)
+	if (!ViewSettings.bUsePicker)
 	{
 		return CanEdit();
 	}
@@ -504,7 +505,7 @@ TSharedRef<SWidget> FBlueprintComponentReferenceCustomization::OnGetMenuContent(
 			TArray<TSharedRef<FComponentInfo>> LocalArray;
 			for(auto& Node : HierarchyInfo->GetNodes())
 			{
-				if (Settings.TestNode(Node) && Settings.TestObject(Node->GetComponentTemplate()))
+				if (ViewSettings.TestNode(Node) && ViewSettings.TestObject(Node->GetComponentTemplate()))
 				{
 					LocalArray.Add(Node.ToSharedRef());
 				}
@@ -680,26 +681,6 @@ bool FBlueprintComponentReferenceViewSettings::TestObject(const UObject* Object)
 	const UClass* ObjectClass = Object->GetClass();
 
 	bool bAllowedToSetBasedOnFilter = true;
-
-	/*
-	if (RequiredInterfaceFilters.Num() > 0 && bAllowedToSetBasedOnFilter)
-	{
-		for (auto& AllowedClass : RequiredInterfaceFilters)
-		{
-			if (!AllowedClass.IsValid())
-			{
-				bAllowedToSetBasedOnFilter = false;
-				break;
-			}
-			const bool bAllowedClassIsInterface = AllowedClass->HasAnyClassFlags(CLASS_Interface);
-			if (!bAllowedClassIsInterface || !ObjectClass->ImplementsInterface(AllowedClass.Get()))
-			{
-				bAllowedToSetBasedOnFilter = false;
-				break;
-			}
-		}
-	}
-	*/
 
 	if (AllowedClasses.Num() > 0 && bAllowedToSetBasedOnFilter)
 	{

@@ -2,13 +2,9 @@
 
 #pragma once
 
-#include "Engine/TimerHandle.h"
 #include "Components/ActorComponent.h"
 #include "BlueprintComponentReference.generated.h"
 
-class FOutputDevice;
-
-UDELEGATE()
 DECLARE_DYNAMIC_DELEGATE_RetVal_OneParam(bool, FBlueprintComponentFilter, UActorComponent*, Component);
 
 /**
@@ -88,12 +84,14 @@ public:
 	 * Default constructor
 	 */
 	FBlueprintComponentReference();
+	
 	/**
 	 * Construct reference from smart path.
 	 *
 	 * If mode not specified "Variable" mode is used.
 	 */
 	explicit FBlueprintComponentReference(const FString& InValue);
+	
 	/**
 	 * Construct reference manually
 	 */
@@ -105,16 +103,15 @@ public:
 	 *
 	 * @param InValue string
 	 */
-	void SetValueFromString(const FString& InValue);
+	bool ParseString(const FString& InValue);
 
 	/**
 	 * Get reference value as string
 	 *
-	 * @param bIncludeMode should include mode prefix
 	 *
 	 * @return string
 	 */
-	FString GetValueString(bool bIncludeMode = true) const;
+	FString ToString() const;
 
 	/**
 	 * Get current component selection mode
@@ -123,6 +120,7 @@ public:
 	{
 		return Mode;
 	}
+	
 	/**
 	 * Get current component value
 	 */
@@ -130,12 +128,7 @@ public:
 	{
 		return Value;
 	}
-
-	/**
-	 * Reset reference to default (None) state
-	 */
-	void Reset();
-
+	
 	/**
 	 * Get the actual component pointer from this reference
 	 *
@@ -160,12 +153,11 @@ public:
 	 * Does this reference have any value set
 	 */
 	bool IsNull() const;
-
-	bool ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText);
-
-	bool ExportTextItem(FString& ValueStr, const FBlueprintComponentReference& DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const;
-
-	bool SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
+	
+	/**
+	 * Reset reference value to none
+	 */
+	void Invalidate();
 
 	friend bool operator==(const FBlueprintComponentReference& Lhs, const FBlueprintComponentReference& Rhs)
 	{
@@ -184,26 +176,20 @@ public:
 
 protected:
 	friend class FBlueprintComponentReferenceHelper;
-	/**
-	 *
-	 */
+	
 	UPROPERTY(EditAnywhere, Category=Component)
 	EBlueprintComponentReferenceMode Mode;
-	/**
-	 *
-	 */
+	
 	UPROPERTY(EditAnywhere, Category=Component)
 	FName Value;
 };
 
 template<>
-struct TStructOpsTypeTraits<FBlueprintComponentReference> : TStructOpsTypeTraitsBase2<FBlueprintComponentReference>
+struct TStructOpsTypeTraits<FBlueprintComponentReference>
+	: TStructOpsTypeTraitsBase2<FBlueprintComponentReference>
 {
 	enum
 	{
-		WithIdenticalViaEquality = true,
-		//WithExportTextItem = false,
-		//WithImportTextItem = false,
-		WithStructuredSerializeFromMismatchedTag = true,
+		WithIdenticalViaEquality = true
 	};
 };

@@ -4,7 +4,7 @@
 
 #include "BlueprintComponentReferenceCustomization.h"
 #include "BlueprintComponentReferenceHelper.h"
-#include "BlueprintComponentReferenceUtils.h"
+#include "BlueprintComponentReferenceLibrary.h"
 #include "BlueprintEditorModule.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
@@ -111,7 +111,7 @@ void FBlueprintComponentReferenceVarCustomization::CustomizeDetails(IDetailLayou
 
 void FBlueprintComponentReferenceVarCustomization::OnPropertyChanged(FName InName)
 {
-	UE_LOG(BCRVariableCustomization, Log, TEXT("OnPropertyChanged(%s)"), *InName.ToString());
+	UE_LOG(BCRVariableCustomization, Verbose, TEXT("OnPropertyChanged(%s)"), *InName.ToString());
 
 	for (auto& Property : PropertiesBeingCustomized)
 	{
@@ -124,7 +124,7 @@ void FBlueprintComponentReferenceVarCustomization::OnPropertyChanged(FName InNam
 
 void FBlueprintComponentReferenceVarCustomization::LoadSettingsFromProperty(const FProperty* InProp)
 {
-	UE_LOG(BCRVariableCustomization, Log, TEXT("LoadSettingsFromProperty(%s)"), *InProp->GetFName().ToString());
+	UE_LOG(BCRVariableCustomization, Verbose, TEXT("LoadSettingsFromProperty(%s)"), *InProp->GetFName().ToString());
 
 #ifdef MULTI
 	FBlueprintComponentReferenceMetadata Local;
@@ -148,7 +148,7 @@ void FBlueprintComponentReferenceVarCustomization::LoadSettingsFromProperty(cons
 
 void FBlueprintComponentReferenceVarCustomization::ApplySettingsToProperty(FProperty* Property, const FName& InChanged)
 {
-	UE_LOG(BCRVariableCustomization, Log, TEXT("ApplySettingsToProperty(%s)"), *Property->GetFName().ToString());
+	UE_LOG(BCRVariableCustomization, Verbose, TEXT("ApplySettingsToProperty(%s)"), *Property->GetFName().ToString());
 
 	FScopedTransaction Transaction(FText::Format(INVTEXT("ApplySettingsToProperty [{0}]"), FText::FromName(Property->GetFName())));
 

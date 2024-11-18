@@ -4,7 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "BlueprintComponentReference.h"
-#include "BlueprintComponentReferenceUtils.h"
+#include "BlueprintComponentReferenceLibrary.h"
+#include "BlueprintComponentReferenceMetadata.h"
 #include "Components/ActorComponent.h"
 #include "Engine/Blueprint.h"
 #include "Engine/SCS_Node.h"
@@ -220,7 +221,6 @@ void FBlueprintComponentReferenceHelper::ResetSettings(T& Settings)
 
 	Settings.AllowedClasses.Empty();
 	Settings.DisallowedClasses.Empty();
-	//Settings.RequiredInterfaces.Empty();
 
 	Settings.bUsePicker = DefaultValues.bUsePicker;
 
@@ -237,30 +237,25 @@ template <typename T>
 void FBlueprintComponentReferenceHelper::LoadSettingsFromProperty(T& Settings, const FProperty* InProp)
 {
 	// picker
-	Settings.bUsePicker = !HasMetaDataValue(InProp, CRMeta::NoPicker);
+	Settings.bUsePicker = !HasMetaDataValue(InProp, FCRMetadataKey::NoPicker);
 	// actions
-	Settings.bUseNavigate = !HasMetaDataValue(InProp, CRMeta::NoNavigate);
-	Settings.bUseClear = !(InProp->PropertyFlags & CPF_NoClear) && !HasMetaDataValue(InProp, CRMeta::NoClear);
+	Settings.bUseNavigate = !HasMetaDataValue(InProp, FCRMetadataKey::NoNavigate);
+	Settings.bUseClear = !(InProp->PropertyFlags & CPF_NoClear) && !HasMetaDataValue(InProp, FCRMetadataKey::NoClear);
 	// filters
-	Settings.bShowNative = GetBoolMetaDataValue(InProp, CRMeta::ShowNative, Settings.bShowNative);
-	Settings.bShowBlueprint = GetBoolMetaDataValue(InProp, CRMeta::ShowBlueprint, Settings.bShowBlueprint);
-	Settings.bShowInstanced = GetBoolMetaDataValue(InProp, CRMeta::ShowInstanced,  Settings.bShowInstanced);
-	Settings.bShowPathOnly = GetBoolMetaDataValue(InProp, CRMeta::ShowPathOnly,  Settings.bShowPathOnly);
+	Settings.bShowNative = GetBoolMetaDataValue(InProp, FCRMetadataKey::ShowNative, Settings.bShowNative);
+	Settings.bShowBlueprint = GetBoolMetaDataValue(InProp, FCRMetadataKey::ShowBlueprint, Settings.bShowBlueprint);
+	Settings.bShowInstanced = GetBoolMetaDataValue(InProp, FCRMetadataKey::ShowInstanced,  Settings.bShowInstanced);
+	Settings.bShowPathOnly = GetBoolMetaDataValue(InProp, FCRMetadataKey::ShowPathOnly,  Settings.bShowPathOnly);
 
-	GetClassListMetadata(InProp, CRMeta::AllowedClasses, [&](UClass* InClass)
+	GetClassListMetadata(InProp, FCRMetadataKey::AllowedClasses, [&](UClass* InClass)
 	{
 		Settings.AllowedClasses.AddUnique(InClass);
 	});
 
-	GetClassListMetadata(InProp, CRMeta::DisallowedClasses, [&](UClass* InClass)
+	GetClassListMetadata(InProp, FCRMetadataKey::DisallowedClasses, [&](UClass* InClass)
 	{
 		Settings.DisallowedClasses.AddUnique(InClass);
 	});
-
-	//GetClassListMetadata(InProp, CRMeta::ImplementsInterface, [&](UClass* InClass)
-	//{
-	//		Settings.RequiredInterfaces.Add(InClass);
-	//});
 }
 
 template <typename T>
@@ -342,39 +337,39 @@ void FBlueprintComponentReferenceHelper::ApplySettingsToProperty(T& Settings, UB
 
 	if (InChanged.IsNone() || InChanged == GET_MEMBER_NAME_CHECKED(FBlueprintComponentReferenceMetadata, bUsePicker))
 	{
-		SetMetaDataFlag(CRMeta::NoPicker, !Settings.bUsePicker);
+		SetMetaDataFlag(FCRMetadataKey::NoPicker, !Settings.bUsePicker);
 	}
 	if (InChanged.IsNone() || InChanged == GET_MEMBER_NAME_CHECKED(FBlueprintComponentReferenceMetadata, bUseNavigate))
 	{
-		SetMetaDataFlag(CRMeta::NoNavigate, !Settings.bUseNavigate);
+		SetMetaDataFlag(FCRMetadataKey::NoNavigate, !Settings.bUseNavigate);
 	}
 	if (InChanged.IsNone() || InChanged == GET_MEMBER_NAME_CHECKED(FBlueprintComponentReferenceMetadata, bUseClear))
 	{
-		SetMetaDataFlag(CRMeta::NoClear, !Settings.bUseClear);
+		SetMetaDataFlag(FCRMetadataKey::NoClear, !Settings.bUseClear);
 	}
 
 	if (InChanged.IsNone() || InChanged == GET_MEMBER_NAME_CHECKED(FBlueprintComponentReferenceMetadata, bShowNative))
 	{
-		SetMetaData(CRMeta::ShowNative, BoolToString(Settings.bShowNative));
+		SetMetaData(FCRMetadataKey::ShowNative, BoolToString(Settings.bShowNative));
 	}
 	if (InChanged.IsNone() || InChanged == GET_MEMBER_NAME_CHECKED(FBlueprintComponentReferenceMetadata, bShowBlueprint))
 	{
-		SetMetaData(CRMeta::ShowBlueprint, BoolToString(Settings.bShowBlueprint));
+		SetMetaData(FCRMetadataKey::ShowBlueprint, BoolToString(Settings.bShowBlueprint));
 	}
 	if (InChanged.IsNone() || InChanged == GET_MEMBER_NAME_CHECKED(FBlueprintComponentReferenceMetadata, bShowInstanced))
 	{
-		SetMetaData(CRMeta::ShowInstanced, BoolToString(Settings.bShowInstanced));
+		SetMetaData(FCRMetadataKey::ShowInstanced, BoolToString(Settings.bShowInstanced));
 	}
 	if (InChanged.IsNone() || InChanged == GET_MEMBER_NAME_CHECKED(FBlueprintComponentReferenceMetadata, bShowPathOnly))
 	{
-		SetMetaData(CRMeta::ShowPathOnly, BoolToString(Settings.bShowPathOnly));
+		SetMetaData(FCRMetadataKey::ShowPathOnly, BoolToString(Settings.bShowPathOnly));
 	}
 	if (InChanged.IsNone() || InChanged == GET_MEMBER_NAME_CHECKED(FBlueprintComponentReferenceMetadata, AllowedClasses))
 	{
-		SetMetaData(CRMeta::AllowedClasses, ArrayToString(Settings.AllowedClasses));
+		SetMetaData(FCRMetadataKey::AllowedClasses, ArrayToString(Settings.AllowedClasses));
 	}
 	if (InChanged.IsNone() || InChanged == GET_MEMBER_NAME_CHECKED(FBlueprintComponentReferenceMetadata, DisallowedClasses))
 	{
-		SetMetaData(CRMeta::DisallowedClasses, ArrayToString(Settings.DisallowedClasses));
+		SetMetaData(FCRMetadataKey::DisallowedClasses, ArrayToString(Settings.DisallowedClasses));
 	}
 }

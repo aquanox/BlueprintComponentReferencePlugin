@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "BlueprintComponentReferenceUtils.h"
+#include "BlueprintComponentReferenceLibrary.h"
 #include "IDetailCustomization.h"
 #include "IDetailCustomNodeBuilder.h"
 

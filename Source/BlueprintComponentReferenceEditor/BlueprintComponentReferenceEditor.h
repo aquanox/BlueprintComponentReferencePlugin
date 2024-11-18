@@ -9,12 +9,11 @@ class FBlueprintComponentReferenceHelper;
 
 struct FBCREditorModule : public IModuleInterface
 {
-	static FBCREditorModule& Get();
-
-	TSharedPtr<FBlueprintComponentReferenceHelper> GetClassHelper() const;
+	static TSharedPtr<FBlueprintComponentReferenceHelper> GetReflectionHelper();
 
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
+	virtual bool SupportsDynamicReloading() override { return false; }
 
 	void OnPostEngineInit();
 private:

@@ -5,15 +5,7 @@
 #include "BlueprintComponentReferenceVarCustomization.h"
 #include "BlueprintEditorModule.h"
 
-static const FName TypeName = TEXT("BlueprintComponentReference");
-
-
 IMPLEMENT_MODULE(FBCREditorModule, BlueprintComponentReferenceEditor);
-
-FBCREditorModule& FBCREditorModule::Get()
-{
-	return FModuleManager::GetModuleChecked<FBCREditorModule>("BlueprintComponentReferenceEditor");
-}
 
 void FBCREditorModule::StartupModule()
 {
@@ -28,7 +20,7 @@ void FBCREditorModule::OnPostEngineInit()
 
 	FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
 	PropertyModule.RegisterCustomPropertyTypeLayout(
-		TypeName,
+		FName("BlueprintComponentReference"),
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FBlueprintComponentReferenceCustomization::MakeInstance));
 
 	FBlueprintEditorModule& BlueprintEditorModule = FModuleManager::GetModuleChecked<FBlueprintEditorModule>("Kismet");
@@ -44,7 +36,7 @@ void FBCREditorModule::ShutdownModule()
 	if (FModuleManager::Get().IsModuleLoaded(TEXT("PropertyEditor")))
 	{
 		FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
-		PropertyModule.UnregisterCustomPropertyTypeLayout(TypeName);
+		PropertyModule.UnregisterCustomPropertyTypeLayout(FName("BlueprintComponentReference"));
 	}
 
 	if (FModuleManager::Get().IsModuleLoaded(TEXT("Kismet")))
@@ -54,7 +46,8 @@ void FBCREditorModule::ShutdownModule()
 	}
 }
 
-TSharedPtr<FBlueprintComponentReferenceHelper> FBCREditorModule::GetClassHelper() const
+TSharedPtr<FBlueprintComponentReferenceHelper> FBCREditorModule::GetReflectionHelper()
 {
-	return ClassHelper;
+	static const FName ModuleName("BlueprintComponentReferenceEditor");
+	return FModuleManager::LoadModuleChecked<FBCREditorModule>(ModuleName).ClassHelper;
 }

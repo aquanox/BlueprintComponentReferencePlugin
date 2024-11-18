@@ -19,7 +19,7 @@ class SComboButton;
 /**
  * Clas holding BCR filter settings
  */
-struct FBlueprintComponentReferenceViewSettings // : public FBlueprintComponentReferenceMetadata
+struct FBlueprintComponentReferenceViewSettings
 {
 	/** Whether we allow to use Picker feature */
 	bool bUsePicker = true;
@@ -43,12 +43,6 @@ struct FBlueprintComponentReferenceViewSettings // : public FBlueprintComponentR
 
 	/** Classes that can NOT be used with this property */
 	TArray<TWeakObjectPtr<UClass>> DisallowedClasses;
-
-	/** Interfaces that must be implemented to be eligible for this property */
-	//TArray<TWeakObjectPtr<UClass>> RequiredInterfaces;
-
-	/** */
-	//FName ComponentFilter;
 
 	void Reset();
 
@@ -121,7 +115,7 @@ private:
 	TSharedPtr<SComboButton> ComponentComboButton;
 
 	/** Container with customization view settings */
-	FBlueprintComponentReferenceViewSettings Settings;
+	FBlueprintComponentReferenceViewSettings ViewSettings;
 
 	/** component picker helper */
 	TSharedPtr<FComponentPickerContext>	ComponentPickerContext;

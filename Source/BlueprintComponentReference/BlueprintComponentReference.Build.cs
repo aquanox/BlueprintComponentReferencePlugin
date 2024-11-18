@@ -6,7 +6,7 @@ public class BlueprintComponentReference : ModuleRules
 {
 	// This is to emulate engine installation and verify includes during development
 	// Gives effect similar to BuildPlugin with -StrictIncludes
-	public bool bStrictIncludesCheck = false;
+	public bool bStrictIncludesCheck = true;
 
 	public BlueprintComponentReference(ReadOnlyTargetRules Target) : base(Target)
 	{
@@ -25,8 +25,7 @@ public class BlueprintComponentReference : ModuleRules
 		PublicDependencyModuleNames.AddRange(new string[] {
 				"Core",
 				"CoreUObject",
-				"Engine",
-				"InputCore"
+				"Engine"
 		});
 	}
 }
