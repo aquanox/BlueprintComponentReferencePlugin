@@ -133,20 +133,18 @@ public:
 	 * Get the actual component pointer from this reference
 	 *
 	 * @param SearchActor Actor to perform search in
-	 * @param bFallbackToRoot Should fallback to actor root component if resolve failed
 	 */
-	UActorComponent* GetComponent(AActor* SearchActor, bool bFallbackToRoot = false) const;
+	UActorComponent* GetComponent(AActor* SearchActor) const;
 
 	/**
 	 * Get the actual component pointer from this reference
 	 *
 	 * @param SearchActor Actor to perform search in
-	 * @param bFallbackToRoot Should fallback to actor root component if resolve failed
 	 */
 	template<typename T>
-	T* GetComponent(AActor* SearchActor, bool bFallbackToRoot = false) const
+	T* GetComponent(AActor* SearchActor) const
 	{
-		return Cast<T>(GetComponent(SearchActor, bFallbackToRoot));
+		return Cast<T>(GetComponent(SearchActor));
 	}
 
 	/**

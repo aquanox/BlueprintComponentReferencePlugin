@@ -16,18 +16,19 @@ class BLUEPRINTCOMPONENTREFERENCE_API UBlueprintComponentReferenceLibrary : publ
 	GENERATED_BODY()
 public:
 	/**
-	 * Resolve component reference in specified actor.
+	 * Resolve component reference in specified actor (impure).
 	 *
 	 * @param Reference Reference to resolve
 	 * @param Actor Target actor
 	 * @param Component Resolved component
+	 * @param Class Expected component class
 	 * @return True if component found, False otherwise
 	 */
-	UFUNCTION(BlueprintPure, Category="Utilities|ComponentReference", meta=( DefaultToSelf="Actor"))
-	static UPARAM(DisplayName="Success") bool GetReferencedComponent(const FBlueprintComponentReference& Reference, AActor* Actor, UActorComponent*& Component);
+	UFUNCTION(BlueprintCallable, Category="Utilities|ComponentReference", meta=( DefaultToSelf="Actor",  DeterminesOutputType="Class", DynamicOutputParam="Component", AdvancedDisplay=2))
+	static UPARAM(DisplayName="Success") bool TryGetReferencedComponent(const FBlueprintComponentReference& Reference, AActor* Actor, TSubclassOf<UActorComponent> Class, UActorComponent*& Component);
 
 	/**
-	 * Resolve component reference in specified actor (typed).
+	 * Resolve component reference in specified actor (pure).
 	 *
 	 * @param Reference Reference to resolve
 	 * @param Actor Target actor
@@ -35,31 +36,20 @@ public:
 	 * @param Component Resolved component
 	 * @return True if component found, False otherwise
 	 */
-	UFUNCTION(BlueprintPure, Category="Utilities|ComponentReference", meta=( DefaultToSelf="Actor",  DeterminesOutputType="Class", DynamicOutputParam="Component"))
-	static UPARAM(DisplayName="Success") bool GetReferencedComponentOfType(const FBlueprintComponentReference& Reference, AActor* Actor, TSubclassOf<UActorComponent> Class, UActorComponent*& Component);
+	UFUNCTION(BlueprintPure, Category="Utilities|ComponentReference", meta=( DefaultToSelf="Actor",  DeterminesOutputType="Class", DynamicOutputParam="Component", AdvancedDisplay=2))
+	static UPARAM(DisplayName="Success") bool GetReferencedComponent(const FBlueprintComponentReference& Reference, AActor* Actor, TSubclassOf<UActorComponent> Class, UActorComponent*& Component);
 	
 	/**
 	 * Resolve array of component references in specific actor
 	 *
 	 * @param References References to resolve
 	 * @param Actor Target actor
-	 * @param Components Resolved components
-	 * @param bKeepNulls Allow adding nulls if resolve failed
-	 */
-	UFUNCTION(BlueprintCallable, Category="Utilities|ComponentReference", meta=( DefaultToSelf="Actor", bAllowNull = false))
-	static void GetReferencedComponents(const TArray<FBlueprintComponentReference>& References, AActor* Actor, bool bKeepNulls, TArray<UActorComponent*>& Components);
-
-	/**
-	 * Resolve array of component references in specific actor
-	 *
-	 * @param References References to resolve
-	 * @param Actor Target actor
 	 * @param Class Expected component class
 	 * @param Components Resolved components
-	 * @param bKeepNulls Allow adding nulls if resolve failed
+	 * @param bKeepNulls Preserve order if component resolve failed
 	 */
-	UFUNCTION(BlueprintCallable, Category="Utilities|ComponentReference", meta=(DefaultToSelf="Actor", bAllowNull = false, DeterminesOutputType="Class", DynamicOutputParam="Components"))
-	static void GetReferencedComponentsOfType(const TArray<FBlueprintComponentReference>& References, AActor* Actor, TSubclassOf<UActorComponent> Class, bool bKeepNulls, TArray<UActorComponent*>& Components);
+	UFUNCTION(BlueprintCallable, Category="Utilities|ComponentReference", meta=(DefaultToSelf="Actor", bAllowNull = false, AdvancedDisplay=2, DeterminesOutputType="Class", DynamicOutputParam="Components"))
+	static void GetReferencedComponents(const TArray<FBlueprintComponentReference>& References, AActor* Actor, TSubclassOf<UActorComponent> Class, bool bKeepNulls, TArray<UActorComponent*>& Components);
 
 	/**
 	 * Does the component reference has any value set
@@ -68,7 +58,7 @@ public:
 	 * @return True if reference has any value set
 	 */
 	UFUNCTION(BlueprintCallable, Category="Utilities|ComponentReference", DisplayName="Is Null")
-	static bool IsNullReference(const FBlueprintComponentReference& Reference);
+	static bool IsNullComponentReference(const FBlueprintComponentReference& Reference);
 	
 	/**
 	 * Reset reference variable value to none
@@ -77,7 +67,7 @@ public:
 	 * @return True if reference has any value set
 	 */
 	UFUNCTION(BlueprintCallable, Category="Utilities|ComponentReference", DisplayName="Invalidate")
-	static void InvalidateReference(UPARAM(Ref) FBlueprintComponentReference& Reference);
+	static void InvalidateComponentReference(UPARAM(Ref) FBlueprintComponentReference& Reference);
 
 	/** Returns true if the values are equal (A == B) */
 	UFUNCTION(BlueprintPure, meta=(DisplayName="Equal (ComponentReference)", CompactNodeTitle="==", BlueprintThreadSafe), Category="Utilities|ComponentReference")

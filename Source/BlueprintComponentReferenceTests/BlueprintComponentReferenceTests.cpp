@@ -2,6 +2,8 @@
 
 #include "BCRTestActor.h"
 #include "BlueprintComponentReference.h"
+#include "BlueprintComponentReferenceLibrary.h"
+
 #include "Misc/AutomationTest.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
@@ -38,10 +40,10 @@ struct FTestWorldScope
 	UWorld* operator->() const { return World; }
 };
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBlueprintComponentReferenceTests_Basic,
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBlueprintComponentReferenceTests_Core,
 	"BlueprintComponentReference.Core", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter | EAutomationTestFlags::HighPriority);
 
-bool FBlueprintComponentReferenceTests_Basic::RunTest(FString const&)
+bool FBlueprintComponentReferenceTests_Core::RunTest(FString const&)
 {
 	FTestWorldScope World;
 
@@ -63,8 +65,7 @@ bool FBlueprintComponentReferenceTests_Basic::RunTest(FString const&)
 			FBlueprintComponentReference Reference;
 			TestTrue("Empty.IsNull", Reference.IsNull());
 			TestEqual("Empty.ToString", Reference.ToString(), TEXT(""));
-			TestTrue("Empty.GetComponent", Reference.GetComponent(TestActor, false) == nullptr);
-			TestTrue("Empty.GetComponent2", Reference.GetComponent(TestActor, true) == RootComponent);
+			TestTrue("Empty.GetComponent", Reference.GetComponent(TestActor) == nullptr);
 		}
 
 		{
@@ -76,8 +77,7 @@ bool FBlueprintComponentReferenceTests_Basic::RunTest(FString const&)
 			TestTrue("Basic.IsEqual3", Reference != FBlueprintComponentReference(TEXT("LevelTwo")));
 			TestTrue("Basic.IsNull", !Reference.IsNull());
 			TestEqual("Basic.ToString", Reference.ToString(), TEXT("property:LevelOne"));
-			TestTrue("Basic.GetComponent", Reference.GetComponent(TestActor, false) == LevelOneComponent);
-			TestTrue("Basic.GetComponent2", Reference.GetComponent(TestActor, true) == LevelOneComponent);
+			TestTrue("Basic.GetComponent", Reference.GetComponent(TestActor) == LevelOneComponent);
 		}
 
 		{
@@ -89,8 +89,7 @@ bool FBlueprintComponentReferenceTests_Basic::RunTest(FString const&)
 			TestTrue("Full.IsEqual3", Reference != FBlueprintComponentReference(TEXT("path:Root")));
 			TestTrue("Full.IsNull", !Reference.IsNull());
 			TestEqual("Full.ToString", Reference.ToString(), TEXT("property:Root"));
-			TestTrue("Full.GetComponent", Reference.GetComponent(TestActor, false) == RootComponent);
-			TestTrue("Full.GetComponent2", Reference.GetComponent(TestActor, true) == RootComponent);
+			TestTrue("Full.GetComponent", Reference.GetComponent(TestActor) == RootComponent);
 		}
 
 		{
@@ -102,16 +101,7 @@ bool FBlueprintComponentReferenceTests_Basic::RunTest(FString const&)
 			TestTrue("Path.IsEqual3", Reference == FBlueprintComponentReference(TEXT("path:LevelOneConstructNPName")));
 			TestTrue("Path.IsNull", !Reference.IsNull());
 			TestEqual("Path.ToString", Reference.ToString(), TEXT("path:LevelOneConstructNPName"));
-			TestTrue("Path.GetComponent", Reference.GetComponent(TestActor, false) == LevelOneConstructNPComponent);
-		}
-
-		{
-			FBlueprintComponentReference Reference;
-
-			TestTrue("None.IsEqual", Reference == FBlueprintComponentReference());
-			TestTrue("None.IsNull", Reference.IsNull());
-			TestTrue("None.GetComponent", Reference.GetComponent(TestActor, false) == nullptr);
-			TestTrue("None.GetComponent2", Reference.GetComponent(TestActor, true) == RootComponent);
+			TestTrue("Path.GetComponent", Reference.GetComponent(TestActor) == LevelOneConstructNPComponent);
 		}
 
 		{
@@ -121,11 +111,51 @@ bool FBlueprintComponentReferenceTests_Basic::RunTest(FString const&)
 			TestTrue("Bad.IsEqual", Reference == FBlueprintComponentReference(EBlueprintComponentReferenceMode::Property, "DoesNotExist"));
 			TestTrue("Bad.IsEqual2", Reference == FBlueprintComponentReference(TEXT("DoesNotExist")));
 			TestTrue("Bad.IsNull", !Reference.IsNull());
-			TestTrue("Bad.GetComponent", Reference.GetComponent(TestActor, false) == nullptr);
-			TestTrue("Bad.GetComponent2", Reference.GetComponent(TestActor, true) == RootComponent);
+			TestTrue("Bad.GetComponent", Reference.GetComponent(TestActor) == nullptr);
 		}
 	}
 
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBlueprintComponentReferenceTests_Library,
+	"BlueprintComponentReference.Library", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter | EAutomationTestFlags::HighPriority);
+
+bool FBlueprintComponentReferenceTests_Library::RunTest(FString const&)
+{
+	FTestWorldScope World;
+
+	ABCRTestActor* const TestActorNull = nullptr;
+	ABCRTestActor* const TestActorReal = World->SpawnActor<ABCRTestActor>();
+	ABCRTestActor* const TestActorDefault = GetMutableDefault<ABCRTestActor>();
+	
+	FBlueprintComponentReference NullReference;
+	FBlueprintComponentReference RootReference("property:Root");
+	FBlueprintComponentReference BadReference("property:DoesNotExist");
+	
+	TestTrue("IsNullComponentReference.1", UBlueprintComponentReferenceLibrary::IsNullComponentReference(NullReference));
+	TestFalse("IsNullComponentReference.2", UBlueprintComponentReferenceLibrary::IsNullComponentReference(RootReference));
+
+	FBlueprintComponentReference CopyReference(RootReference);
+	TestTrue("InvalidateComponentReference.1", !CopyReference.IsNull());
+	UBlueprintComponentReferenceLibrary::InvalidateComponentReference(CopyReference);
+	TestTrue("InvalidateComponentReference.2", CopyReference.IsNull());
+
+	UActorComponent* Result = nullptr;
+
+	// TryGetReferencedComponent and GetReferencedComponent same
+	TestFalse("InvalidThings.GetReferencedComponent", UBlueprintComponentReferenceLibrary::GetReferencedComponent(BadReference, TestActorNull, UActorComponent::StaticClass(), Result));
+	TestTrue("InvalidThings.GetReferencedComponent.Result", Result == nullptr);
+	
+	TestFalse("Null.GetReferencedComponent", UBlueprintComponentReferenceLibrary::GetReferencedComponent(NullReference, TestActorReal, nullptr, Result));
+	TestTrue("Null.GetReferencedComponent.Result", Result == nullptr);
+
+	TestTrue("Root.GetReferencedComponent", UBlueprintComponentReferenceLibrary::GetReferencedComponent(RootReference, TestActorReal, nullptr, Result));
+	TestTrue("Root.GetReferencedComponent.Result", Result == TestActorReal->GetRootComponent());
+
+	TestFalse("Bad.GetReferencedComponent", UBlueprintComponentReferenceLibrary::GetReferencedComponent(BadReference, TestActorReal, nullptr, Result));
+	TestTrue("Bad.GetReferencedComponent.Result", Result == nullptr);
+	
 	return true;
 }
 

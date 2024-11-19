@@ -72,29 +72,31 @@ FString FBlueprintComponentReference::ToString() const
 	return Result.ToString();
 }
 
-UActorComponent* FBlueprintComponentReference::GetComponent(AActor* SearchActor, bool bFallbackToRoot) const
+UActorComponent* FBlueprintComponentReference::GetComponent(AActor* SearchActor) const
 {
 	UActorComponent* Result = nullptr;
 
 	if(SearchActor)
 	{
-		// Variation 1: property name
-		if (Mode == EBlueprintComponentReferenceMode::Property)
+		switch (Mode)
 		{
+		case EBlueprintComponentReferenceMode::Property:
+			// Variation 1: property name
 			if(FObjectPropertyBase* ObjProp = FindFProperty<FObjectPropertyBase>(SearchActor->GetClass(), Value))
 			{
 				Result = Cast<UActorComponent>(ObjProp->GetObjectPropertyValue_InContainer(SearchActor));
 			}
-		}
-		// Variation 2: subobject path
-		else if (Mode == EBlueprintComponentReferenceMode::Path)
-		{
+			break;
+		case EBlueprintComponentReferenceMode::Path:
+			// Variation 2: subobject path
 			Result = FindObjectFast<UActorComponent>(SearchActor, Value);
-		}
-		// Fallback compatibility mode with engine references
-		if (!Result && bFallbackToRoot)
-		{
-			Result = SearchActor->GetRootComponent();
+			break;
+		//case EBlueprintComponentReferenceMode::Dynamic:
+			// Variation 3: dynamic selection
+			//break;
+		case EBlueprintComponentReferenceMode::None:
+		default:
+			break;
 		}
 	}
 
