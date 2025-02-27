@@ -10,6 +10,18 @@
 #include "Engine/DataAsset.h"
 #include "BCRTestActor.generated.h"
 
+USTRUCT(BlueprintType)
+struct FBCRTestStruct
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Test")
+	FBlueprintComponentReference Reference;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Test")
+	TArray<FBlueprintComponentReference> ReferenceArray;
+};
+
 UCLASS(MinimalAPI, Blueprintable, HideCategories=("ActorTick", "Cooking", Activation, Rendering, Transform, Tags,"ComponentTick", "Collision", "Advanced", "Replication"))
 class ABCRTestActor : public AInfo
 {
@@ -58,46 +70,51 @@ public:
 
 protected:
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=TESTACTOR)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test")
 	UPrimaryDataAsset* TargetDA;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=TESTACTOR)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Engine")
 	FBaseComponentReference BaseComponentReference;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category=TESTACTOR)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Test|Engine")
 	FComponentReference ComponentReference;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category=TESTACTOR)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Test|Engine")
 	FSoftComponentReference SoftComponentReference;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category=TESTACTOR)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Test|Base")
 	FBlueprintComponentReference ReferenceA;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=TESTACTOR, NoClear, meta=(NoClear))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Metadata", NoClear, meta=(NoClear))
 	FBlueprintComponentReference ReferenceNoClear;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=TESTACTOR, meta=(NoNavigate))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Metadata", meta=(NoNavigate))
 	FBlueprintComponentReference ReferenceNoNavigate;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=TESTACTOR, meta=(NoPicker))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Metadata", meta=(NoPicker))
 	FBlueprintComponentReference ReferenceNoPicker;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=TESTACTOR, meta=(ShowNative=true, ShowBlueprint=false, ShowInstanced=false, ShowPathOnly=false))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Metadata", meta=(ShowNative=true, ShowBlueprint=false, ShowInstanced=false, ShowPathOnly=false))
 	FBlueprintComponentReference ReferenceNativeOnly;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=TESTACTOR, meta=(ShowNative=false, ShowBlueprint=true, ShowInstanced=false, ShowPathOnly=false))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Metadata", meta=(ShowNative=false, ShowBlueprint=true, ShowInstanced=false, ShowPathOnly=false))
 	FBlueprintComponentReference ReferenceBlueprintOnly;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=TESTACTOR, meta=(ShowNative=false, ShowBlueprint=false, ShowInstanced=true, ShowPathOnly=false))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Metadata", meta=(ShowNative=false, ShowBlueprint=false, ShowInstanced=true, ShowPathOnly=false))
 	FBlueprintComponentReference ReferenceInstancedOnly;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=TESTACTOR, meta=(ShowNative=false, ShowBlueprint=false, ShowInstanced=false, ShowPathOnly=true))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Metadata", meta=(ShowNative=false, ShowBlueprint=false, ShowInstanced=false, ShowPathOnly=true))
 	FBlueprintComponentReference ReferencePathOnly;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=TESTACTOR, meta=(ShowBlueprint=false))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Containers", meta=(ShowBlueprint=false))
 	TArray<FBlueprintComponentReference> ReferenceArray;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=TESTACTOR, meta=(ShowBlueprint=false))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Containers", meta=(ShowBlueprint=false))
 	TMap<FName, FBlueprintComponentReference> ReferenceMap;
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=TESTACTOR, meta=(ShowBlueprint=false))
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Containers", meta=(ShowBlueprint=false))
 	//TSet<FBlueprintComponentReference> ReferenceSet;
-
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Struct")
+	FBCRTestStruct StructTest;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Struct")
+	TArray<FBCRTestStruct> StructTestArray;
+	
 };
 
 UCLASS(MinimalAPI, Blueprintable)

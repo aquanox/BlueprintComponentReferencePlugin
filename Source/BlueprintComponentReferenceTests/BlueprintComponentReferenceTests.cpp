@@ -47,10 +47,11 @@ bool FBlueprintComponentReferenceTests_Core::RunTest(FString const&)
 {
 	FTestWorldScope World;
 
-	ABCRTestActor* TestActorS = World->SpawnActor<ABCRTestActor>();
-	ABCRTestActor* TestActorD = GetMutableDefault<ABCRTestActor>();
+	ABCRTestActor* const TestActorNull = nullptr;
+	ABCRTestActor* const TestActorS = World->SpawnActor<ABCRTestActor>();
+	ABCRTestActor* const TestActorD = GetMutableDefault<ABCRTestActor>();
 
-	for(ABCRTestActor* TestActor : {  (ABCRTestActor*)nullptr, TestActorS, TestActorD })
+	for(ABCRTestActor* TestActor : {  TestActorNull, TestActorS, TestActorD })
 	{
 		UActorComponent* const RootComponent =
 			TestActor ?  TestActor->GetRootComponent() : nullptr;

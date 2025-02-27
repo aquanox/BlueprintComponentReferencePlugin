@@ -30,23 +30,24 @@ bool FBlueprintComponentReference::ParseString(const FString& InValue)
 	FString ParsedMode, ParsedValue;
 	if (InValue.Split(TEXT(":"), &ParsedMode, &ParsedValue, ESearchCase::CaseSensitive))
 	{
-		if (ParsedMode.Equals(TEXT("property"), ESearchCase::IgnoreCase))
+		if (ParsedMode.Equals(TEXT("property"), ESearchCase::IgnoreCase)
+			|| ParsedMode.Equals(TEXT("var"), ESearchCase::IgnoreCase)) // legacy compat
 		{
 			Mode = EBlueprintComponentReferenceMode::Property;
-			Value = *ParsedValue;
+			Value = *ParsedValue.TrimEnd();
 			return true;
 		}
 		if (ParsedMode.Equals(TEXT("path"), ESearchCase::IgnoreCase))
         {
         	Mode = EBlueprintComponentReferenceMode::Path;
-			Value = *ParsedValue;
+			Value = *ParsedValue.TrimEnd();
 			return true;
         }
 	}
 	else if (!InValue.IsEmpty())
 	{
 		Mode = EBlueprintComponentReferenceMode::Property;
-		Value = *InValue;
+		Value = *InValue.TrimStartAndEnd();
 		return true;
 	}
 

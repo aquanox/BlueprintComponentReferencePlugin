@@ -157,14 +157,14 @@ public:
 	 */
 	void Invalidate();
 
-	friend bool operator==(const FBlueprintComponentReference& Lhs, const FBlueprintComponentReference& Rhs)
+	bool operator==(const FBlueprintComponentReference& Rhs) const
 	{
-		return Lhs.Mode == Rhs.Mode && Lhs.Value == Rhs.Value;
+		return Mode == Rhs.Mode && Value == Rhs.Value;
 	}
 
-	friend bool operator!=(const FBlueprintComponentReference& Lhs, const FBlueprintComponentReference& Rhs)
+	bool operator!=(const FBlueprintComponentReference& Rhs) const
 	{
-		return !(Lhs == Rhs);
+		return !(*this == Rhs);
 	}
 
 	friend uint32 GetTypeHash(const FBlueprintComponentReference& A)
