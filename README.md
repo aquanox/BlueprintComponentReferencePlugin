@@ -28,8 +28,8 @@ Component Filtering:
 
 Item Display: 
  * `NoClear` - Hide 'Clear' button. Default = False.
- * 'NoNavigate' - Hide 'Navigate to' button. Default = False.
- * 'NoPicker' - Disable component picker. Default = False.
+ * `NoNavigate` - Hide 'Navigate to' button. Default = False.
+ * `NoPicker` - Disable component picker. Default = False.
  
 Blueprint variables supported via variable editor extension.
 
@@ -42,6 +42,22 @@ Plugin is compatible with 5.0+, ue5-main and can be modified to work with other 
 
 ## Examples
 
-Examples can be found in `BCRTestActor.h`
+Code examples can be found in `BCRTestActor.h`
+
+Editor View:
 
 ![](Images/BCR-Large.png)
+
+Details View:
+
+![](Images/BCR-Quick.png)
+
+Graph Nodes:
+
+![](Images/BCR-Nodes.png)
+
+Example use:
+
+![](Images/BCR-Hello.png)
+
+
