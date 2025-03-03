@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "UObject/SoftObjectPtr.h"
 #include "Components/ActorComponent.h"
 #include "BlueprintComponentReference.generated.h"
 
@@ -25,6 +26,10 @@ enum class EBlueprintComponentReferenceMode : uint8
 	 * Referencing via object path
 	 */
 	Path UMETA(DisplayName="Object Path"),
+	/**
+	 *
+	 */
+	//Dynamic  UMETA(DisplayName="Selector")
 };
 
 /**
@@ -37,6 +42,11 @@ enum class EBlueprintComponentReferenceMode : uint8
  * - Map property as Value
  *
  * Supported meta-specifiers:
+ *
+ * - ActorClass=/Script/Module.ClassName
+ *      Specifies actor class that would be used to suggest components in dropdown
+ *      This specifier is used only in scenarios when automatic discovery of actor type is not possible (Data Asset member)
+ *      or there is a need to enforce specific actor type
  *
  * - AllowedClasses=/Script/Engine.ClassA,/Script/Engine.Class.B
  *		Specifies list of allowed base component types
@@ -68,12 +78,10 @@ enum class EBlueprintComponentReferenceMode : uint8
  *		Should include instanced components in list?
  *		Default: false
  *
- * - ShowPathOnly=bool
+ * - ShowHidden=bool
  *		Should include instanced components that have no variable bound to?
  *		Default: false
  *
- * HasNativeMake="/Script/BlueprintComponentReference.BlueprintComponentReferenceUtils.MakeLiteralComponentReference"
- * HasNativeBreak="/Script/BlueprintComponentReference.BlueprintComponentReferenceUtils.BreakLiteralComponentReference"
  */
 USTRUCT(BlueprintType, meta=(DisableSplitPin))
 struct BLUEPRINTCOMPONENTREFERENCE_API FBlueprintComponentReference

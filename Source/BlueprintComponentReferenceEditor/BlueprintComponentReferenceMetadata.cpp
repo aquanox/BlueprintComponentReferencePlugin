@@ -11,6 +11,7 @@
 
 #include "UObject/UObjectIterator.h"
 
+const FName FCRMetadataKey::ActorClass = "ActorClass";
 const FName FCRMetadataKey::AllowedClasses = "AllowedClasses";
 const FName FCRMetadataKey::DisallowedClasses = "DisallowedClasses";
 const FName FCRMetadataKey::NoClear = "NoClear";
@@ -19,14 +20,13 @@ const FName FCRMetadataKey::NoPicker = "NoPicker";
 const FName FCRMetadataKey::ShowBlueprint = "ShowBlueprint";
 const FName FCRMetadataKey::ShowNative = "ShowNative";
 const FName FCRMetadataKey::ShowInstanced = "ShowInstanced";
-const FName FCRMetadataKey::ShowPathOnly = "ShowPathOnly";
+const FName FCRMetadataKey::ShowHidden = "ShowHidden";
 
 void FBlueprintComponentReferenceMetadata::ResetSettings()
 {
 	static const FBlueprintComponentReferenceMetadata DefaultValues;
 
-	//AllowedClassesMetadata.Empty();
-	//DisallowedClassesMetadata.Empty();
+	ActorClass.Reset();
 	AllowedClasses.Empty();
 	DisallowedClasses.Empty();
 
@@ -38,7 +38,7 @@ void FBlueprintComponentReferenceMetadata::ResetSettings()
 	bShowNative = DefaultValues.bShowNative;
 	bShowBlueprint = DefaultValues.bShowBlueprint;
 	bShowInstanced = DefaultValues.bShowInstanced;
-	bShowPathOnly = DefaultValues.bShowPathOnly;
+	bShowHidden = DefaultValues.bShowHidden;
 }
 
 void FBlueprintComponentReferenceMetadata::LoadSettingsFromProperty(const FProperty* InProp)
@@ -56,7 +56,15 @@ void FBlueprintComponentReferenceMetadata::LoadSettingsFromProperty(const FPrope
 	bShowNative = GetBoolMetaDataValue(InProp, FCRMetadataKey::ShowNative, DefaultValues.bShowNative);
 	bShowBlueprint = GetBoolMetaDataValue(InProp, FCRMetadataKey::ShowBlueprint, DefaultValues.bShowBlueprint);
 	bShowInstanced = GetBoolMetaDataValue(InProp, FCRMetadataKey::ShowInstanced,  DefaultValues.bShowInstanced);
-	bShowPathOnly = GetBoolMetaDataValue(InProp, FCRMetadataKey::ShowPathOnly,  DefaultValues.bShowPathOnly);
+	bShowHidden = GetBoolMetaDataValue(InProp, FCRMetadataKey::ShowHidden,  DefaultValues.bShowHidden);
+
+	GetClassMetadata(InProp, FCRMetadataKey::ActorClass, [this](UClass* InClass)
+	{
+		if (InClass && InClass->IsChildOf(AActor::StaticClass()))
+		{
+			ActorClass = InClass;
+		}
+	});
 
 	GetClassListMetadata(InProp, FCRMetadataKey::AllowedClasses, [this](UClass* InClass)
 	{
@@ -122,6 +130,11 @@ void FBlueprintComponentReferenceMetadata::ApplySettingsToProperty(UBlueprint* I
 	auto BoolToString = [](bool b)
 	{
 		return b ? TEXT("true") : TEXT("false");
+	};
+
+	auto ClassToString = [](const UClass* InClass)
+	{
+		return InClass ? InClass->GetClassPathName().ToString() : TEXT("");	
 	};
 
 	auto ArrayToString = [](const TArray<TSubclassOf<UActorComponent>>& InArray)
@@ -219,9 +232,9 @@ void FBlueprintComponentReferenceMetadata::ApplySettingsToProperty(UBlueprint* I
 	{
 		SetMetaData(FCRMetadataKey::ShowInstanced, BoolToString(bShowInstanced));
 	}
-	if (InChanged.IsNone() || InChanged == GET_MEMBER_NAME_CHECKED(FBlueprintComponentReferenceMetadata, bShowPathOnly))
+	if (InChanged.IsNone() || InChanged == GET_MEMBER_NAME_CHECKED(FBlueprintComponentReferenceMetadata, bShowHidden))
 	{
-		SetMetaData(FCRMetadataKey::ShowPathOnly, BoolToString(bShowPathOnly));
+		SetMetaData(FCRMetadataKey::ShowHidden, BoolToString(bShowHidden));
 	}
 	if (InChanged.IsNone() || InChanged == GET_MEMBER_NAME_CHECKED(FBlueprintComponentReferenceMetadata, AllowedClasses))
 	{
@@ -230,6 +243,10 @@ void FBlueprintComponentReferenceMetadata::ApplySettingsToProperty(UBlueprint* I
 	if (InChanged.IsNone() || InChanged == GET_MEMBER_NAME_CHECKED(FBlueprintComponentReferenceMetadata, DisallowedClasses))
 	{
 		SetMetaData(FCRMetadataKey::DisallowedClasses, ArrayToString(DisallowedClasses));
+	}
+	if (InChanged.IsNone() || InChanged == GET_MEMBER_NAME_CHECKED(FBlueprintComponentReferenceMetadata, ActorClass))
+	{
+		SetMetaData(FCRMetadataKey::ActorClass, ActorClass.ToString());
 	}
 }
 
@@ -247,11 +264,11 @@ TOptional<bool> FBlueprintComponentReferenceMetadata::GetBoolMetaDataOptional(co
 		const FString& ValueString = Property->GetMetaData(InName);
 		if (!ValueString.IsEmpty())
 		{
-			if (ValueString == TEXT("true"))
+			if (ValueString.Equals(TEXT("true"), ESearchCase::IgnoreCase))
 			{
 				bResult = true;
 			}
-			else if (ValueString == TEXT("false"))
+			else if (ValueString.Equals(TEXT("false"), ESearchCase::IgnoreCase))
 			{
 				bResult = false;
 			}
@@ -274,11 +291,11 @@ bool FBlueprintComponentReferenceMetadata::GetBoolMetaDataValue(const FProperty*
 		const FString& ValueString = Property->GetMetaData(InName);
 		if (!ValueString.IsEmpty())
 		{
-			if (ValueString == TEXT("true"))
+			if (ValueString.Equals(TEXT("true"), ESearchCase::IgnoreCase))
 			{
 				bResult = true;
 			}
-			else if (ValueString == TEXT("false"))
+			else if (ValueString.Equals(TEXT("false"), ESearchCase::IgnoreCase))
 			{
 				bResult = false;
 			}
@@ -297,6 +314,38 @@ void FBlueprintComponentReferenceMetadata::SetBoolMetaDataValue(FProperty* Prope
 	else
 	{
 		Property->RemoveMetaData(InName);
+	}
+
+	if (UObject* ParamOwner = Property->GetOwnerUObject())
+	{
+		ParamOwner->Modify();
+	}
+}
+
+void FBlueprintComponentReferenceMetadata::GetClassMetadata(const FProperty* Property, const FName& InName, const TFunctionRef<void(UClass*)>& Func)
+{
+	const FString& ClassName = Property->GetMetaData(InName);
+	if (ClassName.IsEmpty())
+	{
+		return;
+	}
+
+	if (UClass* Class = FBlueprintComponentReferenceHelper::FindClassByName(ClassName))
+	{
+		Func(Class);
+	}
+}
+
+void FBlueprintComponentReferenceMetadata::SetClassMetadata(FProperty* Property, const FName& InName, class UClass* InClass)
+{
+	FString Complete = InClass ? InClass->GetClassPathName().ToString() : TEXT("");
+	if (Complete.IsEmpty())
+	{
+		Property->RemoveMetaData(InName);
+	}
+	else
+	{
+		Property->SetMetaData(InName, MoveTemp(Complete));
 	}
 
 	if (UObject* ParamOwner = Property->GetOwnerUObject())

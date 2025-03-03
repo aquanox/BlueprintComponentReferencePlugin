@@ -6,6 +6,8 @@
 
 struct FCRMetadataKey
 {
+	//
+	static const FName ActorClass;
 	// basic
 	static const FName AllowedClasses;
 	static const FName DisallowedClasses;
@@ -17,7 +19,7 @@ struct FCRMetadataKey
 	static const FName ShowBlueprint;
 	static const FName ShowNative;
 	static const FName ShowInstanced;
-	static const FName ShowPathOnly;
+	static const FName ShowHidden;
 };
 
 /**
@@ -40,6 +42,10 @@ public:
 	UPROPERTY(EditAnywhere, Category=Metadata, meta=(MDSpecifier="NoClear", MDHandler="InverseBool"))
 	bool bUseClear	= true;
 
+	/** Actor class, leave empty for automatic discovery */ 
+	UPROPERTY(EditAnywhere, Category=Metadata, meta=(MDSpecifier="ActorClass", MDHandler="Class", AllowAbstract=true))
+	TSoftClassPtr<AActor> ActorClass;
+
 	/** Allow to pick native components */
 	UPROPERTY(EditAnywhere, Category=Metadata, meta=(MDSpecifier="ShowNative", MDHandler="Bool"))
 	bool bShowNative = true;
@@ -50,8 +56,8 @@ public:
 	UPROPERTY(EditAnywhere, Category=Metadata, meta=(MDSpecifier="ShowInstanced", MDHandler="Bool"))
 	bool bShowInstanced = false;
 	/** Allow to pick path-only/hidden components */
-	UPROPERTY(EditAnywhere, Category=Metadata, DisplayName="Show Hidden", meta=(MDSpecifier="ShowPathOnly", MDHandler="Bool"))
-	bool bShowPathOnly = false;
+	UPROPERTY(EditAnywhere, Category=Metadata, DisplayName="Show Hidden", meta=(MDSpecifier="ShowHidden", MDHandler="Bool"))
+	bool bShowHidden = false;
 
 	/** Classes or interfaces that can be used with this property */
 	UPROPERTY(EditAnywhere, DisplayName="Allowed Classes", Category=Metadata, NoClear, meta=(MDSpecifier="AllowedClasses", MDHandler="ClassList", DisplayThumbnail=false, NoElementDuplicate, AllowAbstract, NoBrowse, NoCreate, DisallowCreateNew))
@@ -72,6 +78,8 @@ private:
 	static TOptional<bool> GetBoolMetaDataOptional(const FProperty* Property, const FName& InName);
 	static bool GetBoolMetaDataValue(const FProperty* Property, const FName& InName, bool bDefaultValue);
 	static void SetBoolMetaDataValue(FProperty* Property, const FName& InName, TOptional<bool> Value);
+	static void GetClassMetadata(const FProperty* Property, const FName& InName, const TFunctionRef<void(UClass*)>& Func);
+	static void SetClassMetadata(FProperty* Property, const FName& InName, class UClass* InClass);
 	static void GetClassListMetadata(const FProperty* Property, const FName& InName, const TFunctionRef<void(UClass*)>& Func);
 	static void SetClassListMetadata(FProperty* Property, const FName& InName, const TFunctionRef<void(TArray<FString>&)>& PathSource);
 

@@ -155,7 +155,16 @@ void FBlueprintComponentReferenceCustomization::CustomizeChildren(TSharedRef<IPr
 
 FString FBlueprintComponentReferenceCustomization::GetLoggingContextString() const
 {
-	return PropertyHandle.IsValid() ? FString(PropertyHandle->GeneratePathToProperty()) : TEXT("Invalid");
+	TStringBuilder<32> Buffer;
+	if (PropertyHandle.IsValid())
+	{
+		Buffer.Append(PropertyHandle->GeneratePathToProperty());
+	}
+	else
+	{
+		Buffer.Append(TEXT("Invalid"));
+	}
+	return Buffer.ToString();
 }
 
 void FBlueprintComponentReferenceCustomization::BuildComboBox()
@@ -216,6 +225,26 @@ void FBlueprintComponentReferenceCustomization::DetermineContext()
 	AActor* OuterActor = nullptr;
 	UClass* OuterActorClass = nullptr;
 
+	// DetermineContext_FromMetadata
+	// Handle explicit external class metadata setting
+	if (!OuterActor && !OuterActorClass && !ViewSettings.ActorClass.IsNull())
+	{
+		if (ViewSettings.ActorClass.IsValid())
+		{
+			UE_LOG(LogComponentReferenceEditor, Log, TEXT("%s -> ExactClass=%s"), *GetLoggingContextString(), *ViewSettings.ActorClass.ToString());
+			
+			OuterActorClass = ViewSettings.ActorClass.Get();
+		}
+		else
+		{
+			UE_LOG(LogComponentReferenceEditor, Log, TEXT("%s -> ExactClass=%s (loading)"), *GetLoggingContextString(), *ViewSettings.ActorClass.ToString());
+			
+			OuterActorClass = ViewSettings.ActorClass.LoadSynchronous();
+		}
+	}
+
+	// DetermineContext_FromClassProperty
+	// allow override explicitly set value based on context used
 	TArray<UObject*> ObjectList;
 	PropertyHandle->GetOuterObjects(ObjectList);
 
@@ -254,6 +283,7 @@ void FBlueprintComponentReferenceCustomization::DetermineContext()
 		}
 	}
 
+	// DetermineContext_FromFunctionProperty
 	// handle case when BCR is a local variable in a function declared in blueprint of AActor
 	if (!OuterActor && !OuterActorClass && !ObjectList.Num())
 	{
@@ -288,6 +318,11 @@ void FBlueprintComponentReferenceCustomization::DetermineContext()
 		|| ComponentPickerContext->GetClass() != OuterActorClass)
 	{
 		ComponentPickerContext = ClassHelper->CreateChooserContext(OuterActor, OuterActorClass, GetLoggingContextString());
+	}
+
+	if (!ComponentPickerContext.IsValid())
+	{
+		UE_LOG(LogComponentReferenceEditor, Warning, TEXT("%s Failed to determine context"), *GetLoggingContextString());
 	}
 }
 
@@ -396,18 +431,29 @@ void FBlueprintComponentReferenceCustomization::OnPropertyValueChanged(FName Sou
 	CachedPropertyAccess = GetValue(TmpComponentReference);
 	if (CachedPropertyAccess == FPropertyAccess::Success)
 	{
-		auto Found = ComponentPickerContext->FindComponent(TmpComponentReference);
 		if (!IsComponentReferenceValid(TmpComponentReference))
-		{
+		{ // reset property
 			CachedComponentNode.Reset();
 			if (!TmpComponentReference.IsNull())
 			{
 				SetValue(FBlueprintComponentReference());
 			}
 		}
-		else
-		{
-			CachedComponentNode = Found;
+		else if (ComponentPickerContext.IsValid())
+		{ 
+			TSharedPtr<FComponentInfo> Found = ComponentPickerContext->FindComponent(TmpComponentReference);
+			if (Found.IsValid())
+			{
+				CachedComponentNode = Found;
+			}
+			else
+			{  // reset property
+				CachedComponentNode.Reset();
+				if (!TmpComponentReference.IsNull())
+				{
+					SetValue(FBlueprintComponentReference());
+				}
+			}
 		}
 	}
 }
@@ -492,10 +538,14 @@ TSharedRef<SWidget> FBlueprintComponentReferenceCustomization::OnGetMenuContent(
 {
 	FMenuBuilder MenuBuilder(true, nullptr);
 
-	auto GenerateElementsContextMenu = [&]()
+	if (!ComponentPickerContext.IsValid())
 	{
-		TMap<FString, TArray<TSharedRef<FComponentInfo>>> Result;
+		DetermineContext();
+	}
 
+	TMap<FString, TArray<TSharedRef<FComponentInfo>>> ChoosableElements;
+	if (ComponentPickerContext.IsValid())
+	{
 		for (auto& HierarchyInfo : ComponentPickerContext->ClassHierarchy)
 		{
 			if (HierarchyInfo->GetNodes().IsEmpty())
@@ -512,14 +562,10 @@ TSharedRef<SWidget> FBlueprintComponentReferenceCustomization::OnGetMenuContent(
 
 			if (!LocalArray.IsEmpty())
 			{
-				Result.Emplace(HierarchyInfo->GetDisplayText().ToString(), MoveTemp(LocalArray));
+				ChoosableElements.Emplace(HierarchyInfo->GetDisplayText().ToString(), MoveTemp(LocalArray));
 			}
 		}
-
-		return Result;
-	};
-
-	auto ChoosableElements = GenerateElementsContextMenu();
+	}
 
 	if (!ChoosableElements.IsEmpty())
 	{
@@ -573,7 +619,7 @@ void FBlueprintComponentReferenceCustomization::OnClear()
 
 void FBlueprintComponentReferenceCustomization::OnNavigateComponent()
 {
-	auto LocalNode = CachedComponentNode.Pin();
+	TSharedPtr<FComponentInfo> LocalNode = CachedComponentNode.Pin();
 	if (!LocalNode.IsValid() || !ComponentPickerContext.IsValid())
 	{
 		return;
@@ -653,7 +699,7 @@ bool FBlueprintComponentReferenceCustomization::TestNode(const TSharedPtr<FCompo
 	const EBlueprintComponentReferenceMode Mode = Node->GetDesiredMode();
 	if (Mode == EBlueprintComponentReferenceMode::Path)
 	{
-		return ViewSettings.bShowPathOnly;
+		return ViewSettings.bShowHidden;
 	}
 	if (Mode == EBlueprintComponentReferenceMode::Property)
 	{

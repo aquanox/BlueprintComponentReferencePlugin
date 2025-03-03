@@ -22,6 +22,13 @@ struct FBCRTestStruct
 	TArray<FBlueprintComponentReference> ReferenceArray;
 };
 
+USTRUCT()
+struct FBCRTestReference : public FBlueprintComponentReference
+{
+	GENERATED_BODY()
+	
+};
+
 UCLASS(MinimalAPI, Blueprintable, HideCategories=("ActorTick", "Cooking", Activation, Rendering, Transform, Tags,"ComponentTick", "Collision", "Advanced", "Replication"))
 class ABCRTestActor : public AInfo
 {
@@ -84,6 +91,9 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Test|Base")
 	FBlueprintComponentReference ReferenceA;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Test|Base")
+	FBCRTestReference ReferenceB;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Metadata", NoClear, meta=(NoClear))
 	FBlueprintComponentReference ReferenceNoClear;
@@ -94,13 +104,13 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Metadata", meta=(NoPicker))
 	FBlueprintComponentReference ReferenceNoPicker;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Metadata", meta=(ShowNative=true, ShowBlueprint=false, ShowInstanced=false, ShowPathOnly=false))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Metadata", meta=(ShowNative=true, ShowBlueprint=false, ShowInstanced=false, ShowHidden=false))
 	FBlueprintComponentReference ReferenceNativeOnly;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Metadata", meta=(ShowNative=false, ShowBlueprint=true, ShowInstanced=false, ShowPathOnly=false))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Metadata", meta=(ShowNative=false, ShowBlueprint=true, ShowInstanced=false, ShowHidden=false))
 	FBlueprintComponentReference ReferenceBlueprintOnly;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Metadata", meta=(ShowNative=false, ShowBlueprint=false, ShowInstanced=true, ShowPathOnly=false))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Metadata", meta=(ShowNative=false, ShowBlueprint=false, ShowInstanced=true, ShowHidden=false))
 	FBlueprintComponentReference ReferenceInstancedOnly;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Metadata", meta=(ShowNative=false, ShowBlueprint=false, ShowInstanced=false, ShowPathOnly=true))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Metadata", meta=(ShowNative=false, ShowBlueprint=false, ShowInstanced=false, ShowHidden=true))
 	FBlueprintComponentReference ReferencePathOnly;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Containers", meta=(ShowBlueprint=false))
