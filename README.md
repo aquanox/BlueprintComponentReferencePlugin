@@ -27,6 +27,7 @@ Component Filtering:
  * `ShowNative` - Include native components in picker. Default = True.
  * `ShowInstanced` - Include instanced (runtime) components in picker. Default = True.
  * `ShowHidden` - Include internal or hidden components without direct property in picker. Default = False.
+ * `ShowEditor` - Include editor-only components in picker. Default = True.
 
 Item Display: 
  * `NoClear` - Hide 'Clear' button. Default = False.
@@ -46,6 +47,38 @@ Blueprint variables supported via variable editor extension.
 Plugin is compatible with 5.0+, ue5-main and can be modified to work with other engine versions.
 
 ## Examples
+
+```c++
+
+UCLASS()
+class ABCRTestActor : public AInfo
+{
+	GENERATED_BODY()
+public:
+    /* Simplest reference to any component within current class */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly)
+    FBlueprintComponentReference SimpleReference;
+    
+    /* Simplest reference to any native component within current class */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ShowNative=true, ShowBlueprint=false, ShowInstanced=false))
+    FBlueprintComponentReference NativeOnlyReference;
+    
+    /* Simplest reference to any component within current class */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(AllowedClasses="/Script/Engine.SceneComponent"))
+    FBlueprintComponentReference SimpleSceneCompReference;
+};
+
+UCLASS()
+class UBCRTestDataAsset : public UDataAsset
+{
+	GENERATED_BODY()
+public:
+    /* Make a reference to any component within a BCRTestActor class */
+    UPROPERTY(EditAnywhere, meta=(ActorClass="/Script/BlueprintComponentReferenceTests.BCRTestActor"))
+    FBlueprintComponentReference ExternalRef;
+};
+
+```
 
 Code examples can be found in `BCRTestActor.h`
 

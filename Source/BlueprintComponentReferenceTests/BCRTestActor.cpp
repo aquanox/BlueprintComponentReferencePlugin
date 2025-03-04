@@ -8,16 +8,17 @@
 DEFINE_LOG_CATEGORY_STATIC(LogBlueprintComponentRef, Log, All);
 
 // Sets default values
-ABCRTestActor::ABCRTestActor()
+ABCRTestActor::ABCRTestActor(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer.SetDefaultSubobjectClass(ACharacter::CharacterMovementComponentName, UBCRTestMovementComponent::StaticClass()))
 {
-	Root = CreateDefaultSubobject<UBCRTestSceneComponent>("Root");
-	SetRootComponent(Root);
+	TestBase = CreateDefaultSubobject<UBCRTestSceneComponent>("TestBase");
+	TestBase->SetupAttachment(GetRootComponent());
 #if WITH_EDITORONLY_DATA
-	Root->bVisualizeComponent = true;
+	TestBase->bVisualizeComponent = true;
 #endif
 
 	LevelOne = CreateDefaultSubobject<UBCRTestSceneComponent>("LevelOneName");
-	LevelOne->SetupAttachment(Root);
+	LevelOne->SetupAttachment(TestBase);
 
 	LevelTwo = CreateDefaultSubobject<UBCRTestSceneComponent>("LevelTwoName");
 	LevelTwo->SetupAttachment(LevelOne);

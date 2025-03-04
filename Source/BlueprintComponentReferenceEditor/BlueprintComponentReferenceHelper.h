@@ -51,6 +51,7 @@ public:
 
 	virtual bool IsNativeComponent() const { return false; }
 	virtual bool IsInstancedComponent() const { return false; }
+	virtual bool IsEditorOnlyComponent() const;
 	virtual EBlueprintComponentReferenceMode GetDesiredMode() const;
 };
 /**

@@ -20,6 +20,7 @@ struct FCRMetadataKey
 	static const FName ShowNative;
 	static const FName ShowInstanced;
 	static const FName ShowHidden;
+	static const FName ShowEditor;
 };
 
 /**
@@ -58,6 +59,9 @@ public:
 	/** Allow to pick path-only/hidden components */
 	UPROPERTY(EditAnywhere, Category=Metadata, DisplayName="Show Hidden", meta=(MDSpecifier="ShowHidden", MDHandler="Bool"))
 	bool bShowHidden = false;
+	/** Allow to pick editor-only components */
+	UPROPERTY(EditAnywhere, Category=Metadata, DisplayName="Show Editor", meta=(MDSpecifier="ShowEditor", MDHandler="Bool"))
+	bool bShowEditor = true;
 
 	/** Classes or interfaces that can be used with this property */
 	UPROPERTY(EditAnywhere, DisplayName="Allowed Classes", Category=Metadata, NoClear, meta=(MDSpecifier="AllowedClasses", MDHandler="ClassList", DisplayThumbnail=false, NoElementDuplicate, AllowAbstract, NoBrowse, NoCreate, DisallowCreateNew))

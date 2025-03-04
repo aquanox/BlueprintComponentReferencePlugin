@@ -21,6 +21,7 @@ const FName FCRMetadataKey::ShowBlueprint = "ShowBlueprint";
 const FName FCRMetadataKey::ShowNative = "ShowNative";
 const FName FCRMetadataKey::ShowInstanced = "ShowInstanced";
 const FName FCRMetadataKey::ShowHidden = "ShowHidden";
+const FName FCRMetadataKey::ShowEditor = "ShowEditor";
 
 void FBlueprintComponentReferenceMetadata::ResetSettings()
 {
@@ -39,6 +40,7 @@ void FBlueprintComponentReferenceMetadata::ResetSettings()
 	bShowBlueprint = DefaultValues.bShowBlueprint;
 	bShowInstanced = DefaultValues.bShowInstanced;
 	bShowHidden = DefaultValues.bShowHidden;
+	bShowEditor = DefaultValues.bShowEditor;
 }
 
 void FBlueprintComponentReferenceMetadata::LoadSettingsFromProperty(const FProperty* InProp)
@@ -57,6 +59,7 @@ void FBlueprintComponentReferenceMetadata::LoadSettingsFromProperty(const FPrope
 	bShowBlueprint = GetBoolMetaDataValue(InProp, FCRMetadataKey::ShowBlueprint, DefaultValues.bShowBlueprint);
 	bShowInstanced = GetBoolMetaDataValue(InProp, FCRMetadataKey::ShowInstanced,  DefaultValues.bShowInstanced);
 	bShowHidden = GetBoolMetaDataValue(InProp, FCRMetadataKey::ShowHidden,  DefaultValues.bShowHidden);
+	bShowEditor = GetBoolMetaDataValue(InProp, FCRMetadataKey::ShowEditor,  DefaultValues.bShowEditor);
 
 	GetClassMetadata(InProp, FCRMetadataKey::ActorClass, [this](UClass* InClass)
 	{
@@ -235,6 +238,10 @@ void FBlueprintComponentReferenceMetadata::ApplySettingsToProperty(UBlueprint* I
 	if (InChanged.IsNone() || InChanged == GET_MEMBER_NAME_CHECKED(FBlueprintComponentReferenceMetadata, bShowHidden))
 	{
 		SetMetaData(FCRMetadataKey::ShowHidden, BoolToString(bShowHidden));
+	}
+	if (InChanged.IsNone() || InChanged == GET_MEMBER_NAME_CHECKED(FBlueprintComponentReferenceMetadata, bShowEditor))
+	{
+		SetMetaData(FCRMetadataKey::ShowEditor, BoolToString(bShowEditor));
 	}
 	if (InChanged.IsNone() || InChanged == GET_MEMBER_NAME_CHECKED(FBlueprintComponentReferenceMetadata, AllowedClasses))
 	{

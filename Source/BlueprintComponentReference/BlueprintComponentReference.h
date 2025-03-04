@@ -82,6 +82,10 @@ enum class EBlueprintComponentReferenceMode : uint8
  *		Should include instanced components that have no variable bound to?
  *		Default: false
  *
+ * - ShowEditor=bool
+ *		Should include editor-only components?
+ *		Default: true
+ *
  */
 USTRUCT(BlueprintType, meta=(DisableSplitPin))
 struct BLUEPRINTCOMPONENTREFERENCE_API FBlueprintComponentReference

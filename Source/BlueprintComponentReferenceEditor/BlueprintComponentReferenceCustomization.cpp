@@ -668,7 +668,7 @@ void FBlueprintComponentReferenceCustomization::OnComponentSelected(TSharedRef<F
 	CachedComponentNode = Node;
 
 	FBlueprintComponentReference Result;
-
+	// Todo: desired mode override by metadata, unless really desired 
 	if (Node->GetDesiredMode() == EBlueprintComponentReferenceMode::Property)
 	{
 		Result = FBlueprintComponentReference(EBlueprintComponentReferenceMode::Property, Node->GetVariableName());
@@ -694,6 +694,9 @@ void FBlueprintComponentReferenceCustomization::ResetViewSettings()
 bool FBlueprintComponentReferenceCustomization::TestNode(const TSharedPtr<FComponentInfo>& Node) const
 {
 	if (!Node.IsValid())
+		return false;
+
+	if (!ViewSettings.bShowEditor && Node->IsEditorOnlyComponent())
 		return false;
 
 	const EBlueprintComponentReferenceMode Mode = Node->GetDesiredMode();

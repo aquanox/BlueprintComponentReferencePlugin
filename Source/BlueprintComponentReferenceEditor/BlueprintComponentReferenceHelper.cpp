@@ -189,11 +189,16 @@ USCS_Node* FComponentInfo::GetSCSNode() const
 	return nullptr;
 }
 
+bool FComponentInfo::IsEditorOnlyComponent() const
+{
+	UActorComponent* Template = GetComponentTemplate();
+	return Template != nullptr && Template->bIsEditorOnly;
+}
+
 EBlueprintComponentReferenceMode FComponentInfo::GetDesiredMode() const
 {
 	return !GetVariableName().IsNone() ? EBlueprintComponentReferenceMode::Property : EBlueprintComponentReferenceMode::Path;
 }
-
 
 FComponentInfo_Default::FComponentInfo_Default(USCS_Node* SCSNode, bool bInIsInherited) : SCSNode(SCSNode)
 {
