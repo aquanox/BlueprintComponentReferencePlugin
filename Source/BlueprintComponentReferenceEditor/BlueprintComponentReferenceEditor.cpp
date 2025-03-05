@@ -11,14 +11,17 @@ DEFINE_LOG_CATEGORY(LogComponentReferenceEditor);
 
 void FBCREditorModule::StartupModule()
 {
-	ClassHelper = MakeShared<FBlueprintComponentReferenceHelper>();
+	if (GEditor && !IsRunningCommandlet())
+	{
+		ClassHelper = MakeShared<FBlueprintComponentReferenceHelper>();
 
-	PostEngineInitHandle = FCoreDelegates::OnPostEngineInit.AddRaw(this, &FBCREditorModule::OnPostEngineInit);
+		PostEngineInitHandle = FCoreDelegates::OnPostEngineInit.AddRaw(this, &FBCREditorModule::OnPostEngineInit);
 
-	OnReloadCompleteDelegateHandle = FCoreUObjectDelegates::ReloadCompleteDelegate.AddRaw(this, &FBCREditorModule::OnReloadComplete);
-	OnReloadAddedClassesDelegateHandle = FCoreUObjectDelegates::ReloadAddedClassesDelegate.AddRaw(this, &FBCREditorModule::OnReloadAddedClasses);
-	OnReloadReinstancingCompleteDelegateHandle = FCoreUObjectDelegates::ReloadReinstancingCompleteDelegate.AddRaw(this, &FBCREditorModule::OnReinstancingComplete);
-	OnModulesChangedDelegateHandle = FModuleManager::Get().OnModulesChanged().AddRaw(this, &FBCREditorModule::OnModulesChanged);
+		OnReloadCompleteDelegateHandle = FCoreUObjectDelegates::ReloadCompleteDelegate.AddRaw(this, &FBCREditorModule::OnReloadComplete);
+		OnReloadAddedClassesDelegateHandle = FCoreUObjectDelegates::ReloadAddedClassesDelegate.AddRaw(this, &FBCREditorModule::OnReloadAddedClasses);
+		OnReloadReinstancingCompleteDelegateHandle = FCoreUObjectDelegates::ReloadReinstancingCompleteDelegate.AddRaw(this, &FBCREditorModule::OnReinstancingComplete);
+		OnModulesChangedDelegateHandle = FModuleManager::Get().OnModulesChanged().AddRaw(this, &FBCREditorModule::OnModulesChanged);
+	}
 }
 
 void FBCREditorModule::OnPostEngineInit()
@@ -38,22 +41,25 @@ void FBCREditorModule::OnPostEngineInit()
 
 void FBCREditorModule::ShutdownModule()
 {
-	FCoreDelegates::OnPostEngineInit.Remove(PostEngineInitHandle);
-	FCoreUObjectDelegates::ReloadCompleteDelegate.Remove(OnReloadCompleteDelegateHandle);
-	FCoreUObjectDelegates::ReloadAddedClassesDelegate.Remove(OnReloadAddedClassesDelegateHandle);
-	FCoreUObjectDelegates::ReloadReinstancingCompleteDelegate.Remove(OnReloadReinstancingCompleteDelegateHandle);
-	FModuleManager::Get().OnModulesChanged().Remove(OnModulesChangedDelegateHandle);
-
-	if (FModuleManager::Get().IsModuleLoaded(TEXT("PropertyEditor")))
+	if (GEditor && !IsRunningCommandlet())
 	{
-		FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
-		PropertyModule.UnregisterCustomPropertyTypeLayout(FName("BlueprintComponentReference"));
-	}
+		FCoreDelegates::OnPostEngineInit.Remove(PostEngineInitHandle);
+		FCoreUObjectDelegates::ReloadCompleteDelegate.Remove(OnReloadCompleteDelegateHandle);
+		FCoreUObjectDelegates::ReloadAddedClassesDelegate.Remove(OnReloadAddedClassesDelegateHandle);
+		FCoreUObjectDelegates::ReloadReinstancingCompleteDelegate.Remove(OnReloadReinstancingCompleteDelegateHandle);
+		FModuleManager::Get().OnModulesChanged().Remove(OnModulesChangedDelegateHandle);
 
-	if (FModuleManager::Get().IsModuleLoaded(TEXT("Kismet")))
-	{
-		FBlueprintEditorModule& BlueprintEditorModule = FModuleManager::GetModuleChecked<FBlueprintEditorModule>("Kismet");
-		BlueprintEditorModule.UnregisterVariableCustomization(FProperty::StaticClass(), VariableCustomizationHandle);
+		if (FModuleManager::Get().IsModuleLoaded(TEXT("PropertyEditor")))
+		{
+			FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
+			PropertyModule.UnregisterCustomPropertyTypeLayout(FName("BlueprintComponentReference"));
+		}
+
+		if (FModuleManager::Get().IsModuleLoaded(TEXT("Kismet")))
+		{
+			FBlueprintEditorModule& BlueprintEditorModule = FModuleManager::GetModuleChecked<FBlueprintEditorModule>("Kismet");
+			BlueprintEditorModule.UnregisterVariableCustomization(FProperty::StaticClass(), VariableCustomizationHandle);
+		}
 	}
 }
 
