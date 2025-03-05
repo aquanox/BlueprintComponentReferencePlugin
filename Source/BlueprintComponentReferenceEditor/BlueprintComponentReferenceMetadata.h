@@ -43,7 +43,7 @@ public:
 	UPROPERTY(EditAnywhere, Category=Metadata, meta=(MDSpecifier="NoClear", MDHandler="InverseBool"))
 	bool bUseClear	= true;
 
-	/** Actor class, leave empty for automatic discovery */ 
+	/** Enforce specific Actor class to collect components from, leave empty for automatic discovery */ 
 	UPROPERTY(EditAnywhere, Category=Metadata, meta=(MDSpecifier="ActorClass", MDHandler="Class", AllowAbstract=true))
 	TSoftClassPtr<AActor> ActorClass;
 
