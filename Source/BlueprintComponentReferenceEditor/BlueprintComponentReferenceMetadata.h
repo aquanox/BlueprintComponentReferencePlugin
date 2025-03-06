@@ -26,7 +26,6 @@ struct FCRMetadataKey
 /**
  * Internal struct for blueprint property configuration and view settings
  *
- * todo: maybe make a universal mapper for ustruct-metadata view ?
  */
 USTRUCT()
 struct FBlueprintComponentReferenceMetadata
@@ -74,7 +73,6 @@ public:
 
 	void ResetSettings();
 	void LoadSettingsFromProperty(const FProperty* InProp);
-	void LoadSettingsFromProperty_Generic(const FProperty* InProp, void* TargetData, UScriptStruct* TargetType);
 	void ApplySettingsToProperty(UBlueprint* InBlueprint, FProperty* InProperty, const FName& InChanged);
 
 private:

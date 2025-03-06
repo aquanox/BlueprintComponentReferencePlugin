@@ -15,6 +15,7 @@ class UBlueprint;
  */
 class  FBlueprintComponentReferenceVarCustomization : public IDetailCustomization
 {
+	using FMetadataContainer = FBlueprintComponentReferenceMetadata;
 public:
 	FBlueprintComponentReferenceVarCustomization(TSharedPtr<IBlueprintEditor> InBlueprintEditor, TWeakObjectPtr<UBlueprint> InBlueprintPtr);
 
@@ -36,6 +37,6 @@ private:
 	TArray<TWeakFieldPtr<FProperty>> PropertiesBeingCustomized;
 
 	/** Object holding aggregate settins to be applied to properties */
-	TSharedRef<TStructOnScope<FBlueprintComponentReferenceMetadata>> ScopedSettings;
+	TSharedRef<TStructOnScope<FMetadataContainer>> ScopedSettings;
 
 };

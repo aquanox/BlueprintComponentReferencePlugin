@@ -8,7 +8,7 @@
 #include "BlueprintComponentReferenceLibrary.generated.h"
 
 /**
- * Various helper functions to interact with blueprint components
+ * Helper functions to interact with component references from blueprints
  */
 UCLASS()
 class BLUEPRINTCOMPONENTREFERENCE_API UBlueprintComponentReferenceLibrary : public UBlueprintFunctionLibrary

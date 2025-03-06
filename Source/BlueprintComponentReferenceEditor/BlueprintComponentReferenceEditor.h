@@ -34,8 +34,4 @@ private:
 	FDelegateHandle OnModulesChangedDelegateHandle;
 };
 
-#if UE_BUILD_DEBUG
 DECLARE_LOG_CATEGORY_EXTERN(LogComponentReferenceEditor, Log, All);
-#else
-DECLARE_LOG_CATEGORY_EXTERN(LogComponentReferenceEditor, Warning, All);
-#endif

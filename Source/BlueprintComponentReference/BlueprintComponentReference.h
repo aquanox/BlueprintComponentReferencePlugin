@@ -6,8 +6,6 @@
 #include "Components/ActorComponent.h"
 #include "BlueprintComponentReference.generated.h"
 
-DECLARE_DYNAMIC_DELEGATE_RetVal_OneParam(bool, FBlueprintComponentFilter, UActorComponent*, Component);
-
 /**
  * Defines method which ComponentReference resolves the component from actor
  */
@@ -25,11 +23,7 @@ enum class EBlueprintComponentReferenceMode : uint8
 	/**
 	 * Referencing via object path
 	 */
-	Path UMETA(DisplayName="Object Path"),
-	/**
-	 *
-	 */
-	//Dynamic  UMETA(DisplayName="Selector")
+	Path UMETA(DisplayName="Object Path")
 };
 
 /**
@@ -44,14 +38,14 @@ enum class EBlueprintComponentReferenceMode : uint8
  * Supported meta-specifiers:
  *
  * - ActorClass=/Script/Module.ClassName
- *      Specifies actor class that would be used to suggest components in dropdown
+ *      Specifies actor class that would be used as a source to suggest components in dropdown
  *      This specifier is used only in scenarios when automatic discovery of actor type is not possible (Data Asset member)
  *      or there is a need to enforce specific actor type
  *
- * - AllowedClasses=/Script/Engine.ClassA,/Script/Engine.Class.B
+ * - AllowedClasses="/Script/Engine.ClassA,/Script/Engine.Class.B"
  *		Specifies list of allowed base component types
  *
- * - DisallowedClasses=/Script/Engine.ClassA,/Script/Engine.Class.B
+ * - DisallowedClasses="/Script/Engine.ClassA,/Script/Engine.Class.B"
  *		Specifies list of disallowed base component types
  *
  * - NoPicker

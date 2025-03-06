@@ -6,7 +6,7 @@ Blueprint Component Reference Plugin provides a struct and set of accessors that
 
 ## Features
 
-`FBlueprintComponentReference` supported in following use cases:
+Plugin provides component picker in following use cases:
  * Actor class member UPROPERTY 
  * Struct member UPROPERTY within Actor class or blueprint.
  * Local variable in an Actor Blueprint.
@@ -16,7 +16,7 @@ Blueprint Component Reference Plugin provides a struct and set of accessors that
  * Array in one of above
  * Map value in one of above
  
-## Customizations
+## Component Selection Customizations
 
 Component reference property display can be customized with UPROPERTY meta specifiers.
  
@@ -77,6 +77,14 @@ public:
     UPROPERTY(EditAnywhere, meta=(ActorClass="/Script/BlueprintComponentReferenceTests.BCRTestActor"))
     FBlueprintComponentReference ExternalRef;
 };
+
+void AMyActor::Foo()
+{
+    if (auto* Component = Reference.GetComponent<UBCRActorComponent>(this))
+    {
+        Component->Activate();
+    }
+}
 
 ```
 

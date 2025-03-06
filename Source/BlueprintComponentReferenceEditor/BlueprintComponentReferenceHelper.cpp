@@ -388,10 +388,6 @@ bool FBlueprintComponentReferenceHelper::IsComponentReferenceProperty(const FPro
 	{
 		bDoesMatch = IsComponentReferenceType(AsStruct->Struct);
 	}
-	//else if (auto AsOptional = CastField<FOptionalProperty>(InProperty))
-	//{
-	//	bDoesMatch = IsComponentReferenceProperty(AsOptional->GetValueProperty());
-	//}
 	else if (auto AsArray = CastField<FArrayProperty>(InProperty))
 	{
 		bDoesMatch = IsComponentReferenceProperty(AsArray->Inner);

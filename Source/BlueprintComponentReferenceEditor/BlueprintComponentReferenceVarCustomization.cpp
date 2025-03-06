@@ -12,7 +12,7 @@
 #include "ScopedTransaction.h"
 
 FBlueprintComponentReferenceVarCustomization::FBlueprintComponentReferenceVarCustomization(TSharedPtr<IBlueprintEditor> InBlueprintEditor, TWeakObjectPtr<UBlueprint> InBlueprintPtr)
-	: ScopedSettings(MakeShared<TStructOnScope<FBlueprintComponentReferenceMetadata>>())
+	: ScopedSettings(MakeShared<TStructOnScope<FMetadataContainer>>())
 {
 	BlueprintEditorPtr = InBlueprintEditor;
 	BlueprintPtr		= InBlueprintPtr;
@@ -49,9 +49,9 @@ TSharedPtr<IDetailCustomization> FBlueprintComponentReferenceVarCustomization::M
 
 void FBlueprintComponentReferenceVarCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 {
-	ScopedSettings->InitializeFrom(MakeStructOnScope<FBlueprintComponentReferenceMetadata>());
+	ScopedSettings->InitializeFrom(MakeStructOnScope<FMetadataContainer>());
 	
-	FBlueprintComponentReferenceMetadata& Settings = *ScopedSettings->Get();
+	FMetadataContainer& Settings = *ScopedSettings->Get();
 
 	PropertiesBeingCustomized.Reset();
 
@@ -113,7 +113,7 @@ void FBlueprintComponentReferenceVarCustomization::OnPropertyChanged(FName InNam
 {
 	FScopedTransaction Transaction(INVTEXT("ApplySettingsToProperty"));
 
-	FBlueprintComponentReferenceMetadata& Settings = *ScopedSettings->Get();
+	FMetadataContainer& Settings = *ScopedSettings->Get();
 	
 	for (const TWeakFieldPtr<FProperty>& Property : PropertiesBeingCustomized)
 	{

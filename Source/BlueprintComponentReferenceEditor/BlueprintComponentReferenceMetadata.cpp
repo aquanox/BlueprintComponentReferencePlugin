@@ -72,58 +72,12 @@ void FBlueprintComponentReferenceMetadata::LoadSettingsFromProperty(const FPrope
 	GetClassListMetadata(InProp, FCRMetadataKey::AllowedClasses, [this](UClass* InClass)
 	{
 		AllowedClasses.AddUnique(InClass);
-		//AllowedClassesMetadata.AddUnique(InClass);
 	});
 
 	GetClassListMetadata(InProp, FCRMetadataKey::DisallowedClasses, [this](UClass* InClass)
 	{
 		DisallowedClasses.AddUnique(InClass);
-		//DisallowedClassesMetadata.AddUnique(InClass);
 	});
-}
-
-void FBlueprintComponentReferenceMetadata::LoadSettingsFromProperty_Generic(const FProperty* InProp, void* TargetData, UScriptStruct* TargetType)
-{
-#if 0
-	for (TFieldIterator<FProperty> It(TargetType); *It; ++It)
-	{
-		FName Specifier = *(*It)->GetMetaData("MDSpecifier");
-		if (Specifier.IsNone()) continue;
-		
-		FName Handler = *(*It)->GetMetaData("MDHandler");
-		if (Handler.IsNone()) continue;
-
-		if (Handler == TEXT("Bool"))
-		{ // standard bool value
-			bool const& BaseValue = CastFieldChecked<FBoolProperty>(*It)->GetPropertyValue_InContainer(TargetType);
-			bool MetadataValue = GetBoolMetaDataValue(InProp, Specifier, BaseValue);
-			CastFieldChecked<FBoolProperty>(*It)->SetPropertyValue_InContainer(TargetType, MetadataValue);
-		}
-		else if (Handler == TEXT("InverseBool"))
-		{ // inversed bool value
-			bool const& BaseValue =  CastFieldChecked<FBoolProperty>(*It)->GetPropertyValue_InContainer(TargetType);
-			bool MetadataValue = !GetBoolMetaDataValue(InProp, Specifier, !BaseValue);
-			CastFieldChecked<FBoolProperty>(*It)->SetPropertyValue_InContainer(TargetType, MetadataValue);
-		}
-		else if (Handler == TEXT("BoolFlag"))
-		{ // bool with no need of value, if present => true
-		}
-		else if (Handler == TEXT("String"))
-		{
-		}
-		else if (Handler == TEXT("Integer"))
-		{
-		}
-		else if (Handler == TEXT("Float"))
-		{
-		}
-		else if (Handler == TEXT("ClassList"))
-		{
-			FScriptArray const& BaseValue = CastFieldChecked<FArrayProperty>(*It)->GetPropertyValue_InContainer(TargetType);
-
-		}
-	}
-#endif
 }
 
 void FBlueprintComponentReferenceMetadata::ApplySettingsToProperty(UBlueprint* InBlueprint, FProperty* InProperty, const FName& InChanged)
