@@ -57,14 +57,13 @@ public:
 	 * @param Reference Input reference
 	 * @return True if reference has any value set
 	 */
-	UFUNCTION(BlueprintCallable, Category="Utilities|ComponentReference", DisplayName="Is Null")
+	UFUNCTION(BlueprintPure, Category="Utilities|ComponentReference", DisplayName="Is Null")
 	static bool IsNullComponentReference(const FBlueprintComponentReference& Reference);
 	
 	/**
 	 * Reset reference variable value to none
 	 *
 	 * @param Reference Input reference
-	 * @return True if reference has any value set
 	 */
 	UFUNCTION(BlueprintCallable, Category="Utilities|ComponentReference", DisplayName="Invalidate")
 	static void InvalidateComponentReference(UPARAM(Ref) FBlueprintComponentReference& Reference);
