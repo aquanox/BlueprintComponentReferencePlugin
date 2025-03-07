@@ -32,6 +32,7 @@ public:
 private:
 	/** Build a simple debug context for the property */
 	FString GetLoggingContextString() const;
+	FString CachedContextString;
 
 	/** Build the combobox widget. */
 	void BuildComboBox();
@@ -68,7 +69,7 @@ private:
 
 	void OnClear();
 	void OnNavigateComponent();
-	void OnComponentSelected(TSharedRef<FComponentInfo> Node);
+	void OnComponentSelected(TSharedPtr<FComponentInfo> Node);
 
 	void CloseComboButton();
 
@@ -94,4 +95,11 @@ private:
 	TWeakPtr<FComponentInfo> CachedComponentNode;
 	/** last call property access state */
 	FPropertyAccess::Result CachedPropertyAccess = FPropertyAccess::Result::Fail;
+
+	struct FSelectionData
+	{
+		TSharedPtr<FHierarchyInfo>			Category;
+		TArray<TSharedPtr<FComponentInfo>>	Elements;
+	};
+	TArray<FSelectionData> CachedChoosableElements;
 };

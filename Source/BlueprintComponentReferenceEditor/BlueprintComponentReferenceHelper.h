@@ -49,10 +49,13 @@ public:
 	virtual UBlueprint* GetBlueprint() const;
 	virtual USCS_Node* GetSCSNode() const;
 
+	virtual bool IsBlueprintComponent() const { return !IsNativeComponent(); }
 	virtual bool IsNativeComponent() const { return false; }
 	virtual bool IsInstancedComponent() const { return false; }
 	virtual bool IsEditorOnlyComponent() const;
 	virtual EBlueprintComponentReferenceMode GetDesiredMode() const;
+	
+	virtual FString ToString() const;
 };
 /**
  * @see FSCSEditorTreeNodeComponent
@@ -70,6 +73,8 @@ public:
 
 	virtual bool IsNativeComponent() const override;
 	virtual USCS_Node* GetSCSNode() const override;
+	
+	virtual FString ToString() const override;
 };
 /**
  * @see FSCSEditorTreeNodeInstanceAddedComponent
@@ -87,6 +92,8 @@ public:
 	virtual FName GetVariableName() const override;
 	virtual FText GetDisplayText() const override;
 	virtual FName GetObjectName() const override { return InstancedComponentName; }
+
+	virtual FString ToString() const override;
 };
 
 struct FHierarchyInfo
@@ -94,26 +101,21 @@ struct FHierarchyInfo
 	TArray<TSharedPtr<FComponentInfo>> Nodes;
 
 	virtual ~FHierarchyInfo() = default;
-	virtual UClass* GetClassObject() const = 0;
-	virtual FText GetDisplayText() const = 0;
-	virtual bool IsBlueprint() const { return false; }
+	// Group items
 	virtual const TArray<TSharedPtr<FComponentInfo>>& GetNodes() const  { return Nodes; }
+	// Group related class object
+	virtual UClass* GetClassObject() const = 0;
+	// Group display name
+	virtual FText GetDisplayText() const = 0;
+	// Is category considered to be a blueprint
+	virtual bool IsBlueprint() const { return false; }
+	// Is category considered to be an instance-only
 	virtual bool IsInstance() const { return false; }
+	//
+	virtual FString ToString() const;
 
 	template<typename T = UClass>
 	T* GetClass() const { return Cast<T>(GetClassObject()); }
-};
-
-struct FHierarchyInstanceInfo : public FHierarchyInfo
-{
-private:
-	using Super = FComponentInfo;
-public:
-	TWeakObjectPtr<AActor> Source;
-
-	virtual bool IsInstance() const  override { return true; }
-	virtual UClass* GetClassObject() const override { return nullptr; }
-	virtual FText GetDisplayText() const override { return INVTEXT("Instanced"); }
 };
 
 struct FHierarchyClassInfo : public FHierarchyInfo
@@ -121,17 +123,34 @@ struct FHierarchyClassInfo : public FHierarchyInfo
 private:
 	using Super = FComponentInfo;
 public:
-	FHierarchyClassInfo() = default;
+	FHierarchyClassInfo(UClass* Class);
 	virtual ~FHierarchyClassInfo();
 
-	TWeakObjectPtr<UClass>	Source;
+	TWeakObjectPtr<UClass>	SourceClass;
 	FText					ClassDisplayText;
 	bool					bIsBlueprint = false;
 	FDelegateHandle			CompileDelegateHandle;
 
-	virtual UClass* GetClassObject() const override { return Source.Get(); }
+	virtual UClass* GetClassObject() const override { return SourceClass.Get(); }
 	virtual FText GetDisplayText() const override { return ClassDisplayText; }
 	virtual bool IsBlueprint() const override { return bIsBlueprint; }
+};
+
+struct FHierarchyInstanceInfo : public FHierarchyInfo
+{
+private:
+	using Super = FComponentInfo;
+public:
+	TWeakObjectPtr<AActor>  SourceActor;
+	TWeakObjectPtr<UClass>	SourceClass;
+	FText					ClassDisplayText;
+	bool					bIsBlueprint = false;
+	
+	FHierarchyInstanceInfo(AActor* Actor);
+
+	virtual bool IsInstance() const  override { return true; }
+	virtual UClass* GetClassObject() const override { return SourceClass.Get(); }
+	virtual FText GetDisplayText() const override { return INVTEXT("Instance"); }
 };
 
 struct FComponentPickerContext
@@ -145,7 +164,7 @@ struct FComponentPickerContext
 	AActor* GetActor() const { return Actor.Get(); }
 	UClass* GetClass() const { return Class.Get(); }
 
-	TSharedPtr<FComponentInfo> FindComponent(const FBlueprintComponentReference& InName) const;
+	TSharedPtr<FComponentInfo> FindComponent(const FBlueprintComponentReference& InRef) const;
 	TSharedPtr<FComponentInfo> FindComponent(const FName& InName) const;
 
 
@@ -163,6 +182,8 @@ class FBlueprintComponentReferenceHelper : public TSharedFromThis<FBlueprintComp
 public:
 	float LastCacheCleanup = 0;
 
+	TMap<FString, TWeakPtr<FComponentPickerContext>> ActiveContexts;
+
 	using FInstanceKey = TTuple<FName /* owner */, FName /* actor */, FName /* class */>;
 	TMap<FInstanceKey, TSharedPtr<FHierarchyInstanceInfo>> InstanceCache;
 
@@ -174,15 +195,36 @@ public:
 	static bool IsComponentReferenceProperty(const FProperty* InProperty);
 	static bool IsComponentReferenceType(const UStruct* InStruct);
 
+	/**
+	 * Get or create component chooser data source for specific input parameters
+	 * 
+	 * @param InActor Input actor
+	 * @param InClass Input class
+	 * @param InLabel Debug marker
+	 * @return Context instance
+	 */
 	TSharedPtr<FComponentPickerContext> CreateChooserContext(AActor* InActor, UClass* InClass, const FString& InLabel);
 
 	void CleanupStaleData(bool bForce = false);
-	
+
+	/**
+	 * Collect components info specific to live actor instance 
+	 * 
+	 * @param InLabel Actor label, debug purpose only
+	 * @param InActor Actor instance to collect information from
+	 * @return 
+	 */
 	TSharedPtr<FHierarchyInfo> GetOrCreateInstanceData(FString const& InLabel, AActor* InActor);
+	
+	/**
+	 * Collect components info specific to class 
+	 * 
+	 * @param InLabel Class label, debug purpose only
+	 * @param InClass Class instance to collect information from
+	 * @return 
+	 */
 	TSharedPtr<FHierarchyInfo> GetOrCreateClassData(FString const& InLabel, UClass* InClass);
 
-
-	/** Construct  */
 	static TSharedPtr<FComponentInfo> CreateFromNode(USCS_Node* InComponentNode);
 	static TSharedPtr<FComponentInfo> CreateFromInstance(UActorComponent* Component);
 
@@ -193,7 +235,7 @@ public:
 	static UClass* FindClassByName(const FString& ClassName);
 
 	/** */
-	static bool GetHierarchyFromClass(const UClass* InClass, TArray<UClass*, TInlineAllocator<16>>& OutResult);
+	static bool GetHierarchyFromClass(const UClass* InClass, TArray<UClass*>& OutResult);
 
 	// Tries to find a Variable that likely holding instance component.
 	static FName FindVariableForInstance(const UActorComponent* InstanceComponent, UClass* ClassToSearch);
@@ -203,6 +245,10 @@ public:
 
 	static bool DoesReferenceMatch(const FBlueprintComponentReference& InRef, const FComponentInfo& Value);
 
+	void DebugDumpInstances(const TArray<FString>& Args);
+	void DebugDumpClasses(const TArray<FString>& Args);
+	void DebugDumpContexts(const TArray<FString> Array);
+	void DebugForceCleanup();
 private:
 	void OnBlueprintCompiled(UBlueprint* Blueprint, TSharedPtr<FHierarchyClassInfo> Entry);
 };

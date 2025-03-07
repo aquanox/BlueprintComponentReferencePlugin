@@ -9,9 +9,50 @@ IMPLEMENT_MODULE(FBCREditorModule, BlueprintComponentReferenceEditor);
 
 DEFINE_LOG_CATEGORY(LogComponentReferenceEditor);
 
+#if ALLOW_CONSOLE
+
+static FAutoConsoleCommand BCR_DumpInstances(
+	TEXT("BCR.DumpInstances"),
+	TEXT("Dump active instance data"),
+	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& InArgs) {
+		FBCREditorModule::GetReflectionHelper()->DebugDumpInstances(InArgs);
+	})
+);
+static FAutoConsoleCommand BCR_DumpClasses(
+	TEXT("BCR.DumpClasses"),
+	TEXT("Dump active class data"),
+	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& InArgs) {
+		FBCREditorModule::GetReflectionHelper()->DebugDumpClasses(InArgs);
+	})
+);
+static FAutoConsoleCommand BCR_DumpContexts(
+	TEXT("BCR.DumpContexts"),
+	TEXT("Dump active contexts data"),
+	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& InArgs) {
+		FBCREditorModule::GetReflectionHelper()->DebugDumpContexts(InArgs);
+	})
+);
+static FAutoConsoleCommand BCR_ForceCleanup(
+	TEXT("BCR.ForceCleanup"),
+	TEXT("Force cleanup stale data"),
+	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& InArgs) {
+		FBCREditorModule::GetReflectionHelper()->DebugForceCleanup();
+	})
+);
+static FAutoConsoleCommand BCR_EnableLogging(
+	TEXT("BCR.EnableLogging"),
+	TEXT("Enable BCR debug logging"),
+	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& InArgs) {
+		LogComponentReferenceEditor.SetVerbosity(ELogVerbosity::VeryVerbose);
+		UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("Enabled BCR debug logging"));
+	})
+);
+
+#endif
+
 void FBCREditorModule::StartupModule()
 {
-	if (GEditor && !IsRunningCommandlet())
+	if (GIsEditor && !IsRunningCommandlet())
 	{
 		ClassHelper = MakeShared<FBlueprintComponentReferenceHelper>();
 
@@ -41,7 +82,7 @@ void FBCREditorModule::OnPostEngineInit()
 
 void FBCREditorModule::ShutdownModule()
 {
-	if (GEditor && !IsRunningCommandlet())
+	if (GIsEditor && !IsRunningCommandlet())
 	{
 		FCoreDelegates::OnPostEngineInit.Remove(PostEngineInitHandle);
 		FCoreUObjectDelegates::ReloadCompleteDelegate.Remove(OnReloadCompleteDelegateHandle);

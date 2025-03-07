@@ -23,10 +23,10 @@ Component reference property display can be customized with UPROPERTY meta speci
 Component Filtering:
  * `AllowedClasses` - List of classes for component filter
  * `DisallowedClasses` - List of classes for component filter
- * `ShowBlueprint` - Include blueprint SCS components in picker. Default = True.
- * `ShowNative` - Include native components in picker. Default = True.
- * `ShowInstanced` - Include instanced (runtime) components in picker. Default = True.
- * `ShowHidden` - Include internal or hidden components without direct property in picker. Default = False.
+ * `ShowNative` - Include native (created with CreateDefaultSubobject) components in picker. Default = True.
+ * `ShowBlueprint` - Include blueprint SCS components (added in Blueprint Editor) in picker. Default = True.
+ * `ShowInstanced` - Include instanced components with assosicated property in picker. Default = False.
+ * `ShowHidden` - Include any components without associated property in picker. Default = False.
  * `ShowEditor` - Include editor-only components in picker. Default = True.
 
 Item Display: 
@@ -60,7 +60,7 @@ public:
     FBlueprintComponentReference SimpleReference;
     
     /* Simplest reference to any native component within current class */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ShowNative=true, ShowBlueprint=false, ShowInstanced=false))
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ShowNative=true, ShowBlueprint=false))
     FBlueprintComponentReference NativeOnlyReference;
     
     /* Simplest reference to any component within current class */

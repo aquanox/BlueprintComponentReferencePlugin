@@ -4,6 +4,7 @@
 #include "BCRTestActor.h"
 #include "BCRTestActorComponent.h"
 #include "Components/ChildActorComponent.h"
+#include "GameFramework/DefaultPawn.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogBlueprintComponentRef, Log, All);
 
@@ -11,19 +12,16 @@ DEFINE_LOG_CATEGORY_STATIC(LogBlueprintComponentRef, Log, All);
 ABCRTestActor::ABCRTestActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass(ACharacter::CharacterMovementComponentName, UBCRTestMovementComponent::StaticClass()))
 {
-	TestBase = CreateDefaultSubobject<UBCRTestSceneComponent>("TestBase");
-	TestBase->SetupAttachment(GetRootComponent());
-#if WITH_EDITORONLY_DATA
-	TestBase->bVisualizeComponent = true;
-#endif
+	Default_Root = CreateDefaultSubobject<UBCRTestSceneComponent>("Default_Root");
+	Default_Root->SetupAttachment(GetRootComponent());
 
-	LevelOne = CreateDefaultSubobject<UBCRTestSceneComponent>("LevelOneName");
-	LevelOne->SetupAttachment(TestBase);
+	Default_LevelOne = CreateDefaultSubobject<UBCRTestSceneComponent>("Default_LevelOne");
+	Default_LevelOne->SetupAttachment(Default_Root);
 
-	LevelTwo = CreateDefaultSubobject<UBCRTestSceneComponent>("LevelTwoName");
-	LevelTwo->SetupAttachment(LevelOne);
+	Default_LevelTwo = CreateDefaultSubobject<UBCRTestSceneComponent>("Default_LevelTwo");
+	Default_LevelTwo->SetupAttachment(Default_LevelOne);
 
-	LevelZero = CreateDefaultSubobject<UBCRTestActorComponent>("ZeroName");
+	Default_LevelZero = CreateDefaultSubobject<UBCRTestActorComponent>("Default_LevelZero");
 
 }
 
@@ -31,54 +29,40 @@ void ABCRTestActor::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
 
-	// construct components
+	Construct_LevelOneNP= NewObject<UBCRTestSceneComponent>(this, "Construct_LevelOne_SomeName");
+	Construct_LevelOneNP->SetupAttachment(Default_LevelOne);
+	Construct_LevelOneNP->RegisterComponent();
+	// no addinstancedcomp
+	
+	Construct_LevelOne = NewObject<UBCRTestSceneComponent>(this, "Construct_LevelOne");
+	Construct_LevelOne->SetupAttachment(Default_LevelOne);
+	Construct_LevelOne->RegisterComponent();
+	AddInstanceComponent(Construct_LevelOne);
 
-	LevelOneConstruct = NewObject<UBCRTestSceneComponent>(this, "LevelOneConstructName");
-	LevelOneConstruct->SetupAttachment(LevelOne);
-	LevelOneConstruct->RegisterComponent();
-	AddInstanceComponent(LevelOneConstruct);
+	Construct_LevelZero = NewObject<UBCRTestActorComponent>(this, "Construct_LevelZero");
+	Construct_LevelZero->RegisterComponent();
+	AddInstanceComponent(Construct_LevelZero);
 
-	LevelZeroConstruct = NewObject<UBCRTestActorComponent>(this, "LevelZeroConstructName");
-	LevelZeroConstruct->RegisterComponent();
-	AddInstanceComponent(LevelZeroConstruct);
-
-	// instanced components without uproperty (weak ptr just to debug)
-
-	LevelOneConstructNP = NewObject<UBCRTestSceneComponent>(this, "LevelOneConstructNPName");
-	LevelOneConstructNP->SetupAttachment(LevelOne);
-	LevelOneConstructNP->RegisterComponent();
-	AddInstanceComponent(LevelOneConstructNP.Get());
-
-	LevelZeroConstructNP = NewObject<UBCRTestActorComponent>(this, "LevelZeroConstructNPName");
-	LevelZeroConstructNP->RegisterComponent();
-	AddInstanceComponent(LevelZeroConstructNP.Get());
 }
 
 void ABCRTestActor::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// instanced components with prop
+	Playtime_LevelOneNP= NewObject<UBCRTestSceneComponent>(this, "Playtime_LevelOne_SomeName");
+	Playtime_LevelOneNP->SetupAttachment(Default_LevelOne);
+	Playtime_LevelOneNP->RegisterComponent();
+	// no addinstancedcomp
 
-	LevelOneInstanced= NewObject<UBCRTestSceneComponent>(this, "LevelOneInstancedName");
-	LevelOneInstanced->SetupAttachment(LevelOne);
-	LevelOneInstanced->RegisterComponent();
-	AddInstanceComponent(LevelOneInstanced);
+	Playtime_LevelOne= NewObject<UBCRTestSceneComponent>(this, "Playtime_LevelOne");
+	Playtime_LevelOne->SetupAttachment(Default_LevelOne);
+	Playtime_LevelOne->RegisterComponent();
+	AddInstanceComponent(Playtime_LevelOne);
 
-	LevelZeroInstanced = NewObject<UBCRTestActorComponent>(this, "LevelZeroInstancedName");
-	LevelZeroInstanced->RegisterComponent();
-	AddInstanceComponent(LevelZeroInstanced);
+	Playtime_LevelZero = NewObject<UBCRTestActorComponent>(this, "Playtime_LevelZero");
+	Playtime_LevelZero->RegisterComponent();
+	AddInstanceComponent(Playtime_LevelZero);
 
-	// instanced components without prop
-
-	LevelOneInstancedNP = NewObject<UBCRTestSceneComponent>(this, "LevelOneInstancedNPName");
-	LevelOneInstancedNP->SetupAttachment(LevelOne);
-	LevelOneInstancedNP->RegisterComponent();
-	AddInstanceComponent(LevelOneInstancedNP.Get());
-
-	LevelZeroInstancedNP = NewObject<UBCRTestActorComponent>(this, "LevelZeroInstancedNPName");
-	LevelZeroInstancedNP->RegisterComponent();
-	AddInstanceComponent(LevelZeroInstancedNP.Get());
 }
 
 void ABCRTestActor::DumpComponents()
@@ -96,5 +80,5 @@ void ABCRTestActor::DumpComponents()
 ABCRTestActorWithChild::ABCRTestActorWithChild()
 {
 	LevelNope = CreateDefaultSubobject<UChildActorComponent>("LevelNope");
-	LevelNope->SetChildActorClass(ABCRTestActor::StaticClass());
+	LevelNope->SetChildActorClass(ADefaultPawn::StaticClass());
 }

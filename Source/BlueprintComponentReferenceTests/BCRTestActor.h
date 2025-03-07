@@ -8,6 +8,7 @@
 #include "GameFramework/Info.h"
 #include "Engine/EngineTypes.h"
 #include "Engine/DataAsset.h"
+#include "UObject/StrongObjectPtr.h"
 
 #include "GameFramework/Character.h"
 
@@ -49,34 +50,34 @@ public:
 public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Components)
-	TObjectPtr<USceneComponent> TestBase;
+	TObjectPtr<USceneComponent> Default_Root;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Components)
-	TObjectPtr<USceneComponent> LevelOne;
+	TObjectPtr<USceneComponent> Default_LevelOne;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Components)
-	TObjectPtr<USceneComponent> LevelOneConstruct;
+	TObjectPtr<USceneComponent> Default_LevelTwo;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Components)
-	TObjectPtr<USceneComponent> LevelOneInstanced;
+	TObjectPtr<UActorComponent> Default_LevelZero;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Components)
-	TObjectPtr<USceneComponent> LevelTwo;
+	TObjectPtr<USceneComponent> Construct_LevelOneNP;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Components)
-	TObjectPtr<UActorComponent> LevelZero;
+	TObjectPtr<USceneComponent> Construct_LevelOne;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Components)
-	TObjectPtr<UActorComponent> LevelZeroConstruct;
+	TObjectPtr<UActorComponent> Construct_LevelZero;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Components)
-	TObjectPtr<UActorComponent> LevelZeroInstanced;
+	TObjectPtr<USceneComponent> Playtime_LevelOneNP;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Components)
+	TObjectPtr<USceneComponent> Playtime_LevelOne;
 
-	TWeakObjectPtr<USceneComponent> LevelOneConstructNP;
-	TWeakObjectPtr<UActorComponent> LevelZeroConstructNP;
-
-	TWeakObjectPtr<USceneComponent> LevelOneInstancedNP;
-	TWeakObjectPtr<UActorComponent> LevelZeroInstancedNP;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Components)
+	TObjectPtr<UActorComponent> Playtime_LevelZero;
 
 protected:
 
@@ -125,7 +126,7 @@ protected:
 	// Display only instanced created components. Instance only
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Metadata", meta=(ShowNative=false, ShowBlueprint=false, ShowInstanced=true, ShowHidden=false))
 	FBlueprintComponentReference ReferenceInstancedOnly;
-	// Display only hidden components. Instance only
+	// Display components without properties assigned. Instance only
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Metadata", meta=(ShowNative=false, ShowBlueprint=false, ShowInstanced=false, ShowHidden=true))
 	FBlueprintComponentReference ReferencePathOnly;
 	

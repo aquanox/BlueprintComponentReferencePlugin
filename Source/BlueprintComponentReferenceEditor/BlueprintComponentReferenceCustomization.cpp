@@ -43,6 +43,12 @@
 
 #define LOCTEXT_NAMESPACE "BlueprintComponentReferenceCustomization"
 
+// Should force reset of component references that failed to resolve into components?
+static bool GResetInvalidReferences = true;
+// Should use short name for logging context label?
+static bool GUseShortLoggingContextName = true;
+// Should filter unique node ids
+static bool GFilterUniqueNodes = true;
 
 TSharedRef<IPropertyTypeCustomization> FBlueprintComponentReferenceCustomization::MakeInstance()
 {
@@ -59,6 +65,9 @@ void FBlueprintComponentReferenceCustomization::CustomizeHeader(TSharedRef<IProp
 	ComponentPickerContext.Reset();
 	CachedComponentNode.Reset();
 	CachedPropertyAccess = FPropertyAccess::Fail;
+	CachedContextString = GetLoggingContextString();
+
+	UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("Created customization for %s"), *GetLoggingContextString());
 
 	// this will disable use of default "Reset To Defaults" for this header
 	InPropertyHandle->MarkResetToDefaultCustomized(true);
@@ -155,15 +164,29 @@ void FBlueprintComponentReferenceCustomization::CustomizeChildren(TSharedRef<IPr
 
 FString FBlueprintComponentReferenceCustomization::GetLoggingContextString() const
 {
-	TStringBuilder<32> Buffer;
+	if (!CachedContextString.IsEmpty())
+		return CachedContextString;
+
+	TStringBuilder<128> Buffer;
 	if (PropertyHandle.IsValid())
 	{
+		if (!GUseShortLoggingContextName)
+		{
+			TArray<UObject*> PropertyOuterObjects;
+			PropertyHandle->GetOuterObjects(PropertyOuterObjects);
+			for(const UObject* OuterObject : PropertyOuterObjects)
+			{
+				Buffer.Append(OuterObject->GetPathName());
+				Buffer.Append(".");
+			}
+		}
 		Buffer.Append(PropertyHandle->GeneratePathToProperty());
 	}
 	else
 	{
 		Buffer.Append(TEXT("Invalid"));
 	}
+	
 	return Buffer.ToString();
 }
 
@@ -231,13 +254,13 @@ void FBlueprintComponentReferenceCustomization::DetermineContext()
 	{
 		if (ViewSettings.ActorClass.IsValid())
 		{
-			UE_LOG(LogComponentReferenceEditor, Log, TEXT("%s -> ExactClass=%s"), *GetLoggingContextString(), *ViewSettings.ActorClass.ToString());
+			UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("%s GuessMetadata=%s"), *GetLoggingContextString(), *ViewSettings.ActorClass.ToString());
 			
 			OuterActorClass = ViewSettings.ActorClass.Get();
 		}
 		else
 		{
-			UE_LOG(LogComponentReferenceEditor, Log, TEXT("%s -> ExactClass=%s (loading)"), *GetLoggingContextString(), *ViewSettings.ActorClass.ToString());
+			UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("%s GuessMetadata=%s (loading)"), *GetLoggingContextString(), *ViewSettings.ActorClass.ToString());
 			
 			OuterActorClass = ViewSettings.ActorClass.LoadSynchronous();
 		}
@@ -256,16 +279,16 @@ void FBlueprintComponentReferenceCustomization::DetermineContext()
 	{
 		while (IsValid(OuterObject))
 		{
-			UE_LOG(LogComponentReferenceEditor, Log, TEXT("%s DetermineOuterActor: TestObject=%s"), *GetLoggingContextString(), *GetNameSafe(OuterActor));
+			UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("%s GuessObject=%s"), *GetLoggingContextString(), *GetNameSafe(OuterActor));
 			if (AActor* Actor = Cast<AActor>(OuterObject))
 			{
-				UE_LOG(LogComponentReferenceEditor, Log, TEXT("%s ->  Actor=%s"), *GetLoggingContextString(), *GetNameSafe(Actor));
+				UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("%s GuessObject=%s"), *GetLoggingContextString(), *GetNameSafe(Actor));
 				OuterActor = Actor;
 				break;
 			}
 			if (UActorComponent* Component = Cast<UActorComponent>(OuterObject))
 			{
-				UE_LOG(LogComponentReferenceEditor, Log, TEXT("%s ->  Component=%s"), *GetLoggingContextString(), *GetNameSafe(Component));
+				UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("%s GuessComponent=%s"), *GetLoggingContextString(), *GetNameSafe(Component));
 				if (Component->GetOwner())
 				{
 					OuterActor = Component->GetOwner();
@@ -275,7 +298,7 @@ void FBlueprintComponentReferenceCustomization::DetermineContext()
 			// only support regular blueprints (not anim or others)
 			if (UBlueprintGeneratedClass* Class = ExactCast<UBlueprintGeneratedClass>(OuterObject))
 			{
-				UE_LOG(LogComponentReferenceEditor, Log, TEXT("%s ->  Class=%s"), *GetLoggingContextString(), *GetNameSafe(Class));
+				UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("%s GuessClass=%s"), *GetLoggingContextString(), *GetNameSafe(Class));
 				OuterActorClass = Class;
 				break;
 			}
@@ -294,7 +317,7 @@ void FBlueprintComponentReferenceCustomization::DetermineContext()
 			UClass* const OwnerClass = OwnerFunction->GetOwnerClass();
 			if (ExactCast<UBlueprint>(OwnerClass->ClassGeneratedBy) && OwnerClass->IsChildOf(AActor::StaticClass()))
 			{
-				UE_LOG(LogComponentReferenceEditor, Log, TEXT("%s ->  FunctionClass=%s"), *GetLoggingContextString(), *GetNameSafe(OwnerClass));
+				UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("%s ->  FunctionClass=%s"), *GetLoggingContextString(), *GetNameSafe(OwnerClass));
 
 				OuterActorClass = OwnerClass;
 			}
@@ -311,7 +334,7 @@ void FBlueprintComponentReferenceCustomization::DetermineContext()
 		OuterActorClass = OuterActor->GetClass();
 	}
 
-	UE_LOG(LogComponentReferenceEditor, Log, TEXT("%s DetermineOuterActor: Located Actor=%s BP=%s"), *GetLoggingContextString(), *GetNameSafe(OuterActor), *GetNameSafe(OuterActorClass));
+	UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("%s DetermineOuterActor: Located Actor=%s BP=%s"), *GetLoggingContextString(), *GetNameSafe(OuterActor), *GetNameSafe(OuterActorClass));
 
 	if (!ComponentPickerContext.IsValid()
 		|| ComponentPickerContext->GetActor() != OuterActor
@@ -322,7 +345,7 @@ void FBlueprintComponentReferenceCustomization::DetermineContext()
 
 	if (!ComponentPickerContext.IsValid())
 	{
-		UE_LOG(LogComponentReferenceEditor, Warning, TEXT("%s Failed to determine context"), *GetLoggingContextString());
+		UE_LOG(LogComponentReferenceEditor, Warning, TEXT("Failed to determine chooser context for %s"), *GetLoggingContextString());
 	}
 }
 
@@ -371,7 +394,7 @@ bool FBlueprintComponentReferenceCustomization::IsComponentReferenceValid(const 
 
 void FBlueprintComponentReferenceCustomization::SetValue(const FBlueprintComponentReference& Value)
 {
-	UE_LOG(LogComponentReferenceEditor, Log, TEXT("%s SetValue %s"), *GetLoggingContextString(), *Value.ToString());
+	UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("%s SetValue %s"), *GetLoggingContextString(), *Value.ToString());
 
 	ComponentComboButton->SetIsOpen(false);
 
@@ -422,37 +445,46 @@ FPropertyAccess::Result FBlueprintComponentReferenceCustomization::GetValue(FBlu
 
 void FBlueprintComponentReferenceCustomization::OnPropertyValueChanged(FName Source)
 {
-	UE_LOG(LogComponentReferenceEditor, Log, TEXT("%s OnPropertyValueChanged"), *GetLoggingContextString());
+	UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("%s OnPropertyValueChanged"), *GetLoggingContextString());
 
 	CachedComponentNode.Reset();
-	DetermineContext();
+	if (!ComponentPickerContext.IsValid())
+	{
+		DetermineContext();
+	}
+
+	bool bRequiresReset = false;
 
 	FBlueprintComponentReference TmpComponentReference;
 	CachedPropertyAccess = GetValue(TmpComponentReference);
+	
 	if (CachedPropertyAccess == FPropertyAccess::Success)
 	{
 		if (!IsComponentReferenceValid(TmpComponentReference))
-		{ // reset property
-			CachedComponentNode.Reset();
-			if (!TmpComponentReference.IsNull())
+		{
+			bRequiresReset = true;
+		}
+		
+		if (ComponentPickerContext.IsValid())
+		{ 
+			CachedComponentNode = ComponentPickerContext->FindComponent(TmpComponentReference);
+		}
+	}
+
+	if (bRequiresReset)
+	{
+		CachedComponentNode.Reset();
+		
+		if (!TmpComponentReference.IsNull())
+		{
+			if (GResetInvalidReferences)
 			{
+				UE_LOG(LogComponentReferenceEditor, Warning, TEXT("%s Invalid reference. Resetting to none."), *GetLoggingContextString());
 				SetValue(FBlueprintComponentReference());
 			}
-		}
-		else if (ComponentPickerContext.IsValid())
-		{ 
-			TSharedPtr<FComponentInfo> Found = ComponentPickerContext->FindComponent(TmpComponentReference);
-			if (Found.IsValid())
-			{
-				CachedComponentNode = Found;
-			}
 			else
-			{  // reset property
-				CachedComponentNode.Reset();
-				if (!TmpComponentReference.IsNull())
-				{
-					SetValue(FBlueprintComponentReference());
-				}
+			{
+				UE_LOG(LogComponentReferenceEditor, Warning, TEXT("%s has invalid reference (%s)"), *GetLoggingContextString(), *TmpComponentReference.ToString());
 			}
 		}
 	}
@@ -539,45 +571,76 @@ TSharedRef<SWidget> FBlueprintComponentReferenceCustomization::OnGetMenuContent(
 	FMenuBuilder MenuBuilder(true, nullptr);
 
 	if (!ComponentPickerContext.IsValid())
-	{
+	{ // this is nesessary after updating metadata or a new property
 		DetermineContext();
 	}
-
-	TMap<FString, TArray<TSharedRef<FComponentInfo>>> ChoosableElements;
+	
 	if (ComponentPickerContext.IsValid())
 	{
-		for (auto& HierarchyInfo : ComponentPickerContext->ClassHierarchy)
+		TArray<FSelectionData> ChoosableElements;
+		
+		// collect unique picker contents, with lowest level one being most important
+		// ClassHistory order is  Instance Class ParentClass GrantParentClass so iterating in reverse
+		// first Node occurrence is preferred
+		
+		TArray<TSharedPtr<FHierarchyInfo>> DataSource = ComponentPickerContext->ClassHierarchy;
+		if (GFilterUniqueNodes)
+		{
+			Algo::Reverse(DataSource);
+		}
+		
+		TArray<FName> KnownNames;
+		
+		for (const TSharedPtr<FHierarchyInfo>& HierarchyInfo : DataSource)
 		{
 			if (HierarchyInfo->GetNodes().IsEmpty())
 				continue;
+			// do not show 'Instanced' category when no instanced choises needed, even if we browsing actor instance
+			if (HierarchyInfo->IsInstance() && !(ViewSettings.bShowInstanced || ViewSettings.bShowHidden))
+				continue;
 
-			TArray<TSharedRef<FComponentInfo>> LocalArray;
-			for(auto& Node : HierarchyInfo->GetNodes())
+			FSelectionData Data;
+			Data.Category = HierarchyInfo;
+
+			for(const TSharedPtr<FComponentInfo>& Node : HierarchyInfo->GetNodes())
 			{
+				FName NodeId = Node->GetNodeID();
 				if (TestNode(Node) && TestObject(Node->GetComponentTemplate()))
 				{
-					LocalArray.Add(Node.ToSharedRef());
+					if (!GFilterUniqueNodes || (NodeId.IsNone() || KnownNames.Find(NodeId) == INDEX_NONE))
+					{
+						Data.Elements.Add(Node);
+						KnownNames.Add(NodeId);
+					}
 				}
 			}
 
-			if (!LocalArray.IsEmpty())
+			if (!Data.Elements.IsEmpty())
 			{
-				ChoosableElements.Emplace(HierarchyInfo->GetDisplayText().ToString(), MoveTemp(LocalArray));
+				ChoosableElements.Emplace(MoveTemp(Data));
 			}
 		}
+		
+		// Restore order of found selection items to display
+		if (GFilterUniqueNodes)
+		{
+			Algo::Reverse(ChoosableElements);
+		}
+
+		CachedChoosableElements = MoveTemp(ChoosableElements);
 	}
 
-	if (!ChoosableElements.IsEmpty())
+	if (!CachedChoosableElements.IsEmpty())
 	{
-		for (auto& Element : ChoosableElements)
+		for (const FSelectionData& Element : CachedChoosableElements)
 		{
-			MenuBuilder.BeginSection(NAME_None, FText::FromString(Element.Key));
+			MenuBuilder.BeginSection(NAME_None, Element.Category->GetDisplayText());
 
-			for(auto& Node : Element.Value)
+			for(const TSharedPtr<FComponentInfo>& Node : Element.Elements)
 			{
 				MenuBuilder.AddMenuEntry(
 					Node->GetDisplayText(),
-					FText::GetEmpty(),
+					Node->GetTooltipText(),
 					FSlateIconFinder::FindIconForClass(Node->GetComponentClass()),
 					FUIAction(
 						FExecuteAction::CreateSP(this, &FBlueprintComponentReferenceCustomization::OnComponentSelected, Node)
@@ -609,6 +672,8 @@ void FBlueprintComponentReferenceCustomization::OnMenuOpenChanged(bool bOpen)
 	if (!bOpen)
 	{
 		ComponentComboButton->SetMenuContent(SNullWidget::NullWidget);
+		
+		CachedChoosableElements.Reset();
 	}
 }
 
@@ -661,7 +726,7 @@ void FBlueprintComponentReferenceCustomization::OnNavigateComponent()
 	}
 }
 
-void FBlueprintComponentReferenceCustomization::OnComponentSelected(TSharedRef<FComponentInfo> Node)
+void FBlueprintComponentReferenceCustomization::OnComponentSelected(TSharedPtr<FComponentInfo> Node)
 {
 	ComponentComboButton->SetIsOpen(false);
 
@@ -712,7 +777,7 @@ bool FBlueprintComponentReferenceCustomization::TestNode(const TSharedPtr<FCompo
 		if (Node->IsNativeComponent() && ViewSettings.bShowNative)
 			return true;
 
-		if (!Node->IsNativeComponent() && ViewSettings.bShowBlueprint)
+		if (Node->IsBlueprintComponent() && ViewSettings.bShowBlueprint)
 			return true;
 	}
 
