@@ -4,6 +4,7 @@
 #include "BlueprintComponentReferenceCustomization.h"
 #include "BlueprintComponentReferenceVarCustomization.h"
 #include "BlueprintEditorModule.h"
+#include "HAL/IConsoleManager.h"
 
 IMPLEMENT_MODULE(FBCREditorModule, BlueprintComponentReferenceEditor);
 

@@ -2,6 +2,10 @@
 
 #pragma once
 
+#include "UObject/SoftObjectPtr.h"
+#include "Templates/SubclassOf.h"
+#include "Components/ActorComponent.h"
+
 #include "BlueprintComponentReferenceMetadata.generated.h"
 
 struct FCRMetadataKey
