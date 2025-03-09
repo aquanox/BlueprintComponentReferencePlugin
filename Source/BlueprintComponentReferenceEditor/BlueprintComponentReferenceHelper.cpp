@@ -66,6 +66,98 @@ FName FComponentInfo::GetNodeID() const
 	return ItemName;
 }
 
+// Custom version that will test instances as well as CDO
+static FName FComponentEditorUtils_FindVariableNameGivenComponentInstance(const UActorComponent* ComponentInstance)
+{
+	check(ComponentInstance != nullptr);
+
+	// When names mismatch, try finding a differently named variable pointing to the the component (the mismatch should only be possible for native components)
+	auto FindPropertyReferencingComponent = [](const UActorComponent* Component, bool bUseInstance) -> FProperty*
+	{
+		if (AActor* OwnerActor = Component->GetOwner())
+		{
+			UClass* OwnerClass = OwnerActor->GetClass();
+			AActor* SearchTarget = bUseInstance ? OwnerActor : CastChecked<AActor>(OwnerClass->GetDefaultObject());
+			
+			for (TFieldIterator<FObjectProperty> PropIt(OwnerClass, EFieldIteratorFlags::IncludeSuper); PropIt; ++PropIt)
+			{
+				FObjectProperty* TestProperty = *PropIt;
+				if (Component->GetClass()->IsChildOf(TestProperty->PropertyClass))
+				{
+					void* TestPropertyInstanceAddress = TestProperty->ContainerPtrToValuePtr<void>(SearchTarget);
+					UObject* ObjectPointedToByProperty = TestProperty->GetObjectPropertyValue(TestPropertyInstanceAddress);
+					if (ObjectPointedToByProperty == Component)
+					{
+						// This property points to the component archetype, so it's an anchor even if it was named wrong
+						return TestProperty;
+					}
+				}
+			}
+
+			for (TFieldIterator<FArrayProperty> PropIt(OwnerClass, EFieldIteratorFlags::IncludeSuper); PropIt; ++PropIt)
+			{
+				FArrayProperty* TestProperty = *PropIt;
+				void* ArrayPropInstAddress = TestProperty->ContainerPtrToValuePtr<void>(SearchTarget);
+
+				FObjectProperty* ArrayEntryProp = CastField<FObjectProperty>(TestProperty->Inner);
+				if ((ArrayEntryProp == nullptr) || !ArrayEntryProp->PropertyClass->IsChildOf<UActorComponent>())
+				{
+					continue;
+				}
+
+				FScriptArrayHelper ArrayHelper(TestProperty, ArrayPropInstAddress);
+				for (int32 ComponentIndex = 0; ComponentIndex < ArrayHelper.Num(); ++ComponentIndex)
+				{
+					UObject* ArrayElement = ArrayEntryProp->GetObjectPropertyValue(ArrayHelper.GetRawPtr(ComponentIndex));
+					if (ArrayElement == Component)
+					{
+						return TestProperty;
+					}
+				}
+			}
+		}
+
+		return nullptr;
+	};
+	
+	if (AActor* OwnerActor = ComponentInstance->GetOwner())
+	{
+		// First see if the name just works
+		UClass* OwnerActorClass = OwnerActor->GetClass();
+		if (FObjectProperty* TestProperty = FindFProperty<FObjectProperty>(OwnerActorClass, ComponentInstance->GetFName()))
+		{
+			if (ComponentInstance->GetClass()->IsChildOf(TestProperty->PropertyClass))
+			{
+				return TestProperty->GetFName();
+			}
+		}
+		
+		// Search on CDO
+		if (FProperty* ReferencingProp = FindPropertyReferencingComponent(ComponentInstance, false))
+		{
+			return ReferencingProp->GetFName();
+		}
+		// Do a second search on Instance
+		if (!OwnerActor->HasAnyFlags(RF_ClassDefaultObject))
+		{
+			if (FProperty* ReferencingProp = FindPropertyReferencingComponent(ComponentInstance, true))
+			{
+				return ReferencingProp->GetFName();
+			}
+		}
+	}
+
+	if (UActorComponent* Archetype = Cast<UActorComponent>(ComponentInstance->GetArchetype()))
+	{
+		if (FProperty* ReferencingProp = FindPropertyReferencingComponent(Archetype, false))
+		{
+			return ReferencingProp->GetFName();
+		}
+	}
+
+	return NAME_None;
+}
+
 FName FComponentInfo::GetVariableName() const
 {
 	FName VariableName = NAME_None;
@@ -89,7 +181,7 @@ FName FComponentInfo::GetVariableName() const
 	else if (ComponentTemplate)
 	{
 		// Try to find the component anchor variable name (first looks for an exact match then scans for any matching variable that points to the archetype in the CDO)
-		VariableName = FComponentEditorUtils::FindVariableNameGivenComponentInstance(ComponentTemplate);
+		VariableName = FComponentEditorUtils_FindVariableNameGivenComponentInstance(ComponentTemplate);
 	}
 
 	return VariableName;
