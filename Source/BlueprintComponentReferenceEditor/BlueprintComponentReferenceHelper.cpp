@@ -94,6 +94,9 @@ static FName FComponentEditorUtils_FindVariableNameGivenComponentInstance(const 
 				}
 			}
 
+			// do not lookup in arrays.
+			// it will break GetNodeId naming if many components found in one
+			/*
 			for (TFieldIterator<FArrayProperty> PropIt(OwnerClass, EFieldIteratorFlags::IncludeSuper); PropIt; ++PropIt)
 			{
 				FArrayProperty* TestProperty = *PropIt;
@@ -115,6 +118,7 @@ static FName FComponentEditorUtils_FindVariableNameGivenComponentInstance(const 
 					}
 				}
 			}
+			*/
 		}
 
 		return nullptr;
@@ -137,7 +141,7 @@ static FName FComponentEditorUtils_FindVariableNameGivenComponentInstance(const 
 		{
 			return ReferencingProp->GetFName();
 		}
-		// Do a second search on Instance
+		// Do a limited second search attempt using real Instance
 		if (!OwnerActor->HasAnyFlags(RF_ClassDefaultObject))
 		{
 			if (FProperty* ReferencingProp = FindPropertyReferencingComponent(ComponentInstance, true))
@@ -252,7 +256,12 @@ FText FComponentInfo::GetDisplayText() const
 
 FText FComponentInfo::GetTooltipText() const
 {
-	return FText::GetEmpty();
+	FString Value;
+	if (UClass* Class = GetComponentClass())
+	{
+		Value += FString::Printf(TEXT("Class: %s"), *Class->GetName());
+	}
+	return FText::FromString(Value);
 }
 
 UBlueprint* FComponentInfo::GetBlueprint() const
@@ -343,6 +352,7 @@ FComponentInfo_Instanced::FComponentInfo_Instanced(AActor* Owner, UActorComponen
 	InstancedComponentName = Component->GetFName();
 	InstancedComponentOwnerPtr = Owner;
 	Object = Component;
+	ObjectClass = Component->GetClass();
 }
 
 FName FComponentInfo_Instanced::GetVariableName() const

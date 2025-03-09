@@ -596,7 +596,7 @@ TSharedRef<SWidget> FBlueprintComponentReferenceCustomization::OnGetMenuContent(
 			if (HierarchyInfo->GetNodes().IsEmpty())
 				continue;
 			// do not show 'Instanced' category when no instanced choises needed, even if we browsing actor instance
-			if (HierarchyInfo->IsInstance() && !(ViewSettings.bShowInstanced || ViewSettings.bShowHidden))
+			if ((!ViewSettings.bShowInstanced && !ViewSettings.bShowHidden) && HierarchyInfo->IsInstance())
 				continue;
 
 			FSelectionData Data;
