@@ -28,11 +28,20 @@ struct FCRMetadataKey
 };
 
 /**
+ * Container type for metadata that can be loaded/applied to property using FMetadataMarshaller
+ */
+USTRUCT()
+struct FMetadataContainerBase
+{
+	GENERATED_BODY()
+};
+
+/**
  * Internal struct for blueprint property configuration and view settings
  *
  */
 USTRUCT()
-struct FBlueprintComponentReferenceMetadata
+struct FBlueprintComponentReferenceMetadata : public FMetadataContainerBase
 {
 	GENERATED_BODY()
 public:
@@ -78,15 +87,106 @@ public:
 	void ResetSettings();
 	void LoadSettingsFromProperty(const FProperty* InProp);
 	void ApplySettingsToProperty(UBlueprint* InBlueprint, FProperty* InProperty, const FName& InChanged);
+};
 
-private:
+class UBlueprint;
+
+/**
+ * An utility class that converts a typed struct container into property metadata and vise-versa 
+ */
+struct FMetadataMarshaller
+{
+	struct FStructData // using FStructData = FStructView; 
+	{
+		const UScriptStruct* ScriptStruct = nullptr;
+		uint8* StructMemory = nullptr;
+
+		FStructData() = default;
+		FStructData(const UScriptStruct* ScriptStruct, uint8* StructMemory)
+			: ScriptStruct(ScriptStruct),
+			  StructMemory(StructMemory)
+		{
+		}
+	};
+
+	/**
+	 * Load metadata from property to container
+	 * @tparam T Container type
+	 * @param Container Container instance
+	 * @param InProp Property to read metadata from
+	 */
+	template<typename T = FMetadataContainerBase>
+	void LoadFromProperty(T& Container, const FProperty* InProp)
+	{
+		LoadInternal(FStructData(T::StaticStruct(), &Container), InProp);
+	}
+
+	/**
+	 * Apply metadata from a container onto property
+	 * @tparam T Container type
+	 * @param Container Container instance
+	 * @param InBlueprint Target blueprint. Nullable
+	 * @param InProperty Target property to apply metadata.
+	 * @param InChanged Name of the metadata specifier that changed for single update, optional.
+	 */
+	template<typename T = FMetadataContainerBase>
+	void ApplyToProperty(T& Container, UBlueprint* InBlueprint, FProperty* InProperty, const FName& InChanged)
+	{
+		ApplyInternal(FStructData(T::StaticStruct(), &Container), InBlueprint, InProperty, InChanged);
+	}
+
+	/**
+	 * Returns instance of a default metadata marshaller 
+	 * @return Metadata marshaller instance 
+	 */
+	static FMetadataMarshaller& Get();
+	
 	static bool HasMetaDataValue(const FProperty* Property, const FName& InName);
+
 	static TOptional<bool> GetBoolMetaDataOptional(const FProperty* Property, const FName& InName);
 	static bool GetBoolMetaDataValue(const FProperty* Property, const FName& InName, bool bDefaultValue);
 	static void SetBoolMetaDataValue(FProperty* Property, const FName& InName, TOptional<bool> Value);
+
+	// todo: int group
+
+	// todo: string group
+
+	// todo: float group
+	
 	static void GetClassMetadata(const FProperty* Property, const FName& InName, const TFunctionRef<void(UClass*)>& Func);
 	static void SetClassMetadata(FProperty* Property, const FName& InName, class UClass* InClass);
+	
 	static void GetClassListMetadata(const FProperty* Property, const FName& InName, const TFunctionRef<void(UClass*)>& Func);
 	static void SetClassListMetadata(FProperty* Property, const FName& InName, const TFunctionRef<void(TArray<FString>&)>& PathSource);
 
+private:
+	FMetadataMarshaller();
+
+	void LoadInternal(FStructData Container, const FProperty* InProperty);
+	void ApplyInternal(FStructData Container, UBlueprint* InBlueprint, FProperty* InProperty, const FName& InChanged);
+
+	/**
+	 * @param Container Container
+	 * @param ContainerProperty Property within container
+	 * @param Property Property to read data from
+	 * @param Name Name of metadata specifier
+	 */
+	using FLoaderDelegate = TDelegate<void(const FStructData& Container, const FProperty* ContainerProperty, const FProperty* Property, FName Name)>;
+
+	/**
+	 * @param Container Container to store data
+	 * @param ContainerProperty Property within container to store data
+	 * @param Blueprint Blueprint that owns property
+	 * @param Property Property to update
+	 * @param Name Name of metadata specifier
+	 */
+	using FApplierDelegate =  TDelegate<void(const FStructData& Container, const FProperty* ContainerProperty, UBlueprint* Blueprint, FProperty* Property, FName Name)>;
+	
+	struct FMetadataTypeHandler
+	{
+		FLoaderDelegate		Loader;
+		FApplierDelegate	Applier;
+	};
+
+	TMap<FName, FMetadataTypeHandler> RegisteredHandlers; 
 };

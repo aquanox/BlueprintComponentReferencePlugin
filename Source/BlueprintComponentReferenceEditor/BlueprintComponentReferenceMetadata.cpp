@@ -45,23 +45,25 @@ void FBlueprintComponentReferenceMetadata::ResetSettings()
 
 void FBlueprintComponentReferenceMetadata::LoadSettingsFromProperty(const FProperty* InProp)
 {
+	// FMetadataMarshaller::Get().LoadFromProperty(*this, InProp);
+	
 	UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("LoadSettingsFromProperty(%s)"), *InProp->GetFName().ToString());
 
 	static const FBlueprintComponentReferenceMetadata DefaultValues;
 	
 	// picker
-	bUsePicker = !HasMetaDataValue(InProp, FCRMetadataKey::NoPicker);
+	bUsePicker = !FMetadataMarshaller::HasMetaDataValue(InProp, FCRMetadataKey::NoPicker);
 	// actions
-	bUseNavigate = !HasMetaDataValue(InProp, FCRMetadataKey::NoNavigate);
-	bUseClear = !(InProp->PropertyFlags & CPF_NoClear) && !HasMetaDataValue(InProp, FCRMetadataKey::NoClear);
+	bUseNavigate = !FMetadataMarshaller::HasMetaDataValue(InProp, FCRMetadataKey::NoNavigate);
+	bUseClear = !(InProp->PropertyFlags & CPF_NoClear) && !FMetadataMarshaller::HasMetaDataValue(InProp, FCRMetadataKey::NoClear);
 	// filters
-	bShowNative = GetBoolMetaDataValue(InProp, FCRMetadataKey::ShowNative, DefaultValues.bShowNative);
-	bShowBlueprint = GetBoolMetaDataValue(InProp, FCRMetadataKey::ShowBlueprint, DefaultValues.bShowBlueprint);
-	bShowInstanced = GetBoolMetaDataValue(InProp, FCRMetadataKey::ShowInstanced,  DefaultValues.bShowInstanced);
-	bShowHidden = GetBoolMetaDataValue(InProp, FCRMetadataKey::ShowHidden,  DefaultValues.bShowHidden);
-	bShowEditor = GetBoolMetaDataValue(InProp, FCRMetadataKey::ShowEditor,  DefaultValues.bShowEditor);
+	bShowNative = FMetadataMarshaller::GetBoolMetaDataValue(InProp, FCRMetadataKey::ShowNative, DefaultValues.bShowNative);
+	bShowBlueprint = FMetadataMarshaller::GetBoolMetaDataValue(InProp, FCRMetadataKey::ShowBlueprint, DefaultValues.bShowBlueprint);
+	bShowInstanced = FMetadataMarshaller::GetBoolMetaDataValue(InProp, FCRMetadataKey::ShowInstanced,  DefaultValues.bShowInstanced);
+	bShowHidden = FMetadataMarshaller::GetBoolMetaDataValue(InProp, FCRMetadataKey::ShowHidden,  DefaultValues.bShowHidden);
+	bShowEditor = FMetadataMarshaller::GetBoolMetaDataValue(InProp, FCRMetadataKey::ShowEditor,  DefaultValues.bShowEditor);
 
-	GetClassMetadata(InProp, FCRMetadataKey::ActorClass, [this](UClass* InClass)
+	FMetadataMarshaller::GetClassMetadata(InProp, FCRMetadataKey::ActorClass, [this](UClass* InClass)
 	{
 		if (InClass && InClass->IsChildOf(AActor::StaticClass()))
 		{
@@ -69,12 +71,12 @@ void FBlueprintComponentReferenceMetadata::LoadSettingsFromProperty(const FPrope
 		}
 	});
 
-	GetClassListMetadata(InProp, FCRMetadataKey::AllowedClasses, [this](UClass* InClass)
+	FMetadataMarshaller::GetClassListMetadata(InProp, FCRMetadataKey::AllowedClasses, [this](UClass* InClass)
 	{
 		AllowedClasses.AddUnique(InClass);
 	});
 
-	GetClassListMetadata(InProp, FCRMetadataKey::DisallowedClasses, [this](UClass* InClass)
+	FMetadataMarshaller::GetClassListMetadata(InProp, FCRMetadataKey::DisallowedClasses, [this](UClass* InClass)
 	{
 		DisallowedClasses.AddUnique(InClass);
 	});
@@ -82,6 +84,8 @@ void FBlueprintComponentReferenceMetadata::LoadSettingsFromProperty(const FPrope
 
 void FBlueprintComponentReferenceMetadata::ApplySettingsToProperty(UBlueprint* InBlueprint, FProperty* InProperty, const FName& InChanged)
 {
+	// FMetadataMarshaller::Get().ApplyToProperty(*this, InBlueprint, InProperty, InChanged);
+	
 	UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("ApplySettingsToProperty(%s)"), *InProperty->GetName());
 	
 	auto BoolToString = [](bool b)
@@ -211,12 +215,62 @@ void FBlueprintComponentReferenceMetadata::ApplySettingsToProperty(UBlueprint* I
 	}
 }
 
-bool FBlueprintComponentReferenceMetadata::HasMetaDataValue(const FProperty* Property, const FName& InName)
+FMetadataMarshaller& FMetadataMarshaller::Get()
+{
+	static FMetadataMarshaller Instance;
+	return Instance;
+}
+
+FMetadataMarshaller::FMetadataMarshaller()
+{
+	
+}
+
+void FMetadataMarshaller::LoadInternal(FStructData Container, const FProperty* InProperty)
+{
+	for (TFieldIterator<FProperty> It(Container.ScriptStruct); It; ++It)
+	{
+		const FProperty* ContainerProperty = *It;
+		FName HandlerType = *It->GetMetaData(TEXT("MDHandler"));
+		FName Specifier = *It->GetMetaData(TEXT("MDSpecifier"));
+		// 
+		if (Specifier.IsNone() || HandlerType.IsNone())
+			continue;
+		// no metadata pressent - skip load / keep default
+		if (!InProperty->FindMetaData(Specifier))
+			continue;
+		// find handler and do load 
+		if (auto Handler = RegisteredHandlers.Find(HandlerType))
+		{
+			Handler->Loader.Execute(Container, ContainerProperty, InProperty, Specifier);
+		}
+	}
+}
+
+void FMetadataMarshaller::ApplyInternal(FStructData Container, UBlueprint* InBlueprint, FProperty* InProperty, const FName& InChanged)
+{
+	for (TFieldIterator<FProperty> It(Container.ScriptStruct); It; ++It)
+	{
+		const FProperty* ContainerProperty = *It;
+		FName HandlerType = *It->GetMetaData(TEXT("MDHandler"));
+		FName Specifier = *It->GetMetaData(TEXT("MDSpecifier"));
+		// 
+		if (Specifier.IsNone() || HandlerType.IsNone())
+			continue;
+		// find handler and do apply
+		if (auto Handler = RegisteredHandlers.Find(HandlerType))
+		{
+			Handler->Applier.Execute(Container, ContainerProperty, InBlueprint, InProperty, Specifier);
+		}
+	}
+}
+
+bool FMetadataMarshaller::HasMetaDataValue(const FProperty* Property, const FName& InName)
 {
 	return Property->HasMetaData(InName);
 }
 
-TOptional<bool> FBlueprintComponentReferenceMetadata::GetBoolMetaDataOptional(const FProperty* Property, const FName& InName)
+TOptional<bool> FMetadataMarshaller::GetBoolMetaDataOptional(const FProperty* Property, const FName& InName)
 {
 	if (Property->HasMetaData(InName))
 	{
@@ -241,32 +295,12 @@ TOptional<bool> FBlueprintComponentReferenceMetadata::GetBoolMetaDataOptional(co
 	return TOptional<bool>();
 }
 
-bool FBlueprintComponentReferenceMetadata::GetBoolMetaDataValue(const FProperty* Property, const FName& InName, bool bDefaultValue)
+bool FMetadataMarshaller::GetBoolMetaDataValue(const FProperty* Property, const FName& InName, bool bDefaultValue)
 {
-	bool bResult = bDefaultValue;
-
-	if (Property->HasMetaData(InName))
-	{
-		bResult = true;
-
-		const FString& ValueString = Property->GetMetaData(InName);
-		if (!ValueString.IsEmpty())
-		{
-			if (ValueString.Equals(TEXT("true"), ESearchCase::IgnoreCase))
-			{
-				bResult = true;
-			}
-			else if (ValueString.Equals(TEXT("false"), ESearchCase::IgnoreCase))
-			{
-				bResult = false;
-			}
-		}
-	}
-
-	return bResult;
+	return GetBoolMetaDataOptional(Property, InName).Get(bDefaultValue);
 }
 
-void FBlueprintComponentReferenceMetadata::SetBoolMetaDataValue(FProperty* Property, const FName& InName, TOptional<bool> Value)
+void FMetadataMarshaller::SetBoolMetaDataValue(FProperty* Property, const FName& InName, TOptional<bool> Value)
 {
 	if (Value.IsSet())
 	{
@@ -283,7 +317,7 @@ void FBlueprintComponentReferenceMetadata::SetBoolMetaDataValue(FProperty* Prope
 	}
 }
 
-void FBlueprintComponentReferenceMetadata::GetClassMetadata(const FProperty* Property, const FName& InName, const TFunctionRef<void(UClass*)>& Func)
+void FMetadataMarshaller::GetClassMetadata(const FProperty* Property, const FName& InName, const TFunctionRef<void(UClass*)>& Func)
 {
 	const FString& ClassName = Property->GetMetaData(InName);
 	if (ClassName.IsEmpty())
@@ -297,7 +331,7 @@ void FBlueprintComponentReferenceMetadata::GetClassMetadata(const FProperty* Pro
 	}
 }
 
-void FBlueprintComponentReferenceMetadata::SetClassMetadata(FProperty* Property, const FName& InName, class UClass* InClass)
+void FMetadataMarshaller::SetClassMetadata(FProperty* Property, const FName& InName, class UClass* InClass)
 {
 	FString Complete = InClass ? InClass->GetClassPathName().ToString() : TEXT("");
 	if (Complete.IsEmpty())
@@ -315,7 +349,7 @@ void FBlueprintComponentReferenceMetadata::SetClassMetadata(FProperty* Property,
 	}
 }
 
-void FBlueprintComponentReferenceMetadata::GetClassListMetadata(const FProperty* Property, const FName& InName, const TFunctionRef<void(UClass*)>& Func)
+void FMetadataMarshaller::GetClassListMetadata(const FProperty* Property, const FName& InName, const TFunctionRef<void(UClass*)>& Func)
 {
 	const FString& MetaDataString = Property->GetMetaData(InName);
 	if (MetaDataString.IsEmpty())
@@ -350,7 +384,7 @@ void FBlueprintComponentReferenceMetadata::GetClassListMetadata(const FProperty*
 	}
 }
 
-void FBlueprintComponentReferenceMetadata::SetClassListMetadata(FProperty* Property, const FName& InName, const TFunctionRef<void(TArray<FString>&)>& PathSource)
+void FMetadataMarshaller::SetClassListMetadata(FProperty* Property, const FName& InName, const TFunctionRef<void(TArray<FString>&)>& PathSource)
 {
 	TArray<FString> Result;
 	PathSource(Result);
