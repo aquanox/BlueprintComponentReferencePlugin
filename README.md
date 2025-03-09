@@ -1,3 +1,9 @@
+[![GitHub release](https://img.shields.io/github/release/aquanox/BlueprintComponentReferencePlugin.svg)](https://github.com/aquanox/BlueprintComponentReferencePlugin/releases)
+[![GitHub license](https://img.shields.io/github/license/aquanox/BlueprintComponentReferencePlugin)](https://github.com/aquanox/BlueprintComponentReferencePlugin/blob/main/LICENSE)
+[![GitHub forks](https://img.shields.io/github/forks/aquanox/BlueprintComponentReferencePlugin)](https://github.com/aquanox/BlueprintComponentReferencePlugin/network)
+[![GitHub stars](https://img.shields.io/github/stars/aquanox/BlueprintComponentReferencePlugin)](https://github.com/aquanox/BlueprintComponentReferencePlugin/stargazers)
+![UE5](https://img.shields.io/badge/UE5-5.0+-lightgrey)
+
 ## Blueprint Component Reference Plugin for Unreal Engine
 
 Blueprint Component Reference Plugin provides a struct and set of accessors that allow referencing actor components from blueprint editor details view with a component picker, it automatically identifies context and builds list of components for selection menu. 
@@ -24,7 +30,7 @@ Component Filtering:
  * `AllowedClasses` - List of classes for component filter
  * `DisallowedClasses` - List of classes for component filter
  * `ShowNative` - Include native (created with CreateDefaultSubobject) components in picker. Default = True.
- * `ShowBlueprint` - Include blueprint SCS components (added in Blueprint Editor) in picker. Default = True.
+ * `ShowBlueprint` - Include blueprint (added in Blueprint Editor) components in picker. Default = True.
  * `ShowInstanced` - Include instanced components with assosicated property in picker. Default = False.
  * `ShowHidden` - Include any components without associated property in picker. Default = False.
  * `ShowEditor` - Include editor-only components in picker. Default = True.
@@ -45,6 +51,10 @@ Blueprint variables supported via variable editor extension.
 ## Unreal Engine Versions
 
 Plugin is compatible with 5.0+, ue5-main and can be modified to work with other engine versions.
+
+## License
+
+Blueprint Component Reference Plugin is available under the MIT license. See the LICENSE file for more info.
 
 ## Examples
 
