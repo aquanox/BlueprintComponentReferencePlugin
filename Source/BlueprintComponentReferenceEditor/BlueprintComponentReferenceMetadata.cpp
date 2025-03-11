@@ -215,56 +215,6 @@ void FBlueprintComponentReferenceMetadata::ApplySettingsToProperty(UBlueprint* I
 	}
 }
 
-FMetadataMarshaller& FMetadataMarshaller::Get()
-{
-	static FMetadataMarshaller Instance;
-	return Instance;
-}
-
-FMetadataMarshaller::FMetadataMarshaller()
-{
-	
-}
-
-void FMetadataMarshaller::LoadInternal(FStructData Container, const FProperty* InProperty)
-{
-	for (TFieldIterator<FProperty> It(Container.ScriptStruct); It; ++It)
-	{
-		const FProperty* ContainerProperty = *It;
-		FName HandlerType = *It->GetMetaData(TEXT("MDHandler"));
-		FName Specifier = *It->GetMetaData(TEXT("MDSpecifier"));
-		// 
-		if (Specifier.IsNone() || HandlerType.IsNone())
-			continue;
-		// no metadata pressent - skip load / keep default
-		if (!InProperty->FindMetaData(Specifier))
-			continue;
-		// find handler and do load 
-		if (auto Handler = RegisteredHandlers.Find(HandlerType))
-		{
-			Handler->Loader.Execute(Container, ContainerProperty, InProperty, Specifier);
-		}
-	}
-}
-
-void FMetadataMarshaller::ApplyInternal(FStructData Container, UBlueprint* InBlueprint, FProperty* InProperty, const FName& InChanged)
-{
-	for (TFieldIterator<FProperty> It(Container.ScriptStruct); It; ++It)
-	{
-		const FProperty* ContainerProperty = *It;
-		FName HandlerType = *It->GetMetaData(TEXT("MDHandler"));
-		FName Specifier = *It->GetMetaData(TEXT("MDSpecifier"));
-		// 
-		if (Specifier.IsNone() || HandlerType.IsNone())
-			continue;
-		// find handler and do apply
-		if (auto Handler = RegisteredHandlers.Find(HandlerType))
-		{
-			Handler->Applier.Execute(Container, ContainerProperty, InBlueprint, InProperty, Specifier);
-		}
-	}
-}
-
 bool FMetadataMarshaller::HasMetaDataValue(const FProperty* Property, const FName& InName)
 {
 	return Property->HasMetaData(InName);
@@ -364,19 +314,7 @@ void FMetadataMarshaller::GetClassListMetadata(const FProperty* Property, const 
 	{
 		if (UClass* Class = FBlueprintComponentReferenceHelper::FindClassByName(ClassName))
 		{
-			// If the class is an interface, expand it to be all classes in memory that implement the class.
-			if (Class->HasAnyClassFlags(CLASS_Interface))
-			{
-				for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
-				{
-					UClass* const ClassWithInterface = (*ClassIt);
-					if (ClassWithInterface->IsChildOf(UActorComponent::StaticClass()) && ClassWithInterface->ImplementsInterface(Class))
-					{
-						Func(ClassWithInterface);
-					}
-				}
-			}
-			else if (Class->IsChildOf(UActorComponent::StaticClass()))
+			if (Class->HasAnyClassFlags(CLASS_Interface) || Class->IsChildOf(UActorComponent::StaticClass()))
 			{
 				Func(Class);
 			}
@@ -404,3 +342,215 @@ void FMetadataMarshaller::SetClassListMetadata(FProperty* Property, const FName&
 		ParamOwner->Modify();
 	}
 }
+
+#if WITH_EXPERIMENTS
+
+FMetadataMarshaller& FMetadataMarshaller::Get()
+{
+	static FMetadataMarshaller Instance;
+	return Instance;
+}
+
+FMetadataMarshaller::FMetadataMarshaller()
+{
+	// Handlers.Add(TEXT("Default"), MakeShared<FDefaultHandler>());
+	// Handlers.Add(TEXT("Bool"), MakeShared<FBoolHandler>());
+	// Handlers.Add(TEXT("InverseBool"), MakeShared<FInverseBoolHandler>());
+	// Handlers.Add(TEXT("Class"), MakeShared<FClassHandler>());
+}
+
+void FMetadataMarshaller::ApplyInternal(FStructData Container, UBlueprint* InBlueprint, FProperty* InProperty, const FName& InChanged)
+{
+	TMap<FName, TOptional<FString>> MetadataToApply;
+	
+	for (TFieldIterator<FProperty> It(Container.ScriptStruct, EFieldIterationFlags::IncludeSuper); It; ++It)
+	{
+		const FName Specifier = *It->GetMetaData(TEXT("MDSpecifier"));
+		if (Specifier.IsNone())
+		{ // invalid declaration, specifier is required to be present 
+			continue;
+		}
+
+		if (!InChanged.IsNone() && InChanged != Specifier)
+		{ // update single mode
+			continue;
+		}
+		
+		const bool bIsTransient = !!( It->PropertyFlags & CPF_Transient );
+		if (bIsTransient)
+		{ // unset all transient things
+			MetadataToApply.Add(Specifier, TOptional<FString>());
+			continue;
+		}
+		
+		const bool bIsIdentical = It->Identical_InContainer(Container.GetStructMemory(), Container.GetDefaultStructMemory());
+		if (bIsIdentical)
+		{ // property value is no different from default - unset the value
+			MetadataToApply.Add(Specifier, TOptional<FString>());
+			continue;
+		}
+		
+		FMarshallContext Ctx;
+		Ctx.ScriptStruct = const_cast<UScriptStruct*>(Container.ScriptStruct);
+		Ctx.StructMemory = Container.GetStructMemory();
+		Ctx.StructDefaultMemory = Container.GetDefaultStructMemory();
+		Ctx.StructProperty = *It;
+		
+		Ctx.Blueprint = InBlueprint;
+		Ctx.Property = InProperty;
+
+		TOptional<FString> ApplyValue;
+
+		const FName HandlerType = *It->GetMetaData(TEXT("MDHandler"));
+		if (HandlerType == TEXT("Bool")) ApplyHandlerBool(Ctx, Specifier, ApplyValue);
+		else if (HandlerType == TEXT("InverseBool")) ApplyHandlerInverseBool(Ctx, Specifier, ApplyValue);
+		else if (HandlerType == TEXT("Class")) ApplyHandlerClass(Ctx, Specifier, ApplyValue);
+		else ApplyHandlerDefault(Ctx, Specifier, ApplyValue);
+
+		MetadataToApply.Add(Specifier, MoveTemp(ApplyValue));
+	}
+
+	auto SetMetaData = [InProperty, InBlueprint](const FName& InName, const TOptional<FString>& InValue)
+	{
+		if (InProperty)
+		{
+			if (::IsValid(InBlueprint))
+			{
+				for (FBPVariableDescription& VariableDescription : InBlueprint->NewVariables)
+				{
+					if (VariableDescription.VarName == InProperty->GetFName())
+					{
+						if (!InValue.IsSet())
+						{
+							InProperty->SetMetaData(InName, *InValue.GetValue());
+							VariableDescription.SetMetaData(InName, InValue.GetValue());
+						}
+						else
+						{
+							InProperty->RemoveMetaData(InName);
+							VariableDescription.RemoveMetaData(InName);
+						}
+
+						InBlueprint->Modify();
+					}
+				}
+			}
+			
+			if (UObject* ParamOwner = InProperty->GetOwnerUObject())
+			{
+				ParamOwner->Modify();
+			}
+		}
+	};
+
+	for (auto& ToApply : MetadataToApply)
+	{
+		if (!ToApply.Value.IsSet())
+		{
+			UE_LOG(LogTemp, Log, TEXT("%s => unset"),  *ToApply.Key.ToString());
+			SetMetaData(ToApply.Key, ToApply.Value);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Log, TEXT("%s => %s"),  *ToApply.Key.ToString(), *ToApply.Value.GetValue());
+			SetMetaData(ToApply.Key, ToApply.Value);
+		}
+	}
+}
+// Relies on ExportText 
+void FMetadataMarshaller::ApplyHandlerDefault(FMarshallContext& Context, FName MetadataKey, TOptional<FString>& OutValue)
+{
+	int32 PortFlags = 0;
+			
+	FString ValueStr;
+	for (int32 Index = 0, Count = 0; Index < Context.StructProperty->ArrayDim; Index++)
+	{
+		FString InnerValue;
+		
+		if (Context.StructProperty->ExportText_InContainer(Index, InnerValue, Context.StructMemory, Context.StructMemory, nullptr, PortFlags))
+		{
+			if (Count++ > 0)
+			{
+				ValueStr += TEXT(",");
+			}
+			ValueStr += InnerValue;
+		}
+	}
+
+	OutValue =  TOptional<FString>(ValueStr);
+}
+// Converts value to Bool
+void FMetadataMarshaller::ApplyHandlerBool(FMarshallContext& Context, FName MetadataKey, TOptional<FString>& OutValue)
+{
+	if (const FBoolProperty* AsBool = CastField<FBoolProperty>(Context.StructProperty))
+	{
+		bool bValue = AsBool->GetPropertyValue_InContainer(Context.StructMemory);
+		OutValue = bValue ? TEXT("True") : TEXT("False");
+	}
+}
+// Converts inverted value to Bool
+void FMetadataMarshaller::ApplyHandlerInverseBool(FMarshallContext& Context, FName MetadataKey, TOptional<FString>& OutValue)
+{
+	if (const FBoolProperty* AsBool = CastField<FBoolProperty>(Context.StructProperty))
+	{
+		bool bValue = AsBool->GetPropertyValue_InContainer(Context.StructMemory);
+		OutValue = !bValue ? TEXT("True") : TEXT("False");
+	}
+}
+
+void FMetadataMarshaller::ApplyHandlerClass(FMarshallContext& Context, FName MetadataKey, TOptional<FString>& OutValue)
+{
+	auto ClassToString = [](const UClass* InClass)
+	{
+		return InClass ? InClass->GetClassPathName().ToString() : TEXT("");	
+	};
+
+	FString Result;
+	
+	if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Context.StructProperty))
+	{
+		const FProperty* Inner = ArrayProperty->Inner;
+		FScriptArrayHelper Helper(ArrayProperty, ArrayProperty->ContainerPtrToValuePtr<void>(Context.StructMemory));
+		
+		for (int32 Index = 0, Count = 0; Index < Helper.Num(); Index++)
+		{
+			if (Count > 0) Result += TEXT(",");
+
+			uint8* PropData = Helper.GetRawPtr(Index);
+
+			FString ValueStr;
+			Inner->ExportTextItem_Direct(ValueStr, PropData, PropData, nullptr, PPF_None, nullptr);
+			if (!ValueStr.IsEmpty())
+			{
+				Result += ValueStr;
+				++Count;
+			}
+		}
+	}
+
+	if (!Result.IsEmpty())
+	{
+		OutValue = Result;
+	}
+}
+
+void FMetadataMarshaller::ApplyHandlerClassArray(FMarshallContext& Context, FName MetadataKey, TOptional<FString>& OutValue)
+{
+}
+
+void FMetadataMarshaller::LoadInternal(FStructData Container, const FProperty* InProperty)
+{
+	for (TFieldIterator<FProperty> It(Container.ScriptStruct); It; ++It)
+	{
+		const FName Specifier = *It->GetMetaData(TEXT("MDSpecifier"));
+		if (Specifier.IsNone())
+			continue;
+
+		FName HandlerType = *It->GetMetaData(TEXT("MDHandler"));
+		// no metadata pressent - skip load / keep default
+		if (!InProperty->FindMetaData(Specifier))
+			continue;
+	}
+}
+
+#endif // WITH_EXPERIMENTS

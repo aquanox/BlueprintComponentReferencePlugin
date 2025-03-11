@@ -413,6 +413,9 @@ FHierarchyClassInfo::~FHierarchyClassInfo()
 
 UClass* FBlueprintComponentReferenceHelper::FindClassByName(const FString& ClassName)
 {
+	if (ClassName.IsEmpty())
+		return nullptr;
+	
 	UClass* Class =  UClass::TryFindTypeSlow<UClass>(ClassName, EFindFirstObjectOptions::EnsureIfAmbiguous);
 	if (!Class)
 	{
