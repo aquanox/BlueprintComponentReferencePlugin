@@ -26,7 +26,8 @@ public class BlueprintComponentReferenceTests : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
-				"BlueprintComponentReference"
+				"BlueprintComponentReference",
+				"BlueprintComponentReferenceEditor"
 		});
 
 		if (Target.Version.MajorVersion >= 5)

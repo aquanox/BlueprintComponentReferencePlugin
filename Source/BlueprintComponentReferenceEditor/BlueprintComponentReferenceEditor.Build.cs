@@ -20,7 +20,7 @@ public class BlueprintComponentReferenceEditor : ModuleRules
 			bTreatAsEngineModule = true;
 		}
 
-		PrivateIncludePaths.Add(ModuleDirectory);
+		PublicIncludePaths.Add(ModuleDirectory);
 
 		PublicDependencyModuleNames.AddRange(new string[] {
 			"Core",

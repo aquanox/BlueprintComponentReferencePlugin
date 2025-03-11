@@ -3,11 +3,17 @@
 #include "BCRTestActor.h"
 #include "BlueprintComponentReference.h"
 #include "BlueprintComponentReferenceLibrary.h"
+#include "BlueprintComponentReferenceMetadata.h"
+#include "GameFramework/Actor.h"
+#include "GameFramework/Character.h"
 
 #include "Misc/AutomationTest.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "Components/SkeletalMeshComponent.h"
+
+#include "GameFramework/CharacterMovementComponent.h"
+
 #include "Modules/ModuleManager.h"
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, BlueprintComponentReferenceTests);
@@ -171,4 +177,11 @@ bool FBlueprintComponentReferenceTests_Library::RunTest(FString const&)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBlueprintComponentReferenceTests_Marshaller,
+	"BlueprintComponentReference.Marshaller", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter | EAutomationTestFlags::HighPriority);
+
+bool FBlueprintComponentReferenceTests_Marshaller::RunTest(FString const&)
+{
+	return true;
+}
 #endif
