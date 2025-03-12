@@ -29,56 +29,69 @@ enum class EBlueprintComponentReferenceMode : uint8
 /**
  * Struct that allows referencing actor components within blueprint.
  *
- * Supported uses:
+ * Component picker behavior customized via metadata specifiers.
+ * 
+ *
+ * Supported use cases:
  * - Class/Struct member property
  * - Local Blueprint variable
  * - Array property
  * - Map property as Value
  *
- * Supported meta-specifiers:
+ * <p>Example code</p>
+ * @code
+ *	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ShowBlueprint=True, ShowNative=False, NoNavigate))
+ *	FBlueprintComponentReference MyProperty;
+ * @endcode 
  *
- * - ActorClass=/Script/Module.ClassName
- *      Specifies actor class that would be used as a source to suggest components in dropdown
- *      This specifier is used only in scenarios when automatic discovery of actor type is not possible (Data Asset member)
- *      or there is a need to enforce specific actor type
+ * <p>Component display and filtering:</p>
  *
- * - AllowedClasses="/Script/Engine.ClassA,/Script/Engine.Class.B"
+ *	- ShowNative=bool <br/>
+ *		Should include native (C++ CreateDefaultSubobject) components in list?
+ *		Default: True
+ *
+ * - ShowBlueprint=bool <br/>
+ *		Should include blueprint (Simple Construction Script) components in list?
+ *		Default: True
+ *
+ * - ShowInstanced=bool <br/>
+ *		Should include instanced components in list?
+ *		Default: False
+ *
+ * - ShowHidden=bool <br/>
+ *		Should include instanced components that have no variable bound to?
+ *		Default: False
+ *
+ * - ShowEditor=bool <br/>
+ *		Should include editor-only components?
+ *		Default: True
+ *
+ * - AllowedClasses="/Script/Engine.ClassA,/Script/Engine.Class.B" <br/>
  *		Specifies list of allowed base component types
  *
- * - DisallowedClasses="/Script/Engine.ClassA,/Script/Engine.Class.B"
+ * - DisallowedClasses="/Script/Engine.ClassA,/Script/Engine.Class.B" <br/>
  *		Specifies list of disallowed base component types
  *
- * - NoPicker
- *		Disables component picker functions, allowing direct editing
- *		Default: false
  *
- * - NoClear
+ *	<p>Miscellaneious:</p>
+ *
+ * - ActorClass="/Script/Module.ClassName" <br/>
+ *      Specifies actor class that would be used as a source to suggest components in dropdown <br/>
+ *      This specifier is used only in scenarios when automatic discovery of actor type is not possible (Data Asset member)
+ *      or there is a need to enforce specific actor type <br/>
+ *      Prefer native actor classes over blueprints to avoid loading unnesessary assets.
+ *
+ * - NoClear <br/>
  *		Disables "Clear" action, that resets value to default state
- *		Default: false
+ *		Default: False
  *
- * - NoNavigate
+ * - NoNavigate <br/>
  *		Disables "Navigate" action, that attempts to select component in Components View window
- *		Default: false
+ *		Default: False
  *
- *	- ShowNative=bool
- *		Should include native (C++ CreateDefaultSubobject) components in list?
- *		Default: true
- *
- * - ShowBlueprint=bool
- *		Should include blueprint (Simple Construction Script) components in list?
- *		Default: true
- *
- * - ShowInstanced=bool
- *		Should include instanced components in list?
- *		Default: false
- *
- * - ShowHidden=bool
- *		Should include instanced components that have no variable bound to?
- *		Default: false
- *
- * - ShowEditor=bool
- *		Should include editor-only components?
- *		Default: true
+ * - NoPicker  <br/>
+ *		Disables component picker functions, enables direct editing of inner properties.
+ *		Default: False
  *
  */
 USTRUCT(BlueprintType, meta=(DisableSplitPin))

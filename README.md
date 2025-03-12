@@ -17,8 +17,8 @@ Plugin provides component picker in following use cases:
  * Struct member UPROPERTY within Actor class or blueprint.
  * Local variable in an Actor Blueprint.
  * Function local variable in an Actor Blueprint.
- * Data Asset member UPROPERTY (if ActorClass meta specifier is used).
- * Data Asset Blueprint variable (if ActorClass meta specifier is used).
+ * Generic member UPROPERTY (if ActorClass meta specifier is used).
+ * Generic Blueprint variable (if ActorClass meta specifier is used).
  * Array in one of above
  * Map value in one of above
  
