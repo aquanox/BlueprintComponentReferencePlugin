@@ -30,20 +30,10 @@ struct FCRMetadataKey
 };
 
 /**
- * Container type for metadata that can be loaded/applied to property using FMetadataMarshaller
- */
-USTRUCT()
-struct BLUEPRINTCOMPONENTREFERENCEEDITOR_API FMetadataContainerBase
-{
-	GENERATED_BODY()
-};
-
-/**
  * Internal struct for blueprint property configuration and view settings
- *
  */
 USTRUCT()
-struct BLUEPRINTCOMPONENTREFERENCEEDITOR_API FBlueprintComponentReferenceMetadata : public FMetadataContainerBase
+struct BLUEPRINTCOMPONENTREFERENCEEDITOR_API FBlueprintComponentReferenceMetadata
 {
 	GENERATED_BODY()
 public:
@@ -57,8 +47,12 @@ public:
 	UPROPERTY(EditAnywhere, Category=Metadata, meta=(MDSpecifier="NoClear", MDHandler="InverseBool"))
 	bool bUseClear	= true;
 
-	/** Enforce specific Actor class to collect components from, leave empty for automatic discovery */ 
-	UPROPERTY(EditAnywhere, Category=Metadata, meta=(MDSpecifier="ActorClass", MDHandler="Class", AllowAbstract=true))
+	/**
+	 * Enforces specific actor class to collect components from, usually used when automatic discovery is not possible.
+	 *
+	 * Important note: prefer native actor classes over blueprints to avoid loading unnesessary assets
+	 */ 
+	UPROPERTY(EditAnywhere, Category=Metadata, meta=(MDSpecifier="ActorClass", MDHandler="Class", AllowAbstract=true, NoBrowse, NoCreate, DisallowCreateNew))
 	TSoftClassPtr<AActor> ActorClass;
 
 	/** Allow to pick native components */
@@ -77,18 +71,26 @@ public:
 	UPROPERTY(EditAnywhere, Category=Metadata, DisplayName="Show Editor", meta=(MDSpecifier="ShowEditor", MDHandler="Bool"))
 	bool bShowEditor = true;
 
-	/** Classes or interfaces that can be used with this property */
+	/**
+	 * ActorComponent classes or interfaces that can be referenced by this property
+	 *
+	 * Important note: prefer native actor classes over blueprints to avoid loading unnesessary assets
+	 */
 	UPROPERTY(EditAnywhere, DisplayName="Allowed Classes", Category=Metadata, NoClear, meta=(MDSpecifier="AllowedClasses", MDHandler="ClassList", DisplayThumbnail=false, NoElementDuplicate, AllowAbstract=true, NoBrowse, NoCreate, DisallowCreateNew))
 	TArray<TSubclassOf<UActorComponent>>	AllowedClasses;
-	/** Classes or interfaces that can NOT be used with this property */
+	/**
+	 * ActorComponent classes or interfaces that can NOT be referenced by this property
+	 *
+	 * Important note: prefer native actor classes over blueprints to avoid loading unnesessary assets
+	 */
 	UPROPERTY(EditAnywhere, DisplayName="Disallowed Classes", Category=Metadata, NoClear, meta=(MDSpecifier="DisallowedClasses", MDHandler="ClassList", DisplayThumbnail=false, NoElementDuplicate, AllowAbstract=true, NoBrowse, NoCreate, DisallowCreateNew))
 	TArray<TSubclassOf<UActorComponent>>	DisallowedClasses;
 
 public:
-
-	void ResetSettings();
-	void LoadSettingsFromProperty(const FProperty* InProp);
-	void ApplySettingsToProperty(UBlueprint* InBlueprint, FProperty* InProperty, const FName& InChanged);
+	virtual ~FBlueprintComponentReferenceMetadata() = default;
+	virtual void ResetSettings();
+	virtual void LoadSettingsFromProperty(const FProperty* InProp);
+	virtual void ApplySettingsToProperty(UBlueprint* InBlueprint, FProperty* InProperty, const FName& InChanged);
 };
 
 class UBlueprint;
@@ -100,109 +102,12 @@ struct BLUEPRINTCOMPONENTREFERENCEEDITOR_API FMetadataMarshaller
 {
 	static bool HasMetaDataValue(const FProperty* Property, const FName& InName);
 
-	static TOptional<bool> GetBoolMetaDataOptional(const FProperty* Property, const FName& InName);
-	static bool GetBoolMetaDataValue(const FProperty* Property, const FName& InName, bool bDefaultValue);
-	static void SetBoolMetaDataValue(FProperty* Property, const FName& InName, TOptional<bool> Value);
+	static void SetMetaDataValue(UBlueprint* Blueprint, FProperty* Property, const FName& InName, TOptional<FString> InValue);
+
+	static TOptional<bool> GetBoolMetaDataValue(const FProperty* Property, const FName& InName);
 
 	static void GetClassMetadata(const FProperty* Property, const FName& InName, const TFunctionRef<void(UClass*)>& Func);
-	static void SetClassMetadata(FProperty* Property, const FName& InName, class UClass* InClass);
 	
 	static void GetClassListMetadata(const FProperty* Property, const FName& InName, const TFunctionRef<void(UClass*)>& Func);
-	static void SetClassListMetadata(FProperty* Property, const FName& InName, const TFunctionRef<void(TArray<FString>&)>& PathSource);
 
-#if WITH_EXPERIMENTS
-	
-private:
-	struct FStructData : public FNoncopyable
-	{
-		// metadata container type
-		const UScriptStruct* ScriptStruct = nullptr;
-		// metadata conteinr data
-		uint8* StructMemory = nullptr;
-		// container for metadata defaults
-		TSharedPtr<FStructOnScope> DefaultStruct;
-
-		FStructData() = default;
-		FStructData(const UScriptStruct* ScriptStruct, void* StructMemory)
-			: ScriptStruct(ScriptStruct), StructMemory(static_cast<uint8*>(StructMemory))
-		{
-			DefaultStruct = MakeShared<FStructOnScope>(ScriptStruct);
-			ScriptStruct->InitializeDefaultValue(DefaultStruct->GetStructMemory());
-		}
-
-		inline uint8* GetStructMemory() const { return StructMemory; }
-		inline uint8* GetDefaultStructMemory() const { return DefaultStruct->GetStructMemory(); }
-	};
-	
-public:
-	/**
-	 * Load metadata from property to container
-	 * @tparam T Container type
-	 * @param Container Container instance
-	 * @param InProp Property to read metadata from
-	 */
-	template<typename T = FMetadataContainerBase>
-	void LoadFromProperty(T& Container, const FProperty* InProp)
-	{
-		LoadInternal(FStructData(T::StaticStruct(), &Container), InProp);
-	}
-
-	/**
-	 * Apply metadata from a container onto property
-	 * @tparam T Container type
-	 * @param Container Container instance
-	 * @param InBlueprint Target blueprint. Nullable
-	 * @param InProperty Target property to apply metadata.
-	 * @param InChanged Name of the metadata specifier that changed for single update, optional.
-	 */
-	template<typename T = FMetadataContainerBase>
-	void ApplyToProperty(T& Container, UBlueprint* InBlueprint, FProperty* InProperty, const FName& InChanged)
-	{
-		ApplyInternal(FStructData(T::StaticStruct(), &Container), InBlueprint, InProperty, InChanged);
-	}
-
-	/**
-	 * Returns instance of a default metadata marshaller 
-	 * @return Metadata marshaller instance 
-	 */
-	static FMetadataMarshaller& Get();
-
-private:	
-	FMetadataMarshaller();
-
-	void LoadInternal(FStructData Container, const FProperty* InProperty);
-	void ApplyInternal(FStructData Container, UBlueprint* InBlueprint, FProperty* InProperty, const FName& InChanged);
-
-	struct FMarshallContext
-	{
-		// {{{ Container data
-		UScriptStruct*			ScriptStruct = nullptr;
-		uint8*					StructMemory = nullptr;
-		uint8*					StructDefaultMemory = nullptr;
-		FProperty*				StructProperty = nullptr;
-		// }}}
-
-		// {{{ Property data
-		UBlueprint*				Blueprint = nullptr;
-		FProperty*				Property = nullptr;
-		// }}}
-	};
-
-	struct FMarshallHandler
-	{
-		virtual ~FMarshallHandler() = default;
-		virtual void Apply(FMarshallContext& Context, FName MetadataKey, TOptional<FString>& OutValue) const;
-		virtual void Load(FMarshallContext& Context, FName MetadataKey, TOptional<FString>& OutValue) const;
-	};
-
-	TMap<FName, TSharedPtr<FMarshallHandler>> Handlers;
-
-	void ApplyHandlerDefault(FMarshallContext& Context, FName MetadataKey, TOptional<FString>& OutValue);
-	void ApplyHandlerBool(FMarshallContext& Context, FName MetadataKey, TOptional<FString>& OutValue);
-	void ApplyHandlerInverseBool(FMarshallContext& Context, FName MetadataKey, TOptional<FString>& OutValue);
-	void ApplyHandlerClass(FMarshallContext& Context, FName MetadataKey, TOptional<FString>& OutValue);
-	void ApplyHandlerClassArray(FMarshallContext& Context, FName MetadataKey, TOptional<FString>& OutValue);
-
-#endif // WITH_EXPERIMENTS
-	
 };

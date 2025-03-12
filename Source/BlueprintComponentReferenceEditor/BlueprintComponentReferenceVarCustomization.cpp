@@ -12,7 +12,6 @@
 #include "ScopedTransaction.h"
 
 FBlueprintComponentReferenceVarCustomization::FBlueprintComponentReferenceVarCustomization(TSharedPtr<IBlueprintEditor> InBlueprintEditor, TWeakObjectPtr<UBlueprint> InBlueprintPtr)
-	: ScopedSettings(MakeShared<TStructOnScope<FMetadataContainer>>())
 {
 	BlueprintEditorPtr = InBlueprintEditor;
 	BlueprintPtr		= InBlueprintPtr;
@@ -47,12 +46,14 @@ TSharedPtr<IDetailCustomization> FBlueprintComponentReferenceVarCustomization::M
 	return nullptr;
 }
 
+TSharedPtr<TStructOnScope<FBlueprintComponentReferenceVarCustomization::FMetadataContainer>> FBlueprintComponentReferenceVarCustomization::CreateContainer() const
+{
+	return MakeShared<TStructOnScope<FMetadataContainer>>(MakeStructOnScope<FMetadataContainer>());
+}
+
 void FBlueprintComponentReferenceVarCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 {
-	ScopedSettings->InitializeFrom(MakeStructOnScope<FMetadataContainer>());
-	
-	FMetadataContainer& Settings = *ScopedSettings->Get();
-
+	ScopedSettings.Reset();
 	PropertiesBeingCustomized.Reset();
 
 	UBlueprint* LocalBlueprint = BlueprintPtr.Get();
@@ -72,31 +73,35 @@ void FBlueprintComponentReferenceVarCustomization::CustomizeDetails(IDetailLayou
 
 		if (FBlueprintComponentReferenceHelper::IsComponentReferenceProperty(PropertyBeingCustomized))
 		{
-			Settings.LoadSettingsFromProperty(PropertyBeingCustomized);
-
 			PropertiesBeingCustomized.Emplace(PropertyBeingCustomized);
 		}
 	}
 
 	if (PropertiesBeingCustomized.Num() != 1)
-	{ // todo: fix multiedit
+	{
 		return;
 	}
+	
+	ScopedSettings = CreateContainer();
+	ScopedSettings->Get()->LoadSettingsFromProperty(PropertiesBeingCustomized[0].Get());
 
 	{
 		// Put custom category above `Default Value`
 		int32 SortOrder = DetailLayout.EditCategory("Variable").GetSortOrder();
-		DetailLayout.EditCategory("ComponentReference").SetSortOrder(++SortOrder);
+		DetailLayout.EditCategory(GetCategoryName()).SetSortOrder(++SortOrder);
 		DetailLayout.EditCategory("DefaultValue").SetSortOrder(++SortOrder);
 	}
 
 	{
-		auto& Builder = DetailLayout.EditCategory("ComponentReference");
+		auto& Builder = DetailLayout.EditCategory(GetCategoryName());
 		Builder.InitiallyCollapsed(false);
 
 		for (TFieldIterator<FProperty> It(ScopedSettings->GetStruct(), EFieldIterationFlags::Default); It; ++It)
 		{
-			FSimpleDelegate ChangeHandler = FSimpleDelegate::CreateSP(this, &FBlueprintComponentReferenceVarCustomization::OnPropertyChanged, It->GetFName());
+			if (It->HasAnyPropertyFlags(CPF_Deprecated|CPF_Transient))
+				continue;
+			
+			FSimpleDelegate ChangeHandler = FSimpleDelegate::CreateSP(this, &FBlueprintComponentReferenceVarCustomization::OnContainerPropertyChanged, It->GetFName());
 
 			FAddPropertyParams Params;
 			IDetailPropertyRow* PropertyRow = Builder.AddExternalStructureProperty(ScopedSettings, It->GetFName(), EPropertyLocation::Default, Params);
@@ -109,7 +114,7 @@ void FBlueprintComponentReferenceVarCustomization::CustomizeDetails(IDetailLayou
 	}
 }
 
-void FBlueprintComponentReferenceVarCustomization::OnPropertyChanged(FName InName)
+void FBlueprintComponentReferenceVarCustomization::OnContainerPropertyChanged(FName InName)
 {
 	FScopedTransaction Transaction(INVTEXT("ApplySettingsToProperty"));
 

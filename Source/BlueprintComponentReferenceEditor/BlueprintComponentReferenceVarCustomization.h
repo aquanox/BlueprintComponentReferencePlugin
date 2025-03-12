@@ -17,14 +17,19 @@ class  FBlueprintComponentReferenceVarCustomization : public IDetailCustomizatio
 {
 	using FMetadataContainer = FBlueprintComponentReferenceMetadata;
 public:
-	FBlueprintComponentReferenceVarCustomization(TSharedPtr<IBlueprintEditor> InBlueprintEditor, TWeakObjectPtr<UBlueprint> InBlueprintPtr);
+	FBlueprintComponentReferenceVarCustomization(
+		TSharedPtr<IBlueprintEditor> InBlueprintEditor, 
+		TWeakObjectPtr<UBlueprint> InBlueprintPtr
+	);
 
 	static TSharedPtr<IDetailCustomization> MakeInstance(TSharedPtr<IBlueprintEditor> BlueprintEditor);
 protected:
-
+	virtual FName GetCategoryName() const { return TEXT("ComponentReferenceMetadata"); }
+	virtual TSharedPtr<TStructOnScope<FMetadataContainer>> CreateContainer() const;
+	
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
 
-	void OnPropertyChanged(FName InName);
+	virtual void OnContainerPropertyChanged(FName InName);
 
 private:
 	/** The blueprint editor instance */
@@ -37,6 +42,6 @@ private:
 	TArray<TWeakFieldPtr<FProperty>> PropertiesBeingCustomized;
 
 	/** Object holding aggregate settins to be applied to properties */
-	TSharedRef<TStructOnScope<FMetadataContainer>> ScopedSettings;
+	TSharedPtr<TStructOnScope<FMetadataContainer>> ScopedSettings;
 
 };
