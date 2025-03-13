@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "BlueprintComponentReference.h"
 #include "GameFramework/Actor.h"
 #include "Components/ActorComponent.h"
 #include "Components/SceneComponent.h"
@@ -19,6 +20,8 @@ public:
 	// Sets default values for this component's properties
 	UBCRTestActorComponent();
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test")
+	FBlueprintComponentReference Reference;
 };
 
 UCLASS(MinimalAPI, meta=(BlueprintSpawnableComponent))
@@ -28,6 +31,8 @@ class UBCRTestSceneComponent : public USceneComponent
 
 public:
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test")
+	FBlueprintComponentReference Reference;
 };
 
 UCLASS(MinimalAPI, meta=(BlueprintSpawnableComponent))
@@ -37,4 +42,6 @@ class UBCRTestMovementComponent : public UCharacterMovementComponent
 
 public:
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test")
+    FBlueprintComponentReference Reference;
 };
