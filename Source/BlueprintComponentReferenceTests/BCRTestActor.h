@@ -157,4 +157,51 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Components)
 	TObjectPtr<UChildActorComponent> LevelNope;
+	
+};
+
+UCLASS(MinimalAPI)
+class ABCRTestCachedRef : public ACharacter
+{
+	GENERATED_BODY()
+
+public:
+	ABCRTestCachedRef();
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test|Metadata", meta=(ShowNative=false, ShowBlueprint=true, ShowInstanced=false, ShowHidden=false, AllowedClasses="/Script/Engine.SceneComponent"))
+	FBlueprintComponentReference ReferenceBlueprintOnly;
+	
+#if WITH_CACHED_COMPONENT_REFERENCE
+
+	TCachedComponentReferenceV1<USceneComponent> CachedTargetCompA { &ReferenceBlueprintOnly };
+	
+	TCachedComponentReferenceV1<USceneComponent> CachedTargetCompB { this, &ReferenceBlueprintOnly };
+	
+	TCachedComponentReferenceV2<USceneComponent, &ThisClass::ReferenceBlueprintOnly> CachedTargetCompV2 { this };
+
+#endif
+	
+	UFUNCTION()
+	void Foo();
+};
+
+UCLASS(MinimalAPI)
+class UBCRTestCachedRefDataAsset : public UDataAsset
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test|Metadata", meta=(ShowNative=false, ShowBlueprint=true, ShowInstanced=false, ShowHidden=false, AllowedClasses="/Script/Engine.SceneComponent"))
+	FBlueprintComponentReference ReferenceBlueprintOnly;
+	
+#if WITH_CACHED_COMPONENT_REFERENCE
+
+	TCachedComponentReferenceV1<USceneComponent> CachedTargetCompA { &ReferenceBlueprintOnly };
+	TCachedComponentReferenceV1<USceneComponent> CachedTargetCompB { nullptr, &ReferenceBlueprintOnly };
+	
+	TCachedComponentReferenceV2<USceneComponent, &ThisClass::ReferenceBlueprintOnly> CachedTargetCompV2 { this };
+
+#endif
+	
+	UFUNCTION()
+	void Foo();
 };

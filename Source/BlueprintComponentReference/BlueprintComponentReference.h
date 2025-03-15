@@ -6,6 +6,10 @@
 #include "Components/ActorComponent.h"
 #include "BlueprintComponentReference.generated.h"
 
+#ifndef WITH_CACHED_COMPONENT_REFERENCE
+#define WITH_CACHED_COMPONENT_REFERENCE 0
+#endif
+
 /**
  * Defines method which ComponentReference resolves the component from actor
  */
@@ -210,3 +214,156 @@ struct TStructOpsTypeTraits<FBlueprintComponentReference>
 		WithIdenticalViaEquality = true
 	};
 };
+
+#if WITH_CACHED_COMPONENT_REFERENCE
+
+/**
+ * EXPERIMENTAL. <br/>
+ * 
+ * A helper type that wraps `FBlueprintComponentReference` with a cached weak pointer to component.
+ * 
+ * Goal is to provide caching behavior and type safety for usage in code.
+ *
+ * Version 1: This version takes BCR pointer and optional owning actor.
+ *
+ * @code
+ * UCLASS()
+ * class AMyActorClass : public AActor
+ * {
+ *	   GENERATED_BODY()
+ *	public:
+ *     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, AllowedClasses="/Script/Engine.SceneComponent")
+ *     FBlueprintComponentReference TargetComponent;
+ *
+ *     TCachedComponentReference<USceneComponent> CachedTargetCompA  { this, &TargetComponent };
+ *
+ *     TCachedComponentReference<USceneComponent> CachedTargetCompB  { &TargetComponent };
+ *     
+ * };
+ *
+ * @endcode 
+ * 
+ * @tparam TComponent Component type
+ */
+template<typename TComponent /*, bool bStrictOwnerCheck = true */>
+struct TCachedComponentReferenceV1
+{
+private:
+	FBlueprintComponentReference* const Target; // target component reference 
+	TWeakObjectPtr<AActor>				ActorPtr; // base actor for lookup
+	TWeakObjectPtr<TComponent>			ValuePtr; // storage for cached value 
+public:
+	explicit TCachedComponentReferenceV1() : Target(nullptr) {}
+	
+	explicit TCachedComponentReferenceV1(FBlueprintComponentReference* InTarget) : Target(InTarget) { }
+
+	explicit TCachedComponentReferenceV1(AActor* Owner, FBlueprintComponentReference* InTarget) : Target(InTarget), ActorPtr(Owner) { }
+	
+	/** @see FBlueprintComponentReference::Get */
+	TComponent* Get(AActor* InActor = nullptr)
+	{
+		if (!InActor)
+		{ // prefer input value over inner ptr
+			InActor = ActorPtr.Get();
+		}
+		
+		TComponent* Component = ValuePtr.Get();
+		if (Component && Component->GetOwner() == InActor)
+		{
+			return Component;
+		}
+		
+		Component = Target->GetComponent<TComponent>(InActor);
+		ValuePtr = Component;
+		return Component;
+	}
+	/** @see FBlueprintComponentReference::IsNull */
+	bool IsNull() const
+	{
+		return Target->IsNull();
+	}
+	/**  reset cached component */
+	void InvalidateCache()
+	{
+		ValuePtr.Reset();
+	}
+};
+
+/**
+ * EXPERIMENTAL. <br/>
+ * 
+ * Another version with templates, compared to V1 it always take `this` as constructor value and member is set via template.
+ *
+ * @code
+ * UCLASS()
+ * class AMyActorClass : public AActor
+ * {
+ *	   GENERATED_BODY()
+ *	public:
+ *     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, AllowedClasses="/Script/Engine.SceneComponent")
+ *     FBlueprintComponentReference TargetComponent;
+ *    
+ *    
+ *     // version 2 always with this passed as first arg, determine if actor or not inside 
+ *     TCachedComponentReference<USceneComponent, &ThisClass::TargetComponent> CachedTargetComp { this };
+ * };
+ *
+ * @endcode
+ * 
+ */
+template<typename TComponent, /* typename TOwner, */ auto PtrToMember /*, bool bStrictOwnerCheck = true */>
+struct TCachedComponentReferenceV2
+{
+private:
+	FBlueprintComponentReference* const Target; // target component reference
+	TWeakObjectPtr<AActor> ActorPtr; //  base actor for lookup
+	TWeakObjectPtr<TComponent> ValuePtr; // storage for cached value 
+public:
+	explicit TCachedComponentReferenceV2() : Target(nullptr) {}
+	
+	template<typename TOwner>
+	explicit TCachedComponentReferenceV2(TOwner* InOwner) : Target(&((*InOwner).*PtrToMember))
+	{
+		if constexpr (std::is_base_of_v<AActor, TOwner>)
+		{ // todo: enableif constructor picking for actor with assign / for uobject without?
+			ActorPtr = InOwner;
+		}
+	}
+
+	/** @see FBlueprintComponentReference::Get */
+	TComponent* Get()
+	{
+		if (AActor* Actor = ActorPtr.Get())
+		{
+			return Get(Actor);
+		}
+		return nullptr;
+	}
+	
+	/** @see FBlueprintComponentReference::Get */
+	TComponent* Get(AActor* InActor)
+	{
+		TComponent* Component = ValuePtr.Get();
+		if (Component && Component->GetOwner() == InActor)
+		{
+			return Component;
+		}
+
+		Component = Target->GetComponent<TComponent>(InActor);
+		ValuePtr = Component;
+		return Component;
+	}
+	
+	/** @see FBlueprintComponentReference::IsNull */
+    bool IsNull() const
+    {
+    	return Target->IsNull();
+    }
+    /**  reset cached component */
+    void InvalidateCache()
+    {
+    	ValuePtr.Reset();
+    }
+};
+
+#endif
