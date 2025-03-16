@@ -177,11 +177,4 @@ bool FBlueprintComponentReferenceTests_Library::RunTest(FString const&)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBlueprintComponentReferenceTests_Marshaller,
-	"BlueprintComponentReference.Marshaller", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter | EAutomationTestFlags::HighPriority);
-
-bool FBlueprintComponentReferenceTests_Marshaller::RunTest(FString const&)
-{
-	return true;
-}
 #endif
