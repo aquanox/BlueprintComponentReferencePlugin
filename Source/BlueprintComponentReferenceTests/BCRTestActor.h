@@ -9,37 +9,23 @@
 #include "Engine/EngineTypes.h"
 #include "Engine/DataAsset.h"
 #include "UObject/StrongObjectPtr.h"
-
+#include "GameplayTagsManager.h"
+#include "GameplayTagContainer.h"
+#include "GameplayTagAssetInterface.h"
+#include "CachedBlueprintComponentReference.h"
 #include "GameFramework/Character.h"
+#include "BCRTestStruct.h"
+#include "BCRTestActorComponent.h"
 
 #include "BCRTestActor.generated.h"
 
-USTRUCT(BlueprintType)
-struct FBCRTestStruct
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Test")
-	FBlueprintComponentReference Reference;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Test")
-	TArray<FBlueprintComponentReference> ReferenceArray;
-};
-
-USTRUCT()
-struct FBCRTestReference : public FBlueprintComponentReference
-{
-	GENERATED_BODY()
-	
-};
-
+// basic examples
 UCLASS(MinimalAPI, Blueprintable, HideCategories=("ActorTick", "Cooking", "ComponentReplication", Physics, Activation, Rendering, Transform, Tags, "ComponentTick", "Collision", "Advanced", "Replication"))
 class ABCRTestActor : public ACharacter
 {
 	GENERATED_BODY()
 
 public:
-	// Sets default values for this actor's properties
 	ABCRTestActor(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	virtual void OnConstruction(const FTransform& Transform) override;
@@ -154,54 +140,36 @@ class ABCRTestActorWithChild : public ABCRTestActor
 	GENERATED_BODY()
 public:
 	ABCRTestActorWithChild();
-
+	// unsupported, can reference only component, not instanced things within spawned actor
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Components)
 	TObjectPtr<UChildActorComponent> LevelNope;
 	
 };
 
+// test cases with cached access
 UCLASS(MinimalAPI)
-class ABCRTestCachedRef : public ACharacter
+class ABCRCachedTestActor : public ACharacter
 {
 	GENERATED_BODY()
 
 public:
-	ABCRTestCachedRef();
+	ABCRCachedTestActor() = default;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test|Metadata", meta=(ShowNative=false, ShowBlueprint=true, ShowInstanced=false, ShowHidden=false, AllowedClasses="/Script/Engine.SceneComponent"))
-	FBlueprintComponentReference ReferenceBlueprintOnly;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test|Metadata", meta=(ShowNative=false, ShowBlueprint=true, AllowedClasses="/Script/Engine.SceneComponent"))
+	FBlueprintComponentReference ReferenceSingle;
 	
-#if WITH_CACHED_COMPONENT_REFERENCE
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test|Metadata", meta=(ShowNative=false, ShowBlueprint=true, AllowedClasses="/Script/Engine.SceneComponent"))
+	TArray<FBlueprintComponentReference> ReferenceArray;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test|Metadata", meta=(ShowNative=false, ShowBlueprint=true, AllowedClasses="/Script/Engine.SceneComponent"))
+	TMap<FGameplayTag, FBlueprintComponentReference> ReferenceMap;
+	
+	TCachedComponentReference<USceneComponent, &ThisClass::ReferenceSingle> CachedReferenceSingle { this };
+	
+	TCachedComponentReferenceArray<USceneComponent, &ThisClass::ReferenceArray> CachedReferenceArray { this };
+	
+	TCachedComponentReferenceMap<USceneComponent, decltype(ReferenceMap)::KeyType, &ThisClass::ReferenceMap> CachedReferenceMap { this };
 
-	TCachedComponentReferenceV1<USceneComponent> CachedTargetCompA { &ReferenceBlueprintOnly };
-	
-	TCachedComponentReferenceV1<USceneComponent> CachedTargetCompB { this, &ReferenceBlueprintOnly };
-	
-	TCachedComponentReferenceV2<USceneComponent, &ThisClass::ReferenceBlueprintOnly> CachedTargetCompV2 { this };
-
-#endif
-	
-	UFUNCTION()
-	void Foo();
-};
-
-UCLASS(MinimalAPI)
-class UBCRTestCachedRefDataAsset : public UDataAsset
-{
-	GENERATED_BODY()
-public:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test|Metadata", meta=(ShowNative=false, ShowBlueprint=true, ShowInstanced=false, ShowHidden=false, AllowedClasses="/Script/Engine.SceneComponent"))
-	FBlueprintComponentReference ReferenceBlueprintOnly;
-	
-#if WITH_CACHED_COMPONENT_REFERENCE
-
-	TCachedComponentReferenceV1<USceneComponent> CachedTargetCompA { &ReferenceBlueprintOnly };
-	TCachedComponentReferenceV1<USceneComponent> CachedTargetCompB { nullptr, &ReferenceBlueprintOnly };
-	
-	TCachedComponentReferenceV2<USceneComponent, &ThisClass::ReferenceBlueprintOnly> CachedTargetCompV2 { this };
-
-#endif
-	
-	UFUNCTION()
+	UFUNCTION(CallInEditor)
 	void Foo();
 };

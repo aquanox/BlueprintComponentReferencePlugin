@@ -2,3 +2,8 @@
 
 
 #include "BCRTestDataAsset.h"
+
+void UBCRCachedTestDataAsset::Foo()
+{
+	
+}

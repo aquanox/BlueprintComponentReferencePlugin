@@ -26,6 +26,7 @@ public class BlueprintComponentReferenceTests : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
+				"GameplayTags",
 				"BlueprintComponentReference",
 				"BlueprintComponentReferenceEditor"
 		});

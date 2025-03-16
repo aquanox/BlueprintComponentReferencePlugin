@@ -83,43 +83,18 @@ ABCRTestActorWithChild::ABCRTestActorWithChild()
 	LevelNope->SetChildActorClass(ADefaultPawn::StaticClass());
 }
 
-ABCRTestCachedRef::ABCRTestCachedRef() 
+void ABCRCachedTestActor::Foo()
 {
-}
-
-void ABCRTestCachedRef::Foo()
-{
-#if WITH_CACHED_COMPONENT_REFERENCE
 	AActor* PtrToActor = GetMutableDefault<AActor>();
+	FGameplayTag None;
 	
+	CachedReferenceSingle.Get();
+	CachedReferenceSingle.Get(PtrToActor);
 	
-	CachedTargetCompA.Get();
-	CachedTargetCompA.Get(PtrToActor);
+	CachedReferenceArray.Get(0);
+	CachedReferenceArray.Get(PtrToActor, 0);
 	
-	CachedTargetCompB.Get();
-	CachedTargetCompB.Get(PtrToActor);
-	
-	CachedTargetCompV2.Get();
-	CachedTargetCompV2.Get(PtrToActor);
+	CachedReferenceMap.Get(None);
+	CachedReferenceMap.Get(PtrToActor, None);
 
-#endif
-}
-
-void UBCRTestCachedRefDataAsset::Foo()
-{
-	
-#if WITH_CACHED_COMPONENT_REFERENCE
-	AActor* PtrToActor = GetMutableDefault<AActor>();
-	
-	
-	CachedTargetCompA.Get();
-	CachedTargetCompA.Get(PtrToActor);
-	
-	CachedTargetCompB.Get();
-	CachedTargetCompB.Get(PtrToActor);
-
-	CachedTargetCompV2.Get();
-	CachedTargetCompV2.Get(PtrToActor);
-
-#endif
 }
