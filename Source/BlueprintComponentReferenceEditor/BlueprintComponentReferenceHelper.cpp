@@ -11,24 +11,29 @@
 #include "UObject/UObjectIterator.h"
 #include "UObject/PropertyOptional.h"
 #include "Misc/EngineVersionComparison.h"
+#include "HAL/IConsoleManager.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintComponentReference"
 
+static bool GBCRCacheEnabled = true;
+
+#if ALLOW_CONSOLE
+static FAutoConsoleVariableRef BCR_CacheEnabled_Var(
+	TEXT("BCR.CacheEnabled"), GBCRCacheEnabled,
+	TEXT("Enable BCR caching of instance and class data")
+);
+#endif
+
 static FBlueprintComponentReferenceHelper::FInstanceKey MakeInstanceKey(const AActor* InActor)
 {
-	return FBlueprintComponentReferenceHelper::FInstanceKey {
-		GetFNameSafe(InActor->GetWorld()),
-		GetFNameSafe(InActor),
-		GetFNameSafe(InActor->GetClass())
-	};
+	FString FullKey = InActor ? FObjectPropertyBase::GetExportPath(InActor) : TEXT("");
+	return FBlueprintComponentReferenceHelper::FInstanceKey { FName(*FullKey), GetFNameSafe(InActor), GetFNameSafe(InActor->GetClass()) };
 }
-	
+
 static FBlueprintComponentReferenceHelper::FClassKey MakeClassKey(const UClass* InClass)
 {
-	return FBlueprintComponentReferenceHelper::FClassKey {
-		GetFNameSafe(InClass->GetOuter()) ,
-		GetFNameSafe(InClass)
-	};
+	FString FullKey = InClass ? FObjectPropertyBase::GetExportPath(InClass) : TEXT("");
+	return FBlueprintComponentReferenceHelper::FClassKey { FName(*FullKey), GetFNameSafe(InClass) };
 }
 
 inline static FString BuildComponentInfo(const UActorComponent* Obj)
@@ -48,7 +53,9 @@ UActorComponent* FComponentInfo::GetComponentTemplate() const
 UClass* FComponentInfo::GetComponentClass() const
 {
 	if (ObjectClass.IsValid())
+	{
 		return ObjectClass.Get();
+	}
 	return Object.IsValid() ? Object->GetClass() : nullptr;
 }
 
@@ -375,6 +382,11 @@ FString FComponentInfo_Instanced::ToString() const
 	return Super::ToString();
 }
 
+FHierarchyInfo::~FHierarchyInfo()
+{
+	//Cleaner.Broadcast();
+}
+
 FString FHierarchyInfo::ToString() const
 {
 	TStringBuilder<256> Buffer;
@@ -387,28 +399,27 @@ FString FHierarchyInfo::ToString() const
 	return Buffer.ToString();
 }
 
+void FHierarchyClassInfo::OnCompiled(class UBlueprint*)
+{
+	bDirty = true;
+}
+
 FHierarchyInstanceInfo::FHierarchyInstanceInfo(AActor* Actor): SourceActor(Actor)
 {
-	ensureAlways(IsValid(Actor));
+	ensureAlways(::IsValid(Actor));
 	SourceClass = Actor->GetClass();
 	ClassDisplayText = SourceClass->GetDisplayNameText();
-	bIsBlueprint = Actor->GetClass()->IsChildOf(UBlueprintGeneratedClass::StaticClass());
+}
+
+void FHierarchyInstanceInfo::OnCompiled(class UBlueprint*)
+{
+	bDirty = true;
 }
 
 FHierarchyClassInfo::FHierarchyClassInfo(UClass* Class) : SourceClass(Class)
 {
-	ensureAlways(IsValid(Class));
+	ensureAlways(::IsValid(Class));
 	ClassDisplayText = Class->GetDisplayNameText();
-	bIsBlueprint = Class->IsChildOf(UBlueprintGeneratedClass::StaticClass());
-}
-
-FHierarchyClassInfo::~FHierarchyClassInfo()
-{
-	if (bIsBlueprint && CompileDelegateHandle.IsValid() && SourceClass.IsValid())
-	{
-		CastChecked<UBlueprint>(SourceClass->ClassGeneratedBy)->OnCompiled().Remove(CompileDelegateHandle);
-		CompileDelegateHandle.Reset();
-	}
 }
 
 UClass* FBlueprintComponentReferenceHelper::FindClassByName(const FString& ClassName)
@@ -439,7 +450,6 @@ bool FBlueprintComponentReferenceHelper::GetHierarchyFromClass(const UClass* InC
 
 		if (UBlueprintGeneratedClass* CurrentBlueprintClass = Cast<UBlueprintGeneratedClass>(CurrentClass))
 		{
-#if WITH_EDITORONLY_DATA
 			UBlueprint* BP = UBlueprint::GetBlueprintFromClass(CurrentBlueprintClass);
 
 			if (BP)
@@ -453,7 +463,6 @@ bool FBlueprintComponentReferenceHelper::GetHierarchyFromClass(const UClass* InC
 				CurrentClass = Cast<UClass>(BP->ParentClass);
 			}
 			else
-#endif
 			{
 				check(CurrentClass);
 				CurrentClass = CurrentClass->GetSuperClass();
@@ -541,10 +550,6 @@ TSharedPtr<FComponentInfo> FComponentPickerContext::FindComponent(const FName& I
 	return nullptr;
 }
 
-FBlueprintComponentReferenceHelper::FBlueprintComponentReferenceHelper()
-{
-}
-
 bool FBlueprintComponentReferenceHelper::IsComponentReferenceProperty(const FProperty* InProperty)
 {
 	bool bDoesMatch = false;
@@ -571,12 +576,15 @@ bool FBlueprintComponentReferenceHelper::IsComponentReferenceProperty(const FPro
 
 bool FBlueprintComponentReferenceHelper::IsComponentReferenceType(const UStruct* InStruct)
 {
+	// todo: should handle child structs?
 	return InStruct == FBlueprintComponentReference::StaticStruct();
 }
 
 TSharedPtr<FComponentPickerContext> FBlueprintComponentReferenceHelper::CreateChooserContext(AActor* InActor, UClass* InClass, const FString& InLabel)
 {
-	CleanupStaleData(false);
+	bInitializedAtLeastOnce = true;
+	
+	CleanupStaleData(true);
 
 	if (!IsValid(InActor) && !IsValid(InClass))
 	{ // we called from bad context that has no knowledge of owning class or blueprint
@@ -619,6 +627,35 @@ TSharedPtr<FComponentPickerContext> FBlueprintComponentReferenceHelper::CreateCh
 	return Ctx;
 }
 
+template<typename Map>
+inline void CleanupStaleDataImpl(Map& InMap)
+{
+	for(auto It = InMap.CreateIterator(); It; ++It)
+	{
+		if (!It->Value.IsValid() || !It->Value->IsValidInfo())
+		{
+			It.RemoveCurrent();
+			continue;
+		}
+
+		bool bHasGoneBad = false;
+		for (auto& Ptr : It->Value->Nodes)
+		{
+			if (!Ptr.IsValid() || !Ptr->IsValidInfo())
+			{
+				bHasGoneBad = true;
+				break;
+			}
+		}
+
+		if (bHasGoneBad)
+		{
+			It.RemoveCurrent();
+			break;
+		}
+	}
+}
+
 void FBlueprintComponentReferenceHelper::CleanupStaleData(bool bForce)
 {
 	if (!bForce && (FPlatformTime::Seconds() - LastCacheCleanup ) < 0.2f)
@@ -635,127 +672,168 @@ void FBlueprintComponentReferenceHelper::CleanupStaleData(bool bForce)
 		}
 	}
 
-	for(auto It = InstanceCache.CreateIterator(); It; ++It)
+	if (GBCRCacheEnabled && bInitializedAtLeastOnce)
 	{
-		if (!It->Value->SourceActor.IsValid())
-		{
-			It.RemoveCurrent();
-			continue;
-		}
-
-		for (auto& Ptr : It->Value->Nodes)
-		{
-			if (!Ptr->GetComponentTemplate() || !Ptr->GetComponentClass())
-			{
-				It.RemoveCurrent();
-				continue;
-			}
-		}
-	}
-
-	for(auto It = ClassCache.CreateIterator(); It; ++It)
-	{
-		if (!It->Value->SourceClass.IsValid())
-		{
-			It.RemoveCurrent();
-			continue;
-		}
-
-		for (auto& Ptr : It->Value->Nodes)
-		{
-			if (!Ptr->GetComponentTemplate() || !Ptr->GetComponentClass())
-			{
-				It.RemoveCurrent();
-				continue;
-			}
-		}
+		CleanupStaleDataImpl(InstanceCache);
+		CleanupStaleDataImpl(ClassCache);
 	}
 
 	LastCacheCleanup = FPlatformTime::Seconds();
 }
 
-TSharedPtr<FHierarchyInfo> FBlueprintComponentReferenceHelper::GetOrCreateInstanceData(FString const& InLabel, AActor* InActor)
+/**
+ * mark all blueprint related data as dirty and be recreated on next access
+ */
+void FBlueprintComponentReferenceHelper::MarkBlueprintCacheDirty()
 {
-	ensureAlways(!InActor->IsTemplate());
-	
-	const FInstanceKey EntryKey = MakeInstanceKey(InActor);
-
-	TSharedPtr<FHierarchyInstanceInfo>  Entry;
-
-	if (auto* FoundExisting = InstanceCache.Find(EntryKey))
+	if (GBCRCacheEnabled && bInitializedAtLeastOnce)
 	{
-		Entry = *FoundExisting;
-	}
-	else
-	{
-		TInlineComponentArray<UActorComponent*> Components;
-		InActor->GetComponents(Components);
-
-		Entry = InstanceCache.Emplace(EntryKey, MakeShared<FHierarchyInstanceInfo>(InActor));
-		for (UActorComponent* Object : Components)
+		for (auto& Pair : InstanceCache)
 		{
-			if (Object->CreationMethod == EComponentCreationMethod::Instance)
+			if (Pair.Value.IsValid() && Pair.Value->IsBlueprint())
 			{
-				UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("%s register INS node %s"), *InLabel, *BuildComponentInfo(Object));
-				Entry->Nodes.Add(CreateFromInstance(Object));
+				Pair.Value->bDirty = true;
+			}
+		}
+
+		for (auto& Pair : ClassCache)
+		{
+			if (Pair.Value.IsValid() && Pair.Value->IsBlueprint())
+			{
+				Pair.Value->bDirty = true;
 			}
 		}
 	}
+}
 
+
+TSharedPtr<FHierarchyInfo> FBlueprintComponentReferenceHelper::GetOrCreateInstanceData(FString const& InLabel, AActor* InActor)
+{
+	// disabled due to problems tracking level editor actor change in a simple way
+	constexpr bool bEnableInstanceDataCache = false;
+	
+	ensureAlways(!InActor->IsTemplate());
+	
+	TSharedPtr<FHierarchyInstanceInfo>  Entry;
+
+	if (GBCRCacheEnabled && bEnableInstanceDataCache)
+	{
+		const FInstanceKey EntryKey = MakeInstanceKey(InActor);
+		
+		if (auto* FoundExisting = InstanceCache.Find(EntryKey))
+		{
+			Entry = *FoundExisting;
+			if (!Entry->bDirty)
+			{
+				return Entry;
+			}
+		}
+		// Create fresh entry
+		Entry = InstanceCache.Emplace(EntryKey, MakeShared<FHierarchyInstanceInfo>(InActor));
+	}
+	else
+	{
+		Entry = MakeShared<FHierarchyInstanceInfo>(InActor);
+	}
+
+	check(Entry.IsValid());
+
+	if (UBlueprintGeneratedClass* BP = Cast<UBlueprintGeneratedClass>(InActor->GetClass()))
+	{
+		Entry->bIsBlueprint = true;
+
+		if (GBCRCacheEnabled && bEnableInstanceDataCache)
+		{ // track blueprint for modifications
+			if (UBlueprint* BPA = Cast<UBlueprint>(BP->ClassGeneratedBy))
+			{
+				BPA->OnCompiled().AddSP(Entry.ToSharedRef(), &FHierarchyInstanceInfo::OnCompiled);
+			}
+		}
+		
+		// todo: need find a way to track level actor change
+	}
+	
+	TInlineComponentArray<UActorComponent*> Components;
+	InActor->GetComponents(Components);
+
+	for (UActorComponent* Object : Components)
+	{
+		if (Object->CreationMethod == EComponentCreationMethod::Instance)
+		{
+			UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("%s register INS node %s"), *InLabel, *BuildComponentInfo(Object));
+			Entry->Nodes.Add(CreateFromInstance(Object));
+		}
+	}
+	
 	return Entry;
 }
 
 TSharedPtr<FHierarchyInfo> FBlueprintComponentReferenceHelper::GetOrCreateClassData(FString const& InLabel, UClass* InClass)
 {
-	const FClassKey EntryKey = MakeClassKey(InClass);
+	ensureAlways(::IsValid(InClass));
 
 	TSharedPtr<FHierarchyClassInfo>  Entry;
 
-	if (auto* FoundExisting = ClassCache.Find(EntryKey))
+	if (GBCRCacheEnabled)
 	{
-		Entry = *FoundExisting;
+		const FClassKey EntryKey = MakeClassKey(InClass);
+		
+		if (auto* FoundExisting = ClassCache.Find(EntryKey))
+		{
+			Entry = *FoundExisting;
+			if (!Entry->bDirty)
+			{
+				return Entry;
+			}
+		}
+		// Create fresh entry instead of reusing existing one, old delegate regs will be invalid
+		Entry = ClassCache.Emplace(EntryKey, MakeShared<FHierarchyClassInfo>(InClass));
 	}
 	else
 	{
-		Entry = ClassCache.Emplace(EntryKey, MakeShared<FHierarchyClassInfo>(InClass));
+		Entry = MakeShared<FHierarchyClassInfo>(InClass);
+	}
+	
+	check(Entry.IsValid());
 
-		/**
-		 * If we looking a blueprint - skim its construction script for components
-		 */
-		if (auto* BPClass = Entry->GetClass<UBlueprintGeneratedClass>())
+	/**
+	 * If we looking a blueprint - skim its construction script for components
+	 */
+	if (auto* BPClass = Entry->GetClass<UBlueprintGeneratedClass>())
+	{
+		Entry->bIsBlueprint = true;
+	
+		for(USCS_Node* SCSNode : BPClass->SimpleConstructionScript->GetAllNodes())
 		{
-			Entry->bIsBlueprint = true;
+			auto Template = SCSNode->GetActualComponentTemplate(BPClass);
+			UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("%s register BPR node %s"), *InLabel, *BuildComponentInfo(Template));
 
-			if (auto Blueprint = Cast<UBlueprint>(BPClass->ClassGeneratedBy))
-			{
-				Entry->CompileDelegateHandle = Blueprint->OnCompiled().AddSP(this, &FBlueprintComponentReferenceHelper::OnBlueprintCompiled, Entry);
-			}
-
-			for(USCS_Node* SCSNode : BPClass->SimpleConstructionScript->GetAllNodes())
-			{
-				auto Template = SCSNode->GetActualComponentTemplate(BPClass);
-				UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("%s register BPR node %s"), *InLabel, *BuildComponentInfo(Template));
-
-				Entry->Nodes.Add(CreateFromNode(SCSNode));
-			}
+			Entry->Nodes.Add(CreateFromNode(SCSNode));
 		}
-		/**
-		 * If we looking a native class - look in default subobjects
-		 */
-		else if (auto* NtClass = Entry->GetClass<UClass>())
-		{
-			TInlineComponentArray<UActorComponent*> Components;
-			NtClass->GetDefaultObject<AActor>()->GetComponents(Components);
-
-			for (UActorComponent* Object : Components)
+		
+		if (GBCRCacheEnabled)
+		{ // track blueprint changes to refresh related information
+			if (UBlueprint* BPA = Cast<UBlueprint>(BPClass->ClassGeneratedBy))
 			{
-				UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("%s register NAT node %s"), *InLabel, *BuildComponentInfo(Object));
-
-				Entry->Nodes.Add(CreateFromInstance(Object));
+				BPA->OnCompiled().AddSP(Entry.ToSharedRef(), &FHierarchyClassInfo::OnCompiled);
 			}
 		}
 	}
+	/**
+	 * If we looking a native class - look in default subobjects
+	 */
+	else if (auto* NtClass = Entry->GetClass<UClass>())
+	{
+		TInlineComponentArray<UActorComponent*> Components;
+		NtClass->GetDefaultObject<AActor>()->GetComponents(Components);
 
+		for (UActorComponent* Object : Components)
+		{
+			UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("%s register NAT node %s"), *InLabel, *BuildComponentInfo(Object));
+
+			Entry->Nodes.Add(CreateFromInstance(Object));
+		}
+	}
 
 	return Entry;
 }
@@ -788,12 +866,6 @@ bool FBlueprintComponentReferenceHelper::IsBlueprintProperty(const FProperty* Va
 	return false;
 }
 
-void FBlueprintComponentReferenceHelper::OnBlueprintCompiled(UBlueprint* Blueprint, TSharedPtr<FHierarchyClassInfo> Entry)
-{
-	UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("OnBlueprintCompiled"));
-	CleanupStaleData(false);
-}
-
 void FBlueprintComponentReferenceHelper::DebugForceCleanup()
 {
 	CleanupStaleData(true);
@@ -821,7 +893,7 @@ void FBlueprintComponentReferenceHelper::DebugDumpInstances(const TArray<FString
 		for (auto& CacheEntry : InstanceCache)
 		{
 			auto& Key = CacheEntry.Key;
-			if (Key.Get<2>() == Selector)
+			if (Key.Get<1>() == Selector || Key.Get<2>() == Selector)
 			{
 				FString Dump = CacheEntry.Value->ToString();
 				UE_LOG(LogComponentReferenceEditor, Log, TEXT("Instance [%s %s %s]:\n%s"),

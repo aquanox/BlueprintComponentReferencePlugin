@@ -19,9 +19,9 @@ struct FBCREditorModule : public IModuleInterface
 private:
 	void OnPostEngineInit();
 	void OnReloadComplete(EReloadCompleteReason ReloadCompleteReason);
-	void OnReloadAddedClasses(const TArray<UClass*>& AddedClasses);
 	void OnReinstancingComplete();
 	void OnModulesChanged(FName Name, EModuleChangeReason ModuleChangeReason);
+	void OnBlueprintRecompile();
 private:
 	TSharedPtr<FBlueprintComponentReferenceHelper> ClassHelper;
 
@@ -29,9 +29,9 @@ private:
 	FDelegateHandle PostEngineInitHandle;
 	
 	FDelegateHandle OnReloadCompleteDelegateHandle;
-	FDelegateHandle OnReloadAddedClassesDelegateHandle;
 	FDelegateHandle OnReloadReinstancingCompleteDelegateHandle;
 	FDelegateHandle OnModulesChangedDelegateHandle;
+	FDelegateHandle OnBlueprintCompiledHandle;
 };
 
 DECLARE_LOG_CATEGORY_EXTERN(LogComponentReferenceEditor, Log, All);

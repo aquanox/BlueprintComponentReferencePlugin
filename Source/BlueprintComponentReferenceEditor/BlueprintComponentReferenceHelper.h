@@ -56,6 +56,7 @@ public:
 	virtual EBlueprintComponentReferenceMode GetDesiredMode() const;
 	
 	virtual FString ToString() const;
+	virtual bool IsValidInfo() const { return Object.IsValid() && ObjectClass.IsValid(); }
 };
 /**
  * @see FSCSEditorTreeNodeComponent
@@ -75,6 +76,7 @@ public:
 	virtual USCS_Node* GetSCSNode() const override;
 	
 	virtual FString ToString() const override;
+	virtual bool IsValidInfo() const override { return Super::IsValidInfo() && SCSNode.IsValid(); }
 };
 /**
  * @see FSCSEditorTreeNodeInstanceAddedComponent
@@ -94,13 +96,16 @@ public:
 	virtual FName GetObjectName() const override { return InstancedComponentName; }
 
 	virtual FString ToString() const override;
+	virtual bool IsValidInfo() const override { return Super::IsValidInfo() && InstancedComponentOwnerPtr.IsValid(); }
 };
 
-struct FHierarchyInfo
+struct FHierarchyInfo //: public TSharedFromThis<FHierarchyInfo>
 {
 	TArray<TSharedPtr<FComponentInfo>> Nodes;
+	bool bDirty = false;
+	//TMulticastDelegate<void()> Cleaner;
 
-	virtual ~FHierarchyInfo() = default;
+	virtual ~FHierarchyInfo();
 	// Group items
 	virtual const TArray<TSharedPtr<FComponentInfo>>& GetNodes() const  { return Nodes; }
 	// Group related class object
@@ -113,6 +118,8 @@ struct FHierarchyInfo
 	virtual bool IsInstance() const { return false; }
 	//
 	virtual FString ToString() const;
+	//
+	virtual bool IsValidInfo() const = 0;
 
 	template<typename T = UClass>
 	T* GetClass() const { return Cast<T>(GetClassObject()); }
@@ -121,25 +128,27 @@ struct FHierarchyInfo
 struct FHierarchyClassInfo : public FHierarchyInfo
 {
 private:
-	using Super = FComponentInfo;
+	using Super = FHierarchyInfo;
 public:
 	FHierarchyClassInfo(UClass* Class);
-	virtual ~FHierarchyClassInfo();
+	virtual ~FHierarchyClassInfo() = default;
 
 	TWeakObjectPtr<UClass>	SourceClass;
 	FText					ClassDisplayText;
 	bool					bIsBlueprint = false;
-	FDelegateHandle			CompileDelegateHandle;
 
 	virtual UClass* GetClassObject() const override { return SourceClass.Get(); }
 	virtual FText GetDisplayText() const override { return ClassDisplayText; }
 	virtual bool IsBlueprint() const override { return bIsBlueprint; }
+	virtual bool IsValidInfo() const override { return SourceClass.IsValid(); }
+
+	void OnCompiled(class UBlueprint*);
 };
 
 struct FHierarchyInstanceInfo : public FHierarchyInfo
 {
 private:
-	using Super = FComponentInfo;
+	using Super = FHierarchyInfo;
 public:
 	TWeakObjectPtr<AActor>  SourceActor;
 	TWeakObjectPtr<UClass>	SourceClass;
@@ -151,6 +160,10 @@ public:
 	virtual bool IsInstance() const  override { return true; }
 	virtual UClass* GetClassObject() const override { return SourceClass.Get(); }
 	virtual FText GetDisplayText() const override { return INVTEXT("Instance"); }
+	virtual bool IsBlueprint() const override { return bIsBlueprint; }
+	virtual bool IsValidInfo() const override { return  SourceActor.IsValid() && SourceClass.IsValid(); }
+	
+	void OnCompiled(class UBlueprint*);
 };
 
 struct FComponentPickerContext
@@ -180,19 +193,17 @@ struct FComponentPickerContext
 class FBlueprintComponentReferenceHelper : public TSharedFromThis<FBlueprintComponentReferenceHelper> 
 {
 public:
-	float LastCacheCleanup = 0;
+	using FInstanceKey = TTuple<FName /* fn */, FName /* name */, FName /* class */>;
+	using FClassKey = TTuple<FName /* fn */, FName /* class */>;
 
-	TMap<FString, TWeakPtr<FComponentPickerContext>> ActiveContexts;
-
-	using FInstanceKey = TTuple<FName /* owner */, FName /* actor */, FName /* class */>;
-	TMap<FInstanceKey, TSharedPtr<FHierarchyInstanceInfo>> InstanceCache;
-
-	using FClassKey = TTuple<FName /* outer */, FName /* class */>;
-	TMap<FClassKey, TSharedPtr<FHierarchyClassInfo>> ClassCache;
-
-	FBlueprintComponentReferenceHelper();
-	
+	/**
+	 * Test if property is supported by BCR customization
+	 */
 	static bool IsComponentReferenceProperty(const FProperty* InProperty);
+
+	/**
+	 * Test if type is a BCR type
+	 */
 	static bool IsComponentReferenceType(const UStruct* InStruct);
 
 	/**
@@ -205,7 +216,15 @@ public:
 	 */
 	TSharedPtr<FComponentPickerContext> CreateChooserContext(AActor* InActor, UClass* InClass, const FString& InLabel);
 
+	/**
+	 * Cleanup stale hierarchy data
+	 */
 	void CleanupStaleData(bool bForce = false);
+
+	/**
+	 *
+	 */
+	void MarkBlueprintCacheDirty();
 
 	/**
 	 * Collect components info specific to live actor instance 
@@ -249,6 +268,14 @@ public:
 	void DebugDumpClasses(const TArray<FString>& Args);
 	void DebugDumpContexts(const TArray<FString> Array);
 	void DebugForceCleanup();
+
 private:
-	void OnBlueprintCompiled(UBlueprint* Blueprint, TSharedPtr<FHierarchyClassInfo> Entry);
+	float		LastCacheCleanup = 0;
+	bool		bInitializedAtLeastOnce = false;
+	
+	TMap<FString, TWeakPtr<FComponentPickerContext>> ActiveContexts;
+	
+	TMap<FInstanceKey, TSharedPtr<FHierarchyInstanceInfo>> InstanceCache;
+	
+	TMap<FClassKey, TSharedPtr<FHierarchyClassInfo>> ClassCache;
 };

@@ -5,6 +5,8 @@
 #include "BlueprintComponentReferenceVarCustomization.h"
 #include "BlueprintEditorModule.h"
 #include "HAL/IConsoleManager.h"
+#include "UnrealEdGlobals.h"
+#include "Editor/EditorEngine.h"
 
 IMPLEMENT_MODULE(FBCREditorModule, BlueprintComponentReferenceEditor);
 
@@ -58,11 +60,6 @@ void FBCREditorModule::StartupModule()
 		ClassHelper = MakeShared<FBlueprintComponentReferenceHelper>();
 
 		PostEngineInitHandle = FCoreDelegates::OnPostEngineInit.AddRaw(this, &FBCREditorModule::OnPostEngineInit);
-
-		OnReloadCompleteDelegateHandle = FCoreUObjectDelegates::ReloadCompleteDelegate.AddRaw(this, &FBCREditorModule::OnReloadComplete);
-		OnReloadAddedClassesDelegateHandle = FCoreUObjectDelegates::ReloadAddedClassesDelegate.AddRaw(this, &FBCREditorModule::OnReloadAddedClasses);
-		OnReloadReinstancingCompleteDelegateHandle = FCoreUObjectDelegates::ReloadReinstancingCompleteDelegate.AddRaw(this, &FBCREditorModule::OnReinstancingComplete);
-		OnModulesChangedDelegateHandle = FModuleManager::Get().OnModulesChanged().AddRaw(this, &FBCREditorModule::OnModulesChanged);
 	}
 }
 
@@ -70,9 +67,14 @@ void FBCREditorModule::OnPostEngineInit()
 {
 	FCoreDelegates::OnPostEngineInit.Remove(PostEngineInitHandle);
 
-	FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
+	OnReloadCompleteDelegateHandle = FCoreUObjectDelegates::ReloadCompleteDelegate.AddRaw(this, &FBCREditorModule::OnReloadComplete);
+	OnReloadReinstancingCompleteDelegateHandle = FCoreUObjectDelegates::ReloadReinstancingCompleteDelegate.AddRaw(this, &FBCREditorModule::OnReinstancingComplete);
+	OnModulesChangedDelegateHandle = FModuleManager::Get().OnModulesChanged().AddRaw(this, &FBCREditorModule::OnModulesChanged);
+	OnBlueprintCompiledHandle = GEditor->OnBlueprintCompiled().AddRaw(this, &FBCREditorModule::OnBlueprintRecompile);
+
+	FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyModule.RegisterCustomPropertyTypeLayout(
-		FName("BlueprintComponentReference"),
+		"BlueprintComponentReference",
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FBlueprintComponentReferenceCustomization::MakeInstance));
 
 	FBlueprintEditorModule& BlueprintEditorModule = FModuleManager::GetModuleChecked<FBlueprintEditorModule>("Kismet");
@@ -87,17 +89,21 @@ void FBCREditorModule::ShutdownModule()
 	{
 		FCoreDelegates::OnPostEngineInit.Remove(PostEngineInitHandle);
 		FCoreUObjectDelegates::ReloadCompleteDelegate.Remove(OnReloadCompleteDelegateHandle);
-		FCoreUObjectDelegates::ReloadAddedClassesDelegate.Remove(OnReloadAddedClassesDelegateHandle);
 		FCoreUObjectDelegates::ReloadReinstancingCompleteDelegate.Remove(OnReloadReinstancingCompleteDelegateHandle);
 		FModuleManager::Get().OnModulesChanged().Remove(OnModulesChangedDelegateHandle);
 
-		if (FModuleManager::Get().IsModuleLoaded(TEXT("PropertyEditor")))
+		if (GEditor)
 		{
-			FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
-			PropertyModule.UnregisterCustomPropertyTypeLayout(FName("BlueprintComponentReference"));
+			GEditor->OnBlueprintCompiled().Remove(OnBlueprintCompiledHandle);
 		}
 
-		if (FModuleManager::Get().IsModuleLoaded(TEXT("Kismet")))
+		if (FModuleManager::Get().IsModuleLoaded("PropertyEditor"))
+		{
+			FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+			PropertyModule.UnregisterCustomPropertyTypeLayout("BlueprintComponentReference");
+		}
+
+		if (FModuleManager::Get().IsModuleLoaded("Kismet"))
 		{
 			FBlueprintEditorModule& BlueprintEditorModule = FModuleManager::GetModuleChecked<FBlueprintEditorModule>("Kismet");
 			BlueprintEditorModule.UnregisterVariableCustomization(FProperty::StaticClass(), VariableCustomizationHandle);
@@ -108,41 +114,50 @@ void FBCREditorModule::ShutdownModule()
 TSharedPtr<FBlueprintComponentReferenceHelper> FBCREditorModule::GetReflectionHelper()
 {
 	static const FName ModuleName("BlueprintComponentReferenceEditor");
-	return FModuleManager::LoadModuleChecked<FBCREditorModule>(ModuleName).ClassHelper;
+	auto& Ref = FModuleManager::LoadModuleChecked<FBCREditorModule>(ModuleName).ClassHelper;
+	if (!Ref.IsValid())
+	{
+		Ref =  MakeShared<FBlueprintComponentReferenceHelper>();
+	}
+	return Ref;
 }
 
 void FBCREditorModule::OnReloadComplete(EReloadCompleteReason ReloadCompleteReason)
 {
 	UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("OnReloadComplete"));
-	if (ClassHelper.IsValid())
+	if (ClassHelper)
 	{
-		ClassHelper->CleanupStaleData(true);
-	}
-}
-
-void FBCREditorModule::OnReloadAddedClasses(const TArray<UClass*>& AddedClasses)
-{
-	UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("OnReloadAddedClasses"));
-	if (ClassHelper.IsValid())
-	{
-		ClassHelper->CleanupStaleData(true);
+		ClassHelper->CleanupStaleData();
+		ClassHelper->MarkBlueprintCacheDirty();
 	}
 }
 
 void FBCREditorModule::OnReinstancingComplete()
 {
 	UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("OnReinstancingComplete"));
-	if (ClassHelper.IsValid())
+	if (ClassHelper)
 	{
-		ClassHelper->CleanupStaleData(true);
+		ClassHelper->CleanupStaleData();
+		//ClassHelper->MarkBlueprintCacheDirty();
 	}
 }
 
 void FBCREditorModule::OnModulesChanged(FName Name, EModuleChangeReason ModuleChangeReason)
 {
 	UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("OnModulesChanged"));
-	if (ClassHelper.IsValid())
+	if (ClassHelper)
 	{
-		ClassHelper->CleanupStaleData(true);
+		ClassHelper->CleanupStaleData();
+		//ClassHelper->MarkBlueprintCacheDirty();
+	}
+}
+
+void FBCREditorModule::OnBlueprintRecompile()
+{
+	UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("OnBlueprintRecompile"));
+	if (ClassHelper)
+	{
+		ClassHelper->CleanupStaleData();
+		ClassHelper->MarkBlueprintCacheDirty();
 	}
 }
