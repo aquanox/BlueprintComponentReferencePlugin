@@ -68,7 +68,7 @@ public:
 protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test")
-	UPrimaryDataAsset* TargetDA;
+	TObjectPtr<UPrimaryDataAsset> TargetDA;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Engine")
 	FBaseComponentReference BaseComponentReference;
