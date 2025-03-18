@@ -8,8 +8,6 @@
 
 #include "BlueprintComponentReferenceMetadata.generated.h"
 
-#define WITH_EXPERIMENTS 0
-
 struct FCRMetadataKey
 {
 	//
