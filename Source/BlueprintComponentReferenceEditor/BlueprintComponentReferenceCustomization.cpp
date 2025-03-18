@@ -41,6 +41,11 @@
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Text/STextBlock.h"
 
+#if WITH_BCR_DRAG_DROP
+#include "SDropTarget.h"
+#include "BPVariableDragDropAction.h"
+#endif
+
 #define LOCTEXT_NAMESPACE "BlueprintComponentReferenceCustomization"
 
 // Should force reset of component references that failed to resolve into components?
@@ -89,7 +94,17 @@ void FBlueprintComponentReferenceCustomization::CustomizeHeader(TSharedRef<IProp
 		+SHorizontalBox::Slot()
 		.FillWidth(1.0f)
 		[
+#if WITH_BCR_DRAG_DROP
+			SNew(SDropTarget)
+				.OnAllowDrop(this, &FBlueprintComponentReferenceCustomization::OnVerifyDrag)
+				.OnIsRecognized(this, &FBlueprintComponentReferenceCustomization::OnVerifyDrag)
+				.OnDropped(this, &FBlueprintComponentReferenceCustomization::OnDropped)
+			[
+				ComponentComboButton.ToSharedRef()
+			]
+#else
 			ComponentComboButton.ToSharedRef()
+#endif
 		];
 
 		if (ViewSettings.bUseNavigate)
@@ -129,6 +144,8 @@ void FBlueprintComponentReferenceCustomization::CustomizeHeader(TSharedRef<IProp
 			InPropertyHandle->CreatePropertyNameWidget()
 		]
 		.ValueContent()
+		.MinDesiredWidth(TOptional<float>())
+		.MaxDesiredWidth(TOptional<float>())
 		.HAlign(HAlign_Fill)
 		[
 			ValueContent.ToSharedRef()
@@ -832,5 +849,87 @@ bool FBlueprintComponentReferenceCustomization::TestObject(const UObject* Object
 
 	return bAllowedToSetBasedOnFilter;
 }
+
+#if WITH_BCR_DRAG_DROP
+
+/**
+ * @see FBlueprintEditor::OnSelectionUpdated
+ * @see SKismetInspector::ShowDetailsForObjects
+ *
+ * IMPORTANT! Proper use of drag&drop requires engine patch because clicking on property or component in SSCSEditor for
+ * drag start will cause selection update, which make Details Panel switch to component or variable that is being dragged
+ * workaround was suppressing Kismet Inspector object change if Alt key was held at a time of update (as Ctrl is in use by Blueprint Editor and Shift for multiselect)
+ *
+ */
+bool FBlueprintComponentReferenceCustomization::OnVerifyDrag(TSharedPtr<FDragDropOperation> InDragDrop)
+{
+	if (!InDragDrop->IsOfType<FKismetVariableDragDropAction>())
+	{
+		return false;
+	}
+
+	struct FKismetVariableDragDropAction_Accessor : public FKismetVariableDragDropAction
+	{
+		friend FBlueprintComponentReferenceCustomization;
+	};
+	
+	auto VarAction = StaticCastSharedPtr<FKismetVariableDragDropAction_Accessor>(InDragDrop);
+	UBlueprint* const Blueprint = VarAction->GetSourceBlueprint();
+
+	if (!ComponentPickerContext.IsValid() || !Blueprint)
+	{ // bad context
+		return false;
+	}
+	
+	FObjectProperty* const TestProperty = CastField<FObjectProperty>(VarAction->GetVariableProperty());
+	if (!TestProperty || !TestProperty->PropertyClass || !TestProperty->PropertyClass->IsChildOf(UActorComponent::StaticClass()))
+	{ // bad property
+		return false;
+	}
+	
+	auto Node = ComponentPickerContext->FindComponentForVariable(TestProperty->GetFName());
+	if (!TestNode(Node))
+	{ // does not register within picker or not eligible
+		return false;
+	}
+
+	UActorComponent* TestTarget = Node->GetComponentTemplate();
+	if (!TestTarget)
+	{
+		TestTarget =  TestProperty->PropertyClass->GetDefaultObject<UActorComponent>();
+	}
+
+	if (!TestObject(TestTarget))
+	{ // does not match class restrictions
+		return false;
+	}
+	
+	return true;
+}
+
+FReply FBlueprintComponentReferenceCustomization::OnDropped(const FGeometry& InGeometry, const class FDragDropEvent& InDragDropEvent)
+{
+	TSharedPtr<FKismetVariableDragDropAction> DragOp = InDragDropEvent.GetOperationAs<FKismetVariableDragDropAction>();
+	if (DragOp)
+	{
+		return OnDrop(InDragDropEvent.GetOperation());
+	}
+	return FReply::Handled();
+}
+
+FReply FBlueprintComponentReferenceCustomization::OnDrop(TSharedPtr<FDragDropOperation> InDragDrop)
+{
+	TSharedPtr<FKismetVariableDragDropAction> Ptr = StaticCastSharedPtr<FKismetVariableDragDropAction>(InDragDrop);
+	
+	auto Choise = ComponentPickerContext->FindComponentForVariable(Ptr->GetVariableProperty()->GetFName());
+	if (Choise)
+	{
+		OnComponentSelected(Choise);
+	}
+	
+	return FReply::Handled();
+}
+
+#endif
 
 #undef LOCTEXT_NAMESPACE

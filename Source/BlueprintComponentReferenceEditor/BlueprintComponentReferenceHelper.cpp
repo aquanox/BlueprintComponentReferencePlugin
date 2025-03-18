@@ -536,7 +536,7 @@ TSharedPtr<FComponentInfo> FComponentPickerContext::FindComponent(const FBluepri
 	return nullptr;
 }
 
-TSharedPtr<FComponentInfo> FComponentPickerContext::FindComponent(const FName& InName) const
+TSharedPtr<FComponentInfo> FComponentPickerContext::FindComponentForVariable(const FName& InName) const
 {
 	for (const auto& ClassDetails : ClassHierarchy)
 	{

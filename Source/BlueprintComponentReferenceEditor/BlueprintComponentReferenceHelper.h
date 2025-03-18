@@ -178,7 +178,7 @@ struct FComponentPickerContext
 	UClass* GetClass() const { return Class.Get(); }
 
 	TSharedPtr<FComponentInfo> FindComponent(const FBlueprintComponentReference& InRef) const;
-	TSharedPtr<FComponentInfo> FindComponent(const FName& InName) const;
+	TSharedPtr<FComponentInfo> FindComponentForVariable(const FName& InName) const;
 
 
 };

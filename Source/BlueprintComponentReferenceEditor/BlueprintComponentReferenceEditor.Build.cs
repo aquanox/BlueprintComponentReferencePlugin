@@ -21,7 +21,7 @@ public class BlueprintComponentReferenceEditor : ModuleRules
 		}
 
 		PublicIncludePaths.Add(ModuleDirectory);
-
+		
 		PublicDependencyModuleNames.AddRange(new string[] {
 			"Core",
 			"CoreUObject",
@@ -33,6 +33,7 @@ public class BlueprintComponentReferenceEditor : ModuleRules
 			"Slate",
 			"SlateCore",
 			"UnrealEd",
+			"EditorWidgets",
 			"PropertyEditor",
 			"ApplicationCore",
 			"Kismet"

@@ -16,6 +16,13 @@
 
 class FMenuBuilder;
 class SComboButton;
+class FDragDropEvent;
+
+// Enable Drag&Drop function on a customization. Requires engine patch.
+// See FBlueprintComponentReferenceCustomization::OnVerifyDrag definition for details
+#ifndef WITH_BCR_DRAG_DROP
+#define WITH_BCR_DRAG_DROP 0
+#endif
 
 /**
  * Component reference cutomization class
@@ -77,6 +84,12 @@ private:
 	bool TestNode(const TSharedPtr<FComponentInfo>& Node) const;
 	bool TestObject(const UObject* Object) const;
 
+#if WITH_BCR_DRAG_DROP
+	bool OnVerifyDrag(TSharedPtr<FDragDropOperation> InDragDrop);
+	FReply OnDropped(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent);
+	FReply OnDrop(TSharedPtr<FDragDropOperation> InDragDrop);
+#endif
+	
 private:
 	/** The property handle we are customizing */
 	TSharedPtr<IPropertyHandle> PropertyHandle;
