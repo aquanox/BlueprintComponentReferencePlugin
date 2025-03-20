@@ -11,6 +11,7 @@
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 
 #include "GameFramework/CharacterMovementComponent.h"
 
@@ -165,11 +166,26 @@ bool FBlueprintComponentReferenceTests_Library::RunTest(FString const&)
 	TestTrue("TestBase.GetReferencedComponent", UBlueprintComponentReferenceLibrary::GetReferencedComponent(TestBaseReference, TestActorReal, nullptr, Result));
 	TestTrue("TestBase.GetReferencedComponent.Result", Result == TestActorReal->Default_Root);
 
+	TestFalse("TestBase2.GetReferencedComponent", UBlueprintComponentReferenceLibrary::GetReferencedComponent(TestBaseReference, TestActorReal, USkeletalMeshComponent::StaticClass(), Result));
+	TestTrue("TestBase2.GetReferencedComponent.Result", Result == nullptr);
+	
 	TestTrue("MeshPathReference.GetReferencedComponent", UBlueprintComponentReferenceLibrary::GetReferencedComponent(MeshPathReference, TestActorReal, nullptr, Result));
 	TestTrue("MeshPathReference.GetReferencedComponent.Result", Result == TestActorReal->GetMesh());
 	
+	TestTrue("MeshPathReference2.GetReferencedComponent", UBlueprintComponentReferenceLibrary::GetReferencedComponent(MeshPathReference, TestActorReal, USkeletalMeshComponent::StaticClass(), Result));
+	TestTrue("MeshPathReference2.GetReferencedComponent.Result", Result == TestActorReal->GetMesh());
+	
+	TestFalse("MeshPathReference3.GetReferencedComponent", UBlueprintComponentReferenceLibrary::GetReferencedComponent(MeshPathReference, TestActorReal, UStaticMeshComponent::StaticClass(), Result));
+	TestTrue("MeshPathReference3.GetReferencedComponent.Result", Result == nullptr);
+	
 	TestTrue("MeshVarReference.GetReferencedComponent", UBlueprintComponentReferenceLibrary::GetReferencedComponent(MeshVarReference, TestActorReal, nullptr, Result));
 	TestTrue("MeshVarReference.GetReferencedComponent.Result", Result == TestActorReal->GetMesh());
+
+	TestTrue("MeshVarReference2.GetReferencedComponent", UBlueprintComponentReferenceLibrary::GetReferencedComponent(MeshVarReference, TestActorReal, USkeletalMeshComponent::StaticClass(),  Result));
+	TestTrue("MeshVarReference2.GetReferencedComponent.Result", Result == TestActorReal->GetMesh());
+
+	TestFalse("MeshVarReference3.GetReferencedComponent", UBlueprintComponentReferenceLibrary::GetReferencedComponent(MeshVarReference, TestActorReal, UStaticMeshComponent::StaticClass(),  Result));
+	TestTrue("MeshVarReference3.GetReferencedComponent.Result", Result == nullptr);
 
 	TestFalse("Bad.GetReferencedComponent", UBlueprintComponentReferenceLibrary::GetReferencedComponent(BadReference, TestActorReal, nullptr, Result));
 	TestTrue("Bad.GetReferencedComponent.Result", Result == nullptr);

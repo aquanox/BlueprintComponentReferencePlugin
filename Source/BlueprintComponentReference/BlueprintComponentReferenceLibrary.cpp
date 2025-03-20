@@ -37,14 +37,14 @@ void ResolveComponentArrayInternal(TBase References, AActor* Actor, UClass* Clas
 	}
 }
 
-bool UBlueprintComponentReferenceLibrary::TryGetReferencedComponent(const FBlueprintComponentReference& Reference, AActor* Actor, TSubclassOf<UActorComponent> Class, UActorComponent*& Component)
+bool UBlueprintComponentReferenceLibrary::GetReferencedComponent(const FBlueprintComponentReference& Reference, AActor* Actor, TSubclassOf<UActorComponent> Class, UActorComponent*& Component)
 {
 	return ResolveComponentInternal(Reference, Actor, Class, Component);
 }
 
-bool UBlueprintComponentReferenceLibrary::GetReferencedComponent(const FBlueprintComponentReference& Reference, AActor* Actor,TSubclassOf<UActorComponent> Class, UActorComponent*& Component)
+void UBlueprintComponentReferenceLibrary::TryGetReferencedComponent(const FBlueprintComponentReference& Reference, AActor* Actor, TSubclassOf<UActorComponent> Class, EComponentSearchResult& Result, UActorComponent*& Component)
 {
-	return ResolveComponentInternal(Reference, Actor, Class, Component);
+	Result = ResolveComponentInternal(Reference, Actor, Class, Component) ? EComponentSearchResult::Found : EComponentSearchResult::NotFound;
 }
 
 void UBlueprintComponentReferenceLibrary::GetReferencedComponents(const TArray<FBlueprintComponentReference>& References, AActor* Actor, TSubclassOf<UActorComponent> Class, bool bKeepNulls, TArray<UActorComponent*>& Components)
@@ -55,6 +55,11 @@ void UBlueprintComponentReferenceLibrary::GetReferencedComponents(const TArray<F
 bool UBlueprintComponentReferenceLibrary::IsNullComponentReference(const FBlueprintComponentReference& Reference)
 {
 	return Reference.IsNull();
+}
+
+bool UBlueprintComponentReferenceLibrary::IsValidComponentReference(const FBlueprintComponentReference& Reference)
+{
+	return !Reference.IsNull();
 }
 
 void UBlueprintComponentReferenceLibrary::InvalidateComponentReference(FBlueprintComponentReference& Reference)
