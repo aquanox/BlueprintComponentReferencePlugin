@@ -4,6 +4,17 @@
 #include "Containers/Map.h"
 #include "Containers/Array.h"
 
+class AActor;
+class UActorComponent;
+class UObject;
+
+namespace BCRDetails
+{
+	inline AActor* ResolveBaseActor(const TObjectPtr<AActor>& InActor) { return InActor.Get(); }
+	inline AActor* ResolveBaseActor(const TWeakObjectPtr<AActor>& InActor) { return InActor.Get(); }
+	inline AActor* ResolveBaseActor(AActor* InActor) { return InActor; }
+}
+
 /**
  * EXPERIMENTAL. <br/>
  *
@@ -29,175 +40,134 @@
  *		UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test", meta=(AllowedClasses="/Script/Engine.SceneComponent"))
  *		FBlueprintComponentReference ReferenceSingle;
  *		
- *		TCachedComponentReference<USceneComponent, &ThisClass::ReferenceSingle> CachedReferenceSingle { this };
+ *		TCachedComponentReference<USceneComponent> CachedReferenceSingle { this, &ReferenceSingle };
  *
  *      // array entry
  *
  *		UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test", meta=(AllowedClasses="/Script/Engine.SceneComponent"))
  *		TArray<FBlueprintComponentReference> ReferenceArray;
  *		
- *		TCachedComponentReferenceArray<USceneComponent, &ThisClass::ReferenceArray> CachedReferenceArray { this };
+ *		TCachedComponentReferenceArray<USceneComponent> CachedReferenceArray { this, &ReferenceArray };
  *
  *      // map value entry
  *    
  *		UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test", meta=(AllowedClasses="/Script/Engine.SceneComponent"))
  *		TMap<FGameplayTag, FBlueprintComponentReference> ReferenceMap;
  *		
- *		TCachedComponentReferenceMap<USceneComponent, decltype(ReferenceMap)::KeyType, &ThisClass::ReferenceMap> CachedReferenceMap { this };
+ *		TCachedComponentReferenceMap<USceneComponent, FGameplayTag> CachedReferenceMap { this, &ReferenceMap };
  *
  * };
  *
- * @endcode
- * 
- */
-struct FCachedComponentReferenceBase
-{
-	// todo: move BaseActor/SetBase to base?
-	
-	FCachedComponentReferenceBase() = default;
-	~FCachedComponentReferenceBase() = default;
-private:
-	FCachedComponentReferenceBase(const FCachedComponentReferenceBase&) = delete;
-	FCachedComponentReferenceBase& operator=(const FCachedComponentReferenceBase&) = delete;
-	
-};
-
-/**
- * EXPERIMENTAL. <br/>
- * 
- * Version 1: This version takes BCR pointer and optional owning actor.
- *
- * @code
- *     TCachedComponentReference<USceneComponent> CachedTargetCompA  { this, &TargetComponent };
- *     TCachedComponentReference<USceneComponent> CachedTargetCompB  { &TargetComponent };
- * @endcode 
- * 
- */
-template<typename TComponent>
-struct TCachedComponentReferenceV1 : public FCachedComponentReferenceBase
-{
-private:
-	FBlueprintComponentReference* const Target; // target component reference 
-	TWeakObjectPtr<AActor>				BaseActor; // base actor for lookup
-	TWeakObjectPtr<TComponent>			CachedValue; // storage for cached value 
-public:
-	explicit TCachedComponentReferenceV1() : Target(nullptr) {}
-	explicit TCachedComponentReferenceV1(FBlueprintComponentReference* InTarget) : Target(InTarget) { }
-	explicit TCachedComponentReferenceV1(AActor* Owner, FBlueprintComponentReference* InTarget) : Target(InTarget), BaseActor(Owner) { }
-	
-	/** @see FBlueprintComponentReference::Get */
-	TComponent* Get(AActor* InActor = nullptr)
-	{
-		if (!InActor)
-		{ // prefer input value over inner ptr
-			InActor = BaseActor.Get();
-		}
-		
-		TComponent* Component = CachedValue.Get();
-		if (Component && Component->GetOwner() == InActor)
-		{
-			return Component;
-		}
-		
-		Component = Target->GetComponent<TComponent>(InActor);
-		CachedValue = Component;
-		return Component;
-	}
-	/** @see FBlueprintComponentReference::IsNull */
-	bool IsNull() const
-	{
-		return Target->IsNull();
-	}
-	/**  reset cached component */
-	void InvalidateCache()
-	{
-		CachedValue.Reset();
-	}
-};
-
-/**
- * EXPERIMENTAL. <br/>
- * 
- * Another version with templates, compared to V1 it takes `this` as constructor value and member is set via template.
- *
- * @code
+ * //
  * UCLASS()
- * class AMyActorClass : public AActor
+ * class UMyDataAsset : public UDataAsset
  * {
  *	   GENERATED_BODY()
  *	public:
- *     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, AllowedClasses="/Script/Engine.SceneComponent")
- *     FBlueprintComponentReference TargetComponent;
- *    
- *     // version 2 always with this passed as first arg, determine if actor or not inside 
- *     TCachedComponentReference<USceneComponent, &ThisClass::TargetComponent> CachedTargetComp { this };
+ *      // single entry
+ *	
+ *		UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test", meta=(AllowedClasses="/Script/Engine.SceneComponent"))
+ *		FBlueprintComponentReference ReferenceSingle;
+ *		
+ *		TCachedComponentReference<USceneComponent> CachedReferenceSingle { this, &ReferenceSingle };
+ *
  * };
  *
  * @endcode
  * 
  */
-template<typename TComponent, auto PtrToMember>
-struct TCachedComponentReferenceV2 : public FCachedComponentReferenceBase
+class FCachedComponentReferenceBase
 {
-private:
-	FBlueprintComponentReference* const Target; // target component reference
-	TWeakObjectPtr<AActor> BaseActor; //  base actor for lookup
-	TWeakObjectPtr<TComponent> CachedValue; // storage for cached value 
 public:
-	explicit TCachedComponentReferenceV2() : Target(nullptr) {}
-	
-	template<typename TOwner>
-	explicit TCachedComponentReferenceV2(TOwner* InOwner) : Target(&((*InOwner).*PtrToMember))
-	{
-		if constexpr (std::is_base_of_v<AActor, TOwner>)
-		{ // todo: enableif constructor picking for actor with assign / for uobject without?
-			BaseActor = InOwner;
-		}
-	}
+	FCachedComponentReferenceBase() = default;
+	~FCachedComponentReferenceBase() = default;
 
-	void SetBaseActor(AActor* InActor)
-	{
-		BaseActor = InActor;
-	}
+private:
+	FCachedComponentReferenceBase(const FCachedComponentReferenceBase&) = delete;
+	FCachedComponentReferenceBase& operator=(const FCachedComponentReferenceBase&) = delete;
+};
 
-	/** @see FBlueprintComponentReference::Get */
-	TComponent* Get()
-	{
-		if (AActor* Actor = BaseActor.Get())
-		{
-			return Get(Actor);
-		}
-		return nullptr;
-	}
-	
-	/** @see FBlueprintComponentReference::Get */
-	TComponent* Get(AActor* InActor)
-	{
-		TComponent* Component = CachedValue.Get();
-		if (Component && Component->GetOwner() == InActor)
-		{
-			return Component;
-		}
+template<typename Component, typename Target, typename Storage, typename ActorPtr = TWeakObjectPtr<AActor>>
+class TCachedComponentReferenceBase : public FCachedComponentReferenceBase
+{
+public:
+	using ComponentType = Component;
+	using TargetType = Target;
+	using StorageType = Storage;
+	using ActorPtrType = ActorPtr;
+private:
+	// data source
+	TargetType* const InternalTarget;
+	// storage for cached data
+	mutable StorageType InternalStorage;
+	// base actor for lookup
+	ActorPtrType BaseActor;
+public:
+	TCachedComponentReferenceBase(TargetType* InTarget, AActor* InActor) : InternalTarget(InTarget), BaseActor(InActor) {}
+	~TCachedComponentReferenceBase() = default;
 
-		Component = Target->GetComponent<TComponent>(InActor);
-		CachedValue = Component;
-		return Component;
-	}
+	AActor* GetBaseActor()  { return BCRDetails::ResolveBaseActor(BaseActor); }
+	void SetBaseActor(AActor* InActor)  { BaseActor = InActor; }
 	
-	/** @see FBlueprintComponentReference::IsNull */
-    bool IsNull() const
-    {
-    	return Target->IsNull();
-    }
-    /**  reset cached component */
-    void InvalidateCache()
-    {
-    	CachedValue.Reset();
-    }
+	TargetType& GetTarget() const { return *InternalTarget; }
+	StorageType& GetStorage() /*fake*/const { return InternalStorage; }
 };
 
 /**
  * EXPERIMENTAL. <br/>
+ * 
+ * Version 1: Cached componenent reference over a simple property target
+ *
+ * @code
+ *     TCachedComponentReferenceSingle<USceneComponent> CachedTargetCompA  { this, &TargetComponent };
+ *     TCachedComponentReferenceSingle<USceneComponent> CachedTargetCompB  { &TargetComponent };
+ * @endcode 
+ * 
+ */
+template<typename Component>
+class TCachedComponentReferenceSingleV1
+	: public TCachedComponentReferenceBase<Component, FBlueprintComponentReference,  TWeakObjectPtr<Component>>
+{
+	using Super = TCachedComponentReferenceBase<Component, FBlueprintComponentReference, TWeakObjectPtr<Component>>;
+	using StorageType = typename Super::StorageType;
+	using TargetType = typename Super::TargetType;
+public:
+	explicit TCachedComponentReferenceSingleV1(FBlueprintComponentReference* InTarget) : Super(InTarget, nullptr) { }
+	explicit TCachedComponentReferenceSingleV1(UObject* InOwner, FBlueprintComponentReference* InTarget) : Super(InTarget, nullptr) { }
+	explicit TCachedComponentReferenceSingleV1(AActor* InBaseActor, FBlueprintComponentReference* InTarget) : Super(InTarget, InBaseActor) { }
+
+	template<typename T = Component>
+	Component* Get()
+	{
+		return this->Get<T>(this->GetBaseActor());
+	}
+
+	template<typename T = Component>
+	Component* Get(AActor* InActor)
+	{
+		static_assert(std::is_base_of_v<Component, T>, "T must be a descendant of Component");
+		
+		Component* Result = this->GetStorage().Get();
+		if (Result && Result->GetOwner() == InActor)
+		{
+			return Cast<T>(Result);
+		}
+		
+		Result = this->GetTarget().template GetComponent<Component>(InActor);
+		this->GetStorage() = Result;
+		return Cast<T>(Result);
+	}
+	
+	void InvalidateCache()
+	{
+		this->GetStorage().Reset();
+	}
+};
+
+/**
+ * EXPERIMENTAL. <br/>
+ *
+ * Array note: there is no point in specifying other template params for array, as blueprints work only with default arrays.
  * 
  * @code
  * UCLASS()
@@ -208,96 +178,92 @@ public:
  *     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, AllowedClasses="/Script/Engine.SceneComponent")
  *     TArray<FBlueprintComponentReference> TargetComponents;
  *    
- *     TCachedComponentReferenceArray<USceneComponent, &ThisClass::TargetComponents> CachedTargetComp { this };
+ *     TCachedComponentReferenceArray<USceneComponent> CachedTargetComp { this, &ThisClass::TargetComponents };
  * };
  *
  * @endcode
  * 
  */
-template<typename TComponent, auto PtrToMember>
-struct TCachedComponentReferenceArrayV2 : public FCachedComponentReferenceBase
+template<typename Component>
+class TCachedComponentReferenceArrayV1
+	: public TCachedComponentReferenceBase<Component, TArray<FBlueprintComponentReference>, TArray<TWeakObjectPtr<Component>>>
 {
-private:
-	TArray<FBlueprintComponentReference>* const Target; // target component reference
-	TWeakObjectPtr<AActor> BaseActor; //  base actor for lookup
-	TArray<TWeakObjectPtr<TComponent>> CachedValues; // storage for cached values 
+	using Super = TCachedComponentReferenceBase<Component, TArray<FBlueprintComponentReference>, TArray<TWeakObjectPtr<Component>>>;
+	using StorageType = typename Super::StorageType;
+	using TargetType = typename Super::TargetType;
 public:
-	explicit TCachedComponentReferenceArrayV2() : Target(nullptr) {}
-	
-	template<typename TOwner>
-	explicit TCachedComponentReferenceArrayV2(TOwner* InOwner) : Target(&((*InOwner).*PtrToMember))
+	explicit TCachedComponentReferenceArrayV1(TArray<FBlueprintComponentReference>* InTarget) : Super(InTarget, nullptr) {}
+	explicit TCachedComponentReferenceArrayV1(UObject* InOwner, TArray<FBlueprintComponentReference>* InTarget) : Super(InTarget, nullptr) {}
+	explicit TCachedComponentReferenceArrayV1(AActor* InBaseActor, TArray<FBlueprintComponentReference>* InTarget) : Super(InTarget, InBaseActor) {}
+
+	template<typename T = Component>
+	T* Get(int32 Index)
 	{
-		if constexpr (std::is_base_of_v<AActor, TOwner>)
-		{ // todo: enableif constructor picking for actor with assign / for uobject without?
-			BaseActor = InOwner;
-		}
-	}
-	
-	void SetBaseActor(AActor* InActor)
-	{
-		BaseActor = InActor;
+		return this->Get<T>(this->GetBaseActor(), Index);
 	}
 
-	// todo: expose iterators?
-
-	/** @see FBlueprintComponentReference::Get */
-	TComponent* Get(int32 Index)
+	template<typename T = Component>
+	T* Get(AActor* InActor, int32 Index)
 	{
-		if (AActor* Actor = BaseActor.Get())
+		static_assert(std::is_base_of_v<Component, T>, "T must be a descendant of Component");
+		
+		StorageType& Storage = this->GetStorage();
+		TargetType& Target = this->GetTarget();
+		
+		if (Storage.Num() != Target.Num())
 		{
-			return Get(Actor, Index);
-		}
-		return nullptr;
-	}
-	
-	/** @see FBlueprintComponentReference::Get */
-	TComponent* Get(AActor* InActor, int32 Index)
-	{
-		if (CachedValues.Num() != Target->Num())
-		{
-			CachedValues.SetNum(Target->Num());
+			Storage.Reset();//purge it all, dont try track modification
+			Storage.SetNum(Target.Num());
 		}
 
-		if (!CachedValues.IsValidIndex(Index))
+		if (!Storage.IsValidIndex(Index))
 		{
 			return nullptr;
 		}
 
-		TWeakObjectPtr<TComponent>& ElementRef = CachedValues[Index];
+		TWeakObjectPtr<Component>& ElementRef = Storage[Index];
 		
-		TComponent* Component = ElementRef.Get();
-		if (Component && Component->GetOwner() == InActor)
+		Component* Result = ElementRef.Get();
+		if (Result && Result->GetOwner() == InActor)
 		{
-			return Component;
+			return Cast<T>(Result);
 		}
 
 
-		Component = ((*Target)[Index]).GetComponent<TComponent>(InActor);
-		ElementRef = Component;
-		return Component;
+		Result = Target[Index].template GetComponent<Component>(InActor);
+		ElementRef = Result;
+		return Cast<T>(Result);
 	}
 	
 	/**  reset cached component */
 	void InvalidateCache(int32 Index = -1)
 	{
-		if (CachedValues.IsValidIndex(Index))
+		StorageType& Storage = this->GetStorage();
+		if (Storage.IsValidIndex(Index))
 		{
-			CachedValues[Index].Reset();
+			Storage[Index].Reset();
 		}
 		else
 		{
-			CachedValues.Reset();
+			Storage.Reset();
 		}
 	}
 
-	// forwards from Target
-
-	int32	Num() const { return Target->Num(); }
-	bool	IsEmpty() const { return Target->Num() == 0; }
+	int32	Num() const
+	{
+		return this->GetTarget().Num();
+	}
+	
+	bool	IsEmpty() const
+	{
+		return this->GetTarget().Num() == 0;
+	}
 };
 
 /**
  * EXPERIMENTAL. <br/>
+ * 
+ * Map note: there is no point in specifying other template params for map, as blueprints work only with default maps.
  * 
  * @code
  * UCLASS()
@@ -314,82 +280,142 @@ public:
  * @endcode
  * 
  */
-template<typename TComponent, typename TKey, auto PtrToMember>
-struct TCachedComponentReferenceMapV2 : public FCachedComponentReferenceBase
+template<typename Component, typename Key>
+class TCachedComponentReferenceMapV1
+	: public TCachedComponentReferenceBase<Component, TMap<Key, FBlueprintComponentReference>, TMap<Key, TWeakObjectPtr<Component>>>
 {
-private:
-	TMap<TKey, FBlueprintComponentReference>* const Target; // target component reference
-	TWeakObjectPtr<AActor> BaseActor; //  base actor for lookup
-	TMap<TKey, TWeakObjectPtr<TComponent>> CachedValues; // storage for cached values 
+	using Super = TCachedComponentReferenceBase<Component, TMap<Key, FBlueprintComponentReference>, TMap<Key, TWeakObjectPtr<Component>>>;
+	using StorageType = typename Super::StorageType;
+    using TargetType = typename Super::TargetType;
 public:
-	explicit TCachedComponentReferenceMapV2() : Target(nullptr) {}
+	explicit TCachedComponentReferenceMapV1(TMap<Key, FBlueprintComponentReference>* InTarget) : Super(InTarget, nullptr) {}
+	explicit TCachedComponentReferenceMapV1(UObject* InOwner, TMap<Key, FBlueprintComponentReference>* InTarget) : Super(InTarget, nullptr) {}
+	explicit TCachedComponentReferenceMapV1(AActor* InBaseActor, TMap<Key, FBlueprintComponentReference>* InTarget) : Super(InTarget, InBaseActor) {}
 
-	template<typename TOwner>
-	explicit TCachedComponentReferenceMapV2(TOwner* InOwner) : Target(&((*InOwner).*PtrToMember))
+	template<typename T = Component>
+	Component* Get(const Key& InKey)
 	{
-		if constexpr (std::is_base_of_v<AActor, TOwner>)
-		{
-			BaseActor = InOwner;
-		}
+		return this->Get<T>(this->GetBaseActor(), InKey);
 	}
-	
-	void SetBaseActor(AActor* InActor)
-	{
-		BaseActor = InActor;
-	}
-	
-	// todo: expose iterators?
 
-	/** @see FBlueprintComponentReference::Get */
-	TComponent* Get(const TKey& Key)
+	template<typename T = Component>
+	Component* Get(AActor* InActor, const Key& InKey)
 	{
-		if (AActor* Actor = BaseActor.Get())
-		{
-			return Get(Actor, Key);
-		}
-		return nullptr;
-	}
-	
-	/** @see FBlueprintComponentReference::Get */
-	TComponent* Get(AActor* InActor, const TKey& Key)
-	{
-		TWeakObjectPtr<TComponent>& ElementRef = CachedValues.FindOrAdd(Key, TWeakObjectPtr<TComponent>());
+		static_assert(std::is_base_of_v<Component, T>, "T must be a descendant of Component");
 		
-		TComponent* Component = ElementRef.Get();
-		if (Component && Component->GetOwner() == InActor)
+		StorageType& Storage = this->GetStorage();
+		TargetType& Target = this->GetTarget();
+
+		auto& ElementRef = Storage.FindOrAdd(InKey, {});
+
+		Component* Result = ElementRef.Get();
+		if (Result && Result->GetOwner() == InActor)
 		{
-			return Component;
+			return Cast<T>(Result);
 		}
 
-		if (FBlueprintComponentReference* Ref = Target->Find(Key))
+		if (const FBlueprintComponentReference* Ref = Target.Find(InKey))
 		{
-			Component = Ref->GetComponent<TComponent>(InActor);
-			ElementRef = Component;
+			Result = Ref->GetComponent<Component>(InActor);
+			ElementRef = Result;
 		}
 		else
 		{
-			Component = nullptr;
+			Result = nullptr;
 			ElementRef = nullptr;
 		}
-		
-		return Component;
+
+		return Cast<T>(Result);
 	}
-	
-	/**  reset cached component */
+
 	void InvalidateCache()
 	{
-		CachedValues.Reset();
+		this->GetStorage().Reset();
 	}
-	
-	// forwards from Target
 
-	int32	Num() const { return Target->Num(); }
-	bool	IsEmpty() const { return Target->Num() == 0; }
+	int32 Num() const
+	{
+		return this->GetTarget().Num();
+	}
+
+	bool IsEmpty() const
+	{
+		return this->GetTarget().Num() == 0;
+	}
+};
+
+#ifdef CBCRV2
+
+/**
+ * EXPERIMENTAL. <br/>
+ * 
+ * Another version with templates, compared to V1 it always take `this` as constructor parameter and member is set via template.
+ *
+ * @code
+ * UCLASS()
+ * class AMyActorClass : public AActor
+ * {
+ *	   GENERATED_BODY()
+ *	public:
+ *     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, AllowedClasses="/Script/Engine.SceneComponent")
+ *     FBlueprintComponentReference TargetComponent;
+ *    
+ *     TCachedComponentReference<USceneComponent, &ThisClass::TargetComponent> CachedTargetComp { this };
+ * };
+ *
+ * @endcode
+ * 
+ */
+template<typename TComponent, auto PtrToMember>
+class TCachedComponentReferenceSingleV2 : public TCachedComponentReferenceSingleV1<TComponent>
+{
+	using Super = TCachedComponentReferenceSingleV1<TComponent>;
+public:
+	template<typename TOwner>
+	explicit TCachedComponentReferenceSingleV2(TOwner* InOwner) : Super(&((*InOwner).*PtrToMember))
+	{
+		if constexpr (std::is_base_of_v<AActor, TOwner>)
+		{
+			SetBaseActor(InOwner);
+		}
+	}
 };
 
 template<typename TComponent, auto PtrToMember>
-using  TCachedComponentReference = TCachedComponentReferenceV2<TComponent, PtrToMember>;
-template<typename TComponent, auto PtrToMember>
-using  TCachedComponentReferenceArray = TCachedComponentReferenceArrayV2<TComponent, PtrToMember>;
+class TCachedComponentReferenceArrayV2 : public TCachedComponentReferenceArrayV1<TComponent>
+{
+	using Super = TCachedComponentReferenceArrayV1<TComponent>;
+public:
+	template<typename TOwner>
+	explicit TCachedComponentReferenceArrayV2(TOwner* InOwner) : Super(&((*InOwner).*PtrToMember))
+	{
+		if constexpr (std::is_base_of_v<AActor, TOwner>)
+		{
+			SetBaseActor(InOwner);
+		}
+	}
+};
+
 template<typename TComponent, typename TKey, auto PtrToMember>
-using  TCachedComponentReferenceMap = TCachedComponentReferenceMapV2<TComponent, TKey, PtrToMember>;
+class TCachedComponentReferenceMapV2 : public TCachedComponentReferenceMapV1<TComponent, TKey>
+{
+	using Super = TCachedComponentReferenceMapV1<TComponent, TKey>;
+public:
+	template<typename TOwner>
+	explicit TCachedComponentReferenceMapV2(TOwner* InOwner) : Super(&((*InOwner).*PtrToMember))
+	{
+		if constexpr (std::is_base_of_v<AActor, TOwner>)
+		{
+			SetBaseActor(InOwner);
+		}
+	}
+};
+
+#endif
+
+template<typename TComponent>
+using  TCachedComponentReference = TCachedComponentReferenceSingleV1<TComponent>;
+template<typename TComponent>
+using  TCachedComponentReferenceArray = TCachedComponentReferenceArrayV1<TComponent>;
+template<typename TComponent, typename TKey>
+using  TCachedComponentReferenceMap = TCachedComponentReferenceMapV1<TComponent, TKey>;

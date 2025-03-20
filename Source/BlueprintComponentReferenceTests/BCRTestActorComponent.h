@@ -20,6 +20,9 @@ public:
 	// Sets default values for this component's properties
 	UBCRTestActorComponent();
 
+	UPROPERTY()
+	FName SampleName;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test")
 	FBlueprintComponentReference Reference;
 };
@@ -31,6 +34,9 @@ class UBCRTestSceneComponent : public USceneComponent
 
 public:
 
+	UPROPERTY()
+	FName SampleName;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test")
 	FBlueprintComponentReference Reference;
 };
@@ -41,6 +47,9 @@ class UBCRTestMovementComponent : public UCharacterMovementComponent
 	GENERATED_BODY()
 
 public:
+	UPROPERTY()
+	FName SampleName;
+
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test")
     FBlueprintComponentReference Reference;

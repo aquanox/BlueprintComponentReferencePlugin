@@ -1,9 +1,12 @@
 // Copyright 2024, Aquanox.
 
 #include "BCRTestActor.h"
+#include "BCRTestDataAsset.h"
+#include "BCRTestActorComponent.h"
 #include "BlueprintComponentReference.h"
 #include "BlueprintComponentReferenceLibrary.h"
 #include "BlueprintComponentReferenceMetadata.h"
+#include "CachedBlueprintComponentReference.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Character.h"
 
@@ -47,6 +50,9 @@ struct FTestWorldScope
 
 	UWorld* operator->() const { return World; }
 };
+
+static FBlueprintComponentReference MakePathRef(FName InValue) { return FBlueprintComponentReference(EBlueprintComponentReferenceMode::Path, InValue); }
+static FBlueprintComponentReference MakePropertyRef(FName InValue) { return FBlueprintComponentReference(EBlueprintComponentReferenceMode::Property, InValue); }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBlueprintComponentReferenceTests_Core,
 	"BlueprintComponentReference.Core", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter | EAutomationTestFlags::HighPriority);
@@ -191,6 +197,88 @@ bool FBlueprintComponentReferenceTests_Library::RunTest(FString const&)
 	TestTrue("Bad.GetReferencedComponent.Result", Result == nullptr);
 	
 	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBlueprintComponentReferenceTests_Cached,
+	"BlueprintComponentReference.Cached", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter | EAutomationTestFlags::HighPriority);
+
+bool FBlueprintComponentReferenceTests_Cached::RunTest(FString const&)
+{
+	FTestWorldScope World;
+
+	auto* TestActor = World->SpawnActor<ABCRCachedTestActor>();
+	TestTrueExpr(TestActor != nullptr);
+
+	//======================================
+	
+	USceneComponent* ExpectedComp = TestActor->GetMesh();
+	TestActor->ReferenceSingle = MakePathRef(ABCRCachedTestActor::MeshComponentName);
+
+	TestTrueExpr(ExpectedComp != nullptr);
+	TestTrueExpr(!TestActor->ReferenceSingle.IsNull());
+	TestTrueExpr(TestActor->ReferenceSingle.GetComponent(TestActor) == ExpectedComp);
+	TestTrueExpr(TestActor == TestActor->CachedReferenceSingle.GetBaseActor());
+	TestTrueExpr(TestActor->CachedReferenceSingle.Get() == ExpectedComp);
+	TestTrueExpr(TestActor->CachedReferenceSingle.Get(TestActor) == ExpectedComp);
+	
+	//======================================
+
+	TArray<UBCRTestSceneComponent*> ExpectedComps;
+	TArray<FName> ExpectedKeys;
+	
+	for (int i = 0; i < 4; ++i)
+	{
+		auto* Comp = Cast<UBCRTestSceneComponent>(TestActor->AddComponentByClass(UBCRTestSceneComponent::StaticClass(), true, FTransform::Identity, false));
+		Comp->SampleName =  *FString::Printf(TEXT("MapKey%p"), Comp);
+
+		ExpectedComps.Add(Comp);
+
+		TestActor->AddInstanceComponent(Comp);
+
+		TestActor->ReferenceArray.Add(MakePathRef(Comp->GetFName()));
+
+		ExpectedKeys.Add(Comp->SampleName );
+		TestActor->ReferenceMap.Add(Comp->SampleName , MakePathRef(Comp->GetFName()));
+	}
+
+	TestTrueExpr(ExpectedComps.Num() == TestActor->ReferenceArray.Num() );
+	TestTrueExpr(TestActor == TestActor->CachedReferenceArray.GetBaseActor() );
+	TestTrueExpr(ExpectedComps.Num() == TestActor->CachedReferenceArray.Num() );
+
+	TestTrueExpr(TestActor->ReferenceArray[0].GetComponent(TestActor) == ExpectedComps[0]);
+	TestTrueExpr(TestActor->ReferenceArray[1].GetComponent(TestActor) == ExpectedComps[1]);
+	TestTrueExpr(TestActor->ReferenceArray[2].GetComponent(TestActor) == ExpectedComps[2]);
+	TestTrueExpr(TestActor->ReferenceArray[3].GetComponent(TestActor) == ExpectedComps[3]);
+
+	TestTrueExpr(TestActor->CachedReferenceArray.Get(TestActor, 0) == ExpectedComps[0]);
+	TestTrueExpr(TestActor->CachedReferenceArray.Get(TestActor, 1) == ExpectedComps[1]);
+	TestTrueExpr(TestActor->CachedReferenceArray.Get(TestActor, 2) == ExpectedComps[2]);
+	TestTrueExpr(TestActor->CachedReferenceArray.Get(TestActor, 3) == ExpectedComps[3]);
+	
+	TestTrueExpr(TestActor->CachedReferenceArray.Get(0) == ExpectedComps[0]);
+	TestTrueExpr(TestActor->CachedReferenceArray.Get(1) == ExpectedComps[1]);
+	TestTrueExpr(TestActor->CachedReferenceArray.Get(2) == ExpectedComps[2]);
+	TestTrueExpr(TestActor->CachedReferenceArray.Get(3) == ExpectedComps[3]);
+	
+	//======================================
+
+	TestTrueExpr(ExpectedKeys.Num() == TestActor->ReferenceMap.Num() );
+	TestTrueExpr(TestActor == TestActor->CachedReferenceMap.GetBaseActor() );
+
+	for (FName ExpectedKey : ExpectedKeys)
+	{
+		FBlueprintComponentReference& Ref = TestActor->ReferenceMap.FindChecked(ExpectedKey);
+		UActorComponent* Direct = Ref.GetComponent(TestActor);
+		USceneComponent* CachedBased = TestActor->CachedReferenceMap.Get(ExpectedKey);
+		USceneComponent* Cached = TestActor->CachedReferenceMap.Get(TestActor, ExpectedKey);
+		TestTrueExpr(Direct != nullptr);
+		TestTrueExpr(Cached != nullptr);
+		TestTrueExpr(CachedBased != nullptr);
+		TestTrueExpr(Cached == CachedBased);
+		TestTrueExpr(Cached == Direct);
+	}
+	
+ 	return true;
 }
 
 #endif

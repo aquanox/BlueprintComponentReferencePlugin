@@ -86,15 +86,21 @@ ABCRTestActorWithChild::ABCRTestActorWithChild()
 void ABCRCachedTestActor::Foo()
 {
 	AActor* PtrToActor = GetMutableDefault<AActor>();
-	FGameplayTag None;
+	FName None("SuperKey");
 	
 	CachedReferenceSingle.Get();
 	CachedReferenceSingle.Get(PtrToActor);
+	CachedReferenceSingle.InvalidateCache();
 	
 	CachedReferenceArray.Get(0);
 	CachedReferenceArray.Get(PtrToActor, 0);
+	CachedReferenceArray.Num();
+	CachedReferenceArray.IsEmpty();
+	CachedReferenceArray.InvalidateCache();
 	
 	CachedReferenceMap.Get(None);
 	CachedReferenceMap.Get(PtrToActor, None);
-
+	CachedReferenceMap.Num();
+	CachedReferenceMap.IsEmpty();
+	CachedReferenceMap.InvalidateCache();
 }

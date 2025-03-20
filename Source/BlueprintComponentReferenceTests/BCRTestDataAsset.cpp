@@ -5,5 +5,5 @@
 
 void UBCRCachedTestDataAsset::Foo()
 {
-	
+
 }

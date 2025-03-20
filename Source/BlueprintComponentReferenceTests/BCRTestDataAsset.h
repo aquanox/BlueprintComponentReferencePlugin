@@ -36,11 +36,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test|Metadata", meta=(ShowNative=false, ShowBlueprint=true, AllowedClasses="/Script/Engine.SceneComponent"))
 	TMap<FGameplayTag, FBlueprintComponentReference> ReferenceMap;
 	
-	TCachedComponentReference<USceneComponent, &ThisClass::ReferenceSingle> CachedReferenceSingle { this };
+	TCachedComponentReference<USceneComponent> CachedReferenceSingle { this, &ReferenceSingle };
 	
-	TCachedComponentReferenceArray<USceneComponent, &ThisClass::ReferenceArray> CachedReferenceArray { this };
+	TCachedComponentReferenceArray<USceneComponent> CachedReferenceArray { this, &ReferenceArray };
 	
-	TCachedComponentReferenceMap<USceneComponent, decltype(ReferenceMap)::KeyType, &ThisClass::ReferenceMap> CachedReferenceMap { this };
+	TCachedComponentReferenceMap<USceneComponent, decltype(ReferenceMap)::KeyType> CachedReferenceMap { this, &ReferenceMap };
 
 	UFUNCTION(CallInEditor)
 	void Foo();
