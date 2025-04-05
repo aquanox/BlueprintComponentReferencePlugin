@@ -23,37 +23,37 @@ namespace BCRDetails
  * Goal is to provide caching behavior and type safety for usage in code on hot paths similar to other "accessor" assistants in engine.
  *
  * Helpers wrap each common use:
- * 
+ *
  * - TCachedComponentReference for single entry
  * - TCachedComponentReferenceArray for array entry
  * - TCachedComponentReferenceMap for map value
- * 
+ *
  * @code
- * 
+ *
  * UCLASS()
  * class AMyActorClass : public AActor
  * {
  *	   GENERATED_BODY()
  *	public:
  *      // single entry
- *	
+ *
  *		UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test", meta=(AllowedClasses="/Script/Engine.SceneComponent"))
  *		FBlueprintComponentReference ReferenceSingle;
- *		
+ *
  *		TCachedComponentReference<USceneComponent> CachedReferenceSingle { this, &ReferenceSingle };
  *
  *      // array entry
  *
  *		UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test", meta=(AllowedClasses="/Script/Engine.SceneComponent"))
  *		TArray<FBlueprintComponentReference> ReferenceArray;
- *		
+ *
  *		TCachedComponentReferenceArray<USceneComponent> CachedReferenceArray { this, &ReferenceArray };
  *
  *      // map value entry
- *    
+ *
  *		UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test", meta=(AllowedClasses="/Script/Engine.SceneComponent"))
  *		TMap<FGameplayTag, FBlueprintComponentReference> ReferenceMap;
- *		
+ *
  *		TCachedComponentReferenceMap<USceneComponent, FGameplayTag> CachedReferenceMap { this, &ReferenceMap };
  *
  * };
@@ -65,16 +65,16 @@ namespace BCRDetails
  *	   GENERATED_BODY()
  *	public:
  *      // single entry
- *	
+ *
  *		UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test", meta=(AllowedClasses="/Script/Engine.SceneComponent"))
  *		FBlueprintComponentReference ReferenceSingle;
- *		
+ *
  *		TCachedComponentReference<USceneComponent> CachedReferenceSingle { this, &ReferenceSingle };
  *
  * };
  *
  * @endcode
- * 
+ *
  */
 class FCachedComponentReferenceBase
 {
@@ -108,21 +108,21 @@ public:
 
 	AActor* GetBaseActor()  { return BCRDetails::ResolveBaseActor(BaseActor); }
 	void SetBaseActor(AActor* InActor)  { BaseActor = InActor; }
-	
+
 	TargetType& GetTarget() const { return *InternalTarget; }
 	StorageType& GetStorage() /*fake*/const { return InternalStorage; }
 };
 
 /**
  * EXPERIMENTAL. <br/>
- * 
+ *
  * Version 1: Cached componenent reference over a simple property target
  *
  * @code
  *     TCachedComponentReferenceSingle<USceneComponent> CachedTargetCompA  { this, &TargetComponent };
  *     TCachedComponentReferenceSingle<USceneComponent> CachedTargetCompB  { &TargetComponent };
- * @endcode 
- * 
+ * @endcode
+ *
  */
 template<typename Component>
 class TCachedComponentReferenceSingleV1
@@ -146,18 +146,18 @@ public:
 	Component* Get(AActor* InActor)
 	{
 		static_assert(std::is_base_of_v<Component, T>, "T must be a descendant of Component");
-		
+
 		Component* Result = this->GetStorage().Get();
 		if (Result && Result->GetOwner() == InActor)
 		{
 			return Cast<T>(Result);
 		}
-		
+
 		Result = this->GetTarget().template GetComponent<Component>(InActor);
 		this->GetStorage() = Result;
 		return Cast<T>(Result);
 	}
-	
+
 	void InvalidateCache()
 	{
 		this->GetStorage().Reset();
@@ -168,7 +168,7 @@ public:
  * EXPERIMENTAL. <br/>
  *
  * Array note: there is no point in specifying other template params for array, as blueprints work only with default arrays.
- * 
+ *
  * @code
  * UCLASS()
  * class AMyActorClass : public AActor
@@ -177,12 +177,12 @@ public:
  *	public:
  *     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, AllowedClasses="/Script/Engine.SceneComponent")
  *     TArray<FBlueprintComponentReference> TargetComponents;
- *    
+ *
  *     TCachedComponentReferenceArray<USceneComponent> CachedTargetComp { this, &ThisClass::TargetComponents };
  * };
  *
  * @endcode
- * 
+ *
  */
 template<typename Component>
 class TCachedComponentReferenceArrayV1
@@ -206,10 +206,10 @@ public:
 	T* Get(AActor* InActor, int32 Index)
 	{
 		static_assert(std::is_base_of_v<Component, T>, "T must be a descendant of Component");
-		
+
 		StorageType& Storage = this->GetStorage();
 		TargetType& Target = this->GetTarget();
-		
+
 		if (Storage.Num() != Target.Num())
 		{
 			Storage.Reset();//purge it all, dont try track modification
@@ -222,7 +222,7 @@ public:
 		}
 
 		TWeakObjectPtr<Component>& ElementRef = Storage[Index];
-		
+
 		Component* Result = ElementRef.Get();
 		if (Result && Result->GetOwner() == InActor)
 		{
@@ -234,7 +234,7 @@ public:
 		ElementRef = Result;
 		return Cast<T>(Result);
 	}
-	
+
 	/**  reset cached component */
 	void InvalidateCache(int32 Index = -1)
 	{
@@ -253,7 +253,7 @@ public:
 	{
 		return this->GetTarget().Num();
 	}
-	
+
 	bool	IsEmpty() const
 	{
 		return this->GetTarget().Num() == 0;
@@ -262,9 +262,9 @@ public:
 
 /**
  * EXPERIMENTAL. <br/>
- * 
+ *
  * Map note: there is no point in specifying other template params for map, as blueprints work only with default maps.
- * 
+ *
  * @code
  * UCLASS()
  * class AMyActorClass : public AActor
@@ -273,12 +273,12 @@ public:
  *	public:
  *     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, AllowedClasses="/Script/Engine.SceneComponent")
  *     TMap<FGameplayTag, FBlueprintComponentReference> Component;
- *    
+ *
  *     TCachedComponentReferenceMap<USceneComponent, &ThisClass::TargetComponents> CachedTargetComp { this };
  * };
  *
  * @endcode
- * 
+ *
  */
 template<typename Component, typename Key>
 class TCachedComponentReferenceMapV1
@@ -302,7 +302,7 @@ public:
 	Component* Get(AActor* InActor, const Key& InKey)
 	{
 		static_assert(std::is_base_of_v<Component, T>, "T must be a descendant of Component");
-		
+
 		StorageType& Storage = this->GetStorage();
 		TargetType& Target = this->GetTarget();
 
@@ -348,7 +348,7 @@ public:
 
 /**
  * EXPERIMENTAL. <br/>
- * 
+ *
  * Another version with templates, compared to V1 it always take `this` as constructor parameter and member is set via template.
  *
  * @code
@@ -359,12 +359,12 @@ public:
  *	public:
  *     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, AllowedClasses="/Script/Engine.SceneComponent")
  *     FBlueprintComponentReference TargetComponent;
- *    
+ *
  *     TCachedComponentReference<USceneComponent, &ThisClass::TargetComponent> CachedTargetComp { this };
  * };
  *
  * @endcode
- * 
+ *
  */
 template<typename TComponent, auto PtrToMember>
 class TCachedComponentReferenceSingleV2 : public TCachedComponentReferenceSingleV1<TComponent>

@@ -81,7 +81,7 @@ void FBlueprintComponentReferenceVarCustomization::CustomizeDetails(IDetailLayou
 	{
 		return;
 	}
-	
+
 	ScopedSettings = CreateContainer();
 	ScopedSettings->Get()->LoadSettingsFromProperty(PropertiesBeingCustomized[0].Get());
 
@@ -100,7 +100,7 @@ void FBlueprintComponentReferenceVarCustomization::CustomizeDetails(IDetailLayou
 		{
 			if (It->HasAnyPropertyFlags(CPF_Deprecated|CPF_Transient))
 				continue;
-			
+
 			FSimpleDelegate ChangeHandler = FSimpleDelegate::CreateSP(this, &FBlueprintComponentReferenceVarCustomization::OnContainerPropertyChanged, It->GetFName());
 
 			FAddPropertyParams Params;
@@ -119,7 +119,7 @@ void FBlueprintComponentReferenceVarCustomization::OnContainerPropertyChanged(FN
 	FScopedTransaction Transaction(INVTEXT("ApplySettingsToProperty"));
 
 	FMetadataContainer& Settings = *ScopedSettings->Get();
-	
+
 	for (const TWeakFieldPtr<FProperty>& Property : PropertiesBeingCustomized)
 	{
 		if (FProperty* Local = Property.Get())

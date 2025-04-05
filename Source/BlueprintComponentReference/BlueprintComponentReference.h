@@ -30,7 +30,7 @@ enum class EBlueprintComponentReferenceMode : uint8
  * Struct that allows referencing actor components within blueprint.
  *
  * Component picker behavior customized via metadata specifiers.
- * 
+ *
  *
  * Supported use cases:
  * - Class/Struct member property
@@ -42,7 +42,7 @@ enum class EBlueprintComponentReferenceMode : uint8
  * @code
  *	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ShowBlueprint=True, ShowNative=False, NoNavigate))
  *	FBlueprintComponentReference MyProperty;
- * @endcode 
+ * @endcode
  *
  * <p>Component display and filtering:</p>
  *
@@ -103,14 +103,14 @@ public:
 	 * Default constructor
 	 */
 	FBlueprintComponentReference();
-	
+
 	/**
 	 * Construct reference from smart path.
 	 *
 	 * If mode not specified "Variable" mode is used.
 	 */
 	explicit FBlueprintComponentReference(const FString& InValue);
-	
+
 	/**
 	 * Construct reference manually
 	 */
@@ -139,7 +139,7 @@ public:
 	{
 		return Mode;
 	}
-	
+
 	/**
 	 * Get current component value
 	 */
@@ -147,7 +147,7 @@ public:
 	{
 		return Value;
 	}
-	
+
 	/**
 	 * Get the actual component pointer from this reference
 	 *
@@ -170,7 +170,7 @@ public:
 	 * Does this reference have any value set
 	 */
 	bool IsNull() const;
-	
+
 	/**
 	 * Reset reference value to none
 	 */
@@ -193,10 +193,10 @@ public:
 
 protected:
 	friend class FBlueprintComponentReferenceHelper;
-	
+
 	UPROPERTY(EditAnywhere, Category=Component)
 	EBlueprintComponentReferenceMode Mode;
-	
+
 	UPROPERTY(EditAnywhere, Category=Component)
 	FName Value;
 };

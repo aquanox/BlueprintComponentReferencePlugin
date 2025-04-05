@@ -54,7 +54,7 @@ public:
 	virtual bool IsInstancedComponent() const { return false; }
 	virtual bool IsEditorOnlyComponent() const;
 	virtual EBlueprintComponentReferenceMode GetDesiredMode() const;
-	
+
 	virtual FString ToString() const;
 	virtual bool IsValidInfo() const { return Object.IsValid() && ObjectClass.IsValid(); }
 };
@@ -74,7 +74,7 @@ public:
 
 	virtual bool IsNativeComponent() const override;
 	virtual USCS_Node* GetSCSNode() const override;
-	
+
 	virtual FString ToString() const override;
 	virtual bool IsValidInfo() const override { return Super::IsValidInfo() && SCSNode.IsValid(); }
 };
@@ -154,7 +154,7 @@ public:
 	TWeakObjectPtr<UClass>	SourceClass;
 	FText					ClassDisplayText;
 	bool					bIsBlueprint = false;
-	
+
 	FHierarchyInstanceInfo(AActor* Actor);
 
 	virtual bool IsInstance() const  override { return true; }
@@ -162,7 +162,7 @@ public:
 	virtual FText GetDisplayText() const override { return INVTEXT("Instance"); }
 	virtual bool IsBlueprint() const override { return bIsBlueprint; }
 	virtual bool IsValidInfo() const override { return  SourceActor.IsValid() && SourceClass.IsValid(); }
-	
+
 	void OnCompiled(class UBlueprint*);
 };
 
@@ -190,7 +190,7 @@ struct FComponentPickerContext
  *
  * maybe merge back to module class?
  */
-class FBlueprintComponentReferenceHelper : public TSharedFromThis<FBlueprintComponentReferenceHelper> 
+class FBlueprintComponentReferenceHelper : public TSharedFromThis<FBlueprintComponentReferenceHelper>
 {
 public:
 	using FInstanceKey = TTuple<FName /* fn */, FName /* name */, FName /* class */>;
@@ -208,7 +208,7 @@ public:
 
 	/**
 	 * Get or create component chooser data source for specific input parameters
-	 * 
+	 *
 	 * @param InActor Input actor
 	 * @param InClass Input class
 	 * @param InLabel Debug marker
@@ -227,20 +227,20 @@ public:
 	void MarkBlueprintCacheDirty();
 
 	/**
-	 * Collect components info specific to live actor instance 
-	 * 
+	 * Collect components info specific to live actor instance
+	 *
 	 * @param InLabel Actor label, debug purpose only
 	 * @param InActor Actor instance to collect information from
-	 * @return 
+	 * @return
 	 */
 	TSharedPtr<FHierarchyInfo> GetOrCreateInstanceData(FString const& InLabel, AActor* InActor);
-	
+
 	/**
-	 * Collect components info specific to class 
-	 * 
+	 * Collect components info specific to class
+	 *
 	 * @param InLabel Class label, debug purpose only
 	 * @param InClass Class instance to collect information from
-	 * @return 
+	 * @return
 	 */
 	TSharedPtr<FHierarchyInfo> GetOrCreateClassData(FString const& InLabel, UClass* InClass);
 
@@ -272,10 +272,10 @@ public:
 private:
 	float		LastCacheCleanup = 0;
 	bool		bInitializedAtLeastOnce = false;
-	
+
 	TMap<FString, TWeakPtr<FComponentPickerContext>> ActiveContexts;
-	
+
 	TMap<FInstanceKey, TSharedPtr<FHierarchyInstanceInfo>> InstanceCache;
-	
+
 	TMap<FClassKey, TSharedPtr<FHierarchyClassInfo>> ClassCache;
 };

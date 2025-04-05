@@ -89,7 +89,7 @@ private:
 	FReply OnDropped(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent);
 	FReply OnDrop(TSharedPtr<FDragDropOperation> InDragDrop);
 #endif
-	
+
 private:
 	/** The property handle we are customizing */
 	TSharedPtr<IPropertyHandle> PropertyHandle;

@@ -45,7 +45,7 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category="Utilities|ComponentReference", meta=( DefaultToSelf="Actor", DeterminesOutputType="Class", DynamicOutputParam="Component", Keywords="cref"))
 	static UPARAM(DisplayName="Success") bool GetReferencedComponent(const FBlueprintComponentReference& Reference, AActor* Actor, TSubclassOf<UActorComponent> Class, UActorComponent*& Component);
-	
+
 	/**
 	 * Resolve array of component references in specific actor
 	 *
@@ -66,7 +66,7 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category="Utilities|ComponentReference", meta=(DisplayName="Is Null Component Reference", BlueprintThreadSafe, Keywords="cref"))
 	static bool IsNullComponentReference(const FBlueprintComponentReference& Reference);
-	
+
 	/**
 	 * Does the component reference have any value set?
 	 *
@@ -75,7 +75,7 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category="Utilities|ComponentReference", meta=(DisplayName="Is Valid Component Reference", BlueprintThreadSafe, Keywords="cref"))
 	static bool IsValidComponentReference(const FBlueprintComponentReference& Reference);
-	
+
 	/**
 	 * Reset reference variable value to none
 	 *

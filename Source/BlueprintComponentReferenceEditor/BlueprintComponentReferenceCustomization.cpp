@@ -203,7 +203,7 @@ FString FBlueprintComponentReferenceCustomization::GetLoggingContextString() con
 	{
 		Buffer.Append(TEXT("Invalid"));
 	}
-	
+
 	return Buffer.ToString();
 }
 
@@ -272,13 +272,13 @@ void FBlueprintComponentReferenceCustomization::DetermineContext()
 		if (ViewSettings.ActorClass.IsValid())
 		{
 			UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("%s GuessMetadata=%s"), *GetLoggingContextString(), *ViewSettings.ActorClass.ToString());
-			
+
 			OuterActorClass = ViewSettings.ActorClass.Get();
 		}
 		else
 		{
 			UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("%s GuessMetadata=%s (loading)"), *GetLoggingContextString(), *ViewSettings.ActorClass.ToString());
-			
+
 			OuterActorClass = ViewSettings.ActorClass.LoadSynchronous();
 		}
 	}
@@ -474,16 +474,16 @@ void FBlueprintComponentReferenceCustomization::OnPropertyValueChanged(FName Sou
 
 	FBlueprintComponentReference TmpComponentReference;
 	CachedPropertyAccess = GetValue(TmpComponentReference);
-	
+
 	if (CachedPropertyAccess == FPropertyAccess::Success)
 	{
 		if (!IsComponentReferenceValid(TmpComponentReference))
 		{
 			bRequiresReset = true;
 		}
-		
+
 		if (ComponentPickerContext.IsValid())
-		{ 
+		{
 			CachedComponentNode = ComponentPickerContext->FindComponent(TmpComponentReference);
 		}
 	}
@@ -491,7 +491,7 @@ void FBlueprintComponentReferenceCustomization::OnPropertyValueChanged(FName Sou
 	if (bRequiresReset)
 	{
 		CachedComponentNode.Reset();
-		
+
 		if (!TmpComponentReference.IsNull())
 		{
 			if (GResetInvalidReferences)
@@ -591,23 +591,23 @@ TSharedRef<SWidget> FBlueprintComponentReferenceCustomization::OnGetMenuContent(
 	{ // this is nesessary after updating metadata or a new property
 		DetermineContext();
 	}
-	
+
 	if (ComponentPickerContext.IsValid())
 	{
 		TArray<FSelectionData> ChoosableElements;
-		
+
 		// collect unique picker contents, with lowest level one being most important
 		// ClassHistory order is  Instance Class ParentClass GrantParentClass so iterating in reverse
 		// first Node occurrence is preferred
-		
+
 		TArray<TSharedPtr<FHierarchyInfo>> DataSource = ComponentPickerContext->ClassHierarchy;
 		if (GFilterUniqueNodes)
 		{
 			Algo::Reverse(DataSource);
 		}
-		
+
 		TArray<FName> KnownNames;
-		
+
 		for (const TSharedPtr<FHierarchyInfo>& HierarchyInfo : DataSource)
 		{
 			if (HierarchyInfo->GetNodes().IsEmpty())
@@ -637,7 +637,7 @@ TSharedRef<SWidget> FBlueprintComponentReferenceCustomization::OnGetMenuContent(
 				ChoosableElements.Emplace(MoveTemp(Data));
 			}
 		}
-		
+
 		// Restore order of found selection items to display
 		if (GFilterUniqueNodes)
 		{
@@ -689,7 +689,7 @@ void FBlueprintComponentReferenceCustomization::OnMenuOpenChanged(bool bOpen)
 	if (!bOpen)
 	{
 		ComponentComboButton->SetMenuContent(SNullWidget::NullWidget);
-		
+
 		CachedChoosableElements.Reset();
 	}
 }
@@ -750,7 +750,7 @@ void FBlueprintComponentReferenceCustomization::OnComponentSelected(TSharedPtr<F
 	CachedComponentNode = Node;
 
 	FBlueprintComponentReference Result;
-	// Todo: desired mode override by metadata, unless really desired 
+	// Todo: desired mode override by metadata, unless really desired
 	if (Node->GetDesiredMode() == EBlueprintComponentReferenceMode::Property)
 	{
 		Result = FBlueprintComponentReference(EBlueprintComponentReferenceMode::Property, Node->GetVariableName());
@@ -872,7 +872,7 @@ bool FBlueprintComponentReferenceCustomization::OnVerifyDrag(TSharedPtr<FDragDro
 	{
 		friend FBlueprintComponentReferenceCustomization;
 	};
-	
+
 	auto VarAction = StaticCastSharedPtr<FKismetVariableDragDropAction_Accessor>(InDragDrop);
 	UBlueprint* const Blueprint = VarAction->GetSourceBlueprint();
 
@@ -880,13 +880,13 @@ bool FBlueprintComponentReferenceCustomization::OnVerifyDrag(TSharedPtr<FDragDro
 	{ // bad context
 		return false;
 	}
-	
+
 	FObjectProperty* const TestProperty = CastField<FObjectProperty>(VarAction->GetVariableProperty());
 	if (!TestProperty || !TestProperty->PropertyClass || !TestProperty->PropertyClass->IsChildOf(UActorComponent::StaticClass()))
 	{ // bad property
 		return false;
 	}
-	
+
 	auto Node = ComponentPickerContext->FindComponentForVariable(TestProperty->GetFName());
 	if (!TestNode(Node))
 	{ // does not register within picker or not eligible
@@ -903,7 +903,7 @@ bool FBlueprintComponentReferenceCustomization::OnVerifyDrag(TSharedPtr<FDragDro
 	{ // does not match class restrictions
 		return false;
 	}
-	
+
 	return true;
 }
 
@@ -920,13 +920,13 @@ FReply FBlueprintComponentReferenceCustomization::OnDropped(const FGeometry& InG
 FReply FBlueprintComponentReferenceCustomization::OnDrop(TSharedPtr<FDragDropOperation> InDragDrop)
 {
 	TSharedPtr<FKismetVariableDragDropAction> Ptr = StaticCastSharedPtr<FKismetVariableDragDropAction>(InDragDrop);
-	
+
 	auto Choise = ComponentPickerContext->FindComponentForVariable(Ptr->GetVariableProperty()->GetFName());
 	if (Choise)
 	{
 		OnComponentSelected(Choise);
 	}
-	
+
 	return FReply::Handled();
 }
 

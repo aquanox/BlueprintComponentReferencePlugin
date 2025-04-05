@@ -29,7 +29,7 @@ void ResolveComponentArrayInternal(TBase References, AActor* Actor, UClass* Clas
 	{
 		UActorComponent* Component = nullptr;
 		ResolveComponentInternal(Reference, Actor, Class, Component);
-		
+
 		if (Component != nullptr || bKeepNulls)
 		{
 			Components.Add(Component);

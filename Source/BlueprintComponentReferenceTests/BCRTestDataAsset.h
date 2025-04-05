@@ -9,7 +9,7 @@
 #include "BCRTestDataAsset.generated.h"
 
 /**
- * 
+ *
  */
 UCLASS(MinimalAPI, Blueprintable)
 class UBCRTestDataAsset : public UDataAsset
@@ -18,7 +18,7 @@ class UBCRTestDataAsset : public UDataAsset
 public:
 	UPROPERTY(EditAnywhere, meta=(ActorClass="/Script/BlueprintComponentReferenceTests.BCRTestActor"), Category=Test)
 	FBlueprintComponentReference ExternalRef;
-	
+
 };
 
 UCLASS(MinimalAPI)
@@ -29,17 +29,17 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test|Metadata", meta=(ShowNative=false, ShowBlueprint=true, AllowedClasses="/Script/Engine.SceneComponent"))
 	FBlueprintComponentReference ReferenceSingle;
-	
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test|Metadata", meta=(ShowNative=false, ShowBlueprint=true, AllowedClasses="/Script/Engine.SceneComponent"))
 	TArray<FBlueprintComponentReference> ReferenceArray;
-	
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test|Metadata", meta=(ShowNative=false, ShowBlueprint=true, AllowedClasses="/Script/Engine.SceneComponent"))
 	TMap<FGameplayTag, FBlueprintComponentReference> ReferenceMap;
-	
+
 	TCachedComponentReference<USceneComponent> CachedReferenceSingle { this, &ReferenceSingle };
-	
+
 	TCachedComponentReferenceArray<USceneComponent> CachedReferenceArray { this, &ReferenceArray };
-	
+
 	TCachedComponentReferenceMap<USceneComponent, decltype(ReferenceMap)::KeyType> CachedReferenceMap { this, &ReferenceMap };
 
 	UFUNCTION(CallInEditor)

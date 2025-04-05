@@ -145,13 +145,13 @@ bool FBlueprintComponentReferenceTests_Library::RunTest(FString const&)
 	ABCRTestActor* const TestActorNull = nullptr;
 	ABCRTestActor* const TestActorReal = World->SpawnActor<ABCRTestActor>();
 	ABCRTestActor* const TestActorDefault = GetMutableDefault<ABCRTestActor>();
-	
+
 	FBlueprintComponentReference NullReference;
 	FBlueprintComponentReference TestBaseReference("property:Default_Root");
 	FBlueprintComponentReference MeshPathReference(EBlueprintComponentReferenceMode::Path, ACharacter::MeshComponentName);
 	FBlueprintComponentReference MeshVarReference(EBlueprintComponentReferenceMode::Property, TEXT("Mesh"));
 	FBlueprintComponentReference BadReference("property:DoesNotExist");
-	
+
 	TestTrue("IsNullComponentReference.1", UBlueprintComponentReferenceLibrary::IsNullComponentReference(NullReference));
 	TestFalse("IsNullComponentReference.2", UBlueprintComponentReferenceLibrary::IsNullComponentReference(TestBaseReference));
 
@@ -165,7 +165,7 @@ bool FBlueprintComponentReferenceTests_Library::RunTest(FString const&)
 	// TryGetReferencedComponent and GetReferencedComponent same
 	TestFalse("InvalidThings.GetReferencedComponent", UBlueprintComponentReferenceLibrary::GetReferencedComponent(BadReference, TestActorNull, UActorComponent::StaticClass(), Result));
 	TestTrue("InvalidThings.GetReferencedComponent.Result", Result == nullptr);
-	
+
 	TestFalse("Null.GetReferencedComponent", UBlueprintComponentReferenceLibrary::GetReferencedComponent(NullReference, TestActorReal, nullptr, Result));
 	TestTrue("Null.GetReferencedComponent.Result", Result == nullptr);
 
@@ -174,16 +174,16 @@ bool FBlueprintComponentReferenceTests_Library::RunTest(FString const&)
 
 	TestFalse("TestBase2.GetReferencedComponent", UBlueprintComponentReferenceLibrary::GetReferencedComponent(TestBaseReference, TestActorReal, USkeletalMeshComponent::StaticClass(), Result));
 	TestTrue("TestBase2.GetReferencedComponent.Result", Result == nullptr);
-	
+
 	TestTrue("MeshPathReference.GetReferencedComponent", UBlueprintComponentReferenceLibrary::GetReferencedComponent(MeshPathReference, TestActorReal, nullptr, Result));
 	TestTrue("MeshPathReference.GetReferencedComponent.Result", Result == TestActorReal->GetMesh());
-	
+
 	TestTrue("MeshPathReference2.GetReferencedComponent", UBlueprintComponentReferenceLibrary::GetReferencedComponent(MeshPathReference, TestActorReal, USkeletalMeshComponent::StaticClass(), Result));
 	TestTrue("MeshPathReference2.GetReferencedComponent.Result", Result == TestActorReal->GetMesh());
-	
+
 	TestFalse("MeshPathReference3.GetReferencedComponent", UBlueprintComponentReferenceLibrary::GetReferencedComponent(MeshPathReference, TestActorReal, UStaticMeshComponent::StaticClass(), Result));
 	TestTrue("MeshPathReference3.GetReferencedComponent.Result", Result == nullptr);
-	
+
 	TestTrue("MeshVarReference.GetReferencedComponent", UBlueprintComponentReferenceLibrary::GetReferencedComponent(MeshVarReference, TestActorReal, nullptr, Result));
 	TestTrue("MeshVarReference.GetReferencedComponent.Result", Result == TestActorReal->GetMesh());
 
@@ -195,7 +195,7 @@ bool FBlueprintComponentReferenceTests_Library::RunTest(FString const&)
 
 	TestFalse("Bad.GetReferencedComponent", UBlueprintComponentReferenceLibrary::GetReferencedComponent(BadReference, TestActorReal, nullptr, Result));
 	TestTrue("Bad.GetReferencedComponent.Result", Result == nullptr);
-	
+
 	return true;
 }
 
@@ -210,7 +210,7 @@ bool FBlueprintComponentReferenceTests_Cached::RunTest(FString const&)
 	TestTrueExpr(TestActor != nullptr);
 
 	//======================================
-	
+
 	USceneComponent* ExpectedComp = TestActor->GetMesh();
 	TestActor->ReferenceSingle = MakePathRef(ABCRCachedTestActor::MeshComponentName);
 
@@ -220,12 +220,12 @@ bool FBlueprintComponentReferenceTests_Cached::RunTest(FString const&)
 	TestTrueExpr(TestActor == TestActor->CachedReferenceSingle.GetBaseActor());
 	TestTrueExpr(TestActor->CachedReferenceSingle.Get() == ExpectedComp);
 	TestTrueExpr(TestActor->CachedReferenceSingle.Get(TestActor) == ExpectedComp);
-	
+
 	//======================================
 
 	TArray<UBCRTestSceneComponent*> ExpectedComps;
 	TArray<FName> ExpectedKeys;
-	
+
 	for (int i = 0; i < 4; ++i)
 	{
 		auto* Comp = Cast<UBCRTestSceneComponent>(TestActor->AddComponentByClass(UBCRTestSceneComponent::StaticClass(), true, FTransform::Identity, false));
@@ -254,12 +254,12 @@ bool FBlueprintComponentReferenceTests_Cached::RunTest(FString const&)
 	TestTrueExpr(TestActor->CachedReferenceArray.Get(TestActor, 1) == ExpectedComps[1]);
 	TestTrueExpr(TestActor->CachedReferenceArray.Get(TestActor, 2) == ExpectedComps[2]);
 	TestTrueExpr(TestActor->CachedReferenceArray.Get(TestActor, 3) == ExpectedComps[3]);
-	
+
 	TestTrueExpr(TestActor->CachedReferenceArray.Get(0) == ExpectedComps[0]);
 	TestTrueExpr(TestActor->CachedReferenceArray.Get(1) == ExpectedComps[1]);
 	TestTrueExpr(TestActor->CachedReferenceArray.Get(2) == ExpectedComps[2]);
 	TestTrueExpr(TestActor->CachedReferenceArray.Get(3) == ExpectedComps[3]);
-	
+
 	//======================================
 
 	TestTrueExpr(ExpectedKeys.Num() == TestActor->ReferenceMap.Num() );
@@ -277,7 +277,7 @@ bool FBlueprintComponentReferenceTests_Cached::RunTest(FString const&)
 		TestTrueExpr(Cached == CachedBased);
 		TestTrueExpr(Cached == Direct);
 	}
-	
+
  	return true;
 }
 

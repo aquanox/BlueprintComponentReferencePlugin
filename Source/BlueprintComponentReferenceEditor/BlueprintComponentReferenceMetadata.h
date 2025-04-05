@@ -49,7 +49,7 @@ public:
 	 * Enforces specific actor class to collect components from, usually used when automatic discovery is not possible.
 	 *
 	 * Important note: prefer native actor classes over blueprints to avoid loading unnesessary assets
-	 */ 
+	 */
 	UPROPERTY(EditAnywhere, Category=Metadata, meta=(MDSpecifier="ActorClass", MDHandler="Class", AllowAbstract=true, NoBrowse, NoCreate, DisallowCreateNew))
 	TSoftClassPtr<AActor> ActorClass;
 
@@ -105,7 +105,7 @@ struct BLUEPRINTCOMPONENTREFERENCEEDITOR_API FMetadataMarshaller
 	static TOptional<bool> GetBoolMetaDataValue(const FProperty* Property, const FName& InName);
 
 	static void GetClassMetadata(const FProperty* Property, const FName& InName, const TFunctionRef<void(UClass*)>& Func);
-	
+
 	static void GetClassListMetadata(const FProperty* Property, const FName& InName, const TFunctionRef<void(UClass*)>& Func);
 
 };

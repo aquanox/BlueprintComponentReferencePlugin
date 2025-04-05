@@ -32,7 +32,7 @@ void FBlueprintComponentReferenceMetadata::LoadSettingsFromProperty(const FPrope
 	UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("LoadSettingsFromProperty(%s)"), *InProp->GetFName().ToString());
 
 	static const FBlueprintComponentReferenceMetadata DefaultValues;
-	
+
 	// picker
 	bUsePicker = !FMetadataMarshaller::HasMetaDataValue(InProp, FCRMetadataKey::NoPicker);
 	// actions
@@ -64,7 +64,7 @@ void FBlueprintComponentReferenceMetadata::LoadSettingsFromProperty(const FPrope
 void FBlueprintComponentReferenceMetadata::ApplySettingsToProperty(UBlueprint* InBlueprint, FProperty* InProperty, const FName& InChanged)
 {
 	UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("ApplySettingsToProperty(%s)"), *InProperty->GetName());
-	
+
 	auto BoolToString = [](bool b) ->  TOptional<FString>
 	{
 		return TOptional<FString>(b ? TEXT("True") : TEXT("False"));
@@ -77,7 +77,7 @@ void FBlueprintComponentReferenceMetadata::ApplySettingsToProperty(UBlueprint* I
 
 	auto ClassToString = [](const UClass* InClass) ->  TOptional<FString>
 	{
-		return InClass ? InClass->GetClassPathName().ToString() : TOptional<FString>();	
+		return InClass ? InClass->GetClassPathName().ToString() : TOptional<FString>();
 	};
 
 	auto ArrayToString = [](const TArray<TSubclassOf<UActorComponent>>& InArray)
@@ -148,7 +148,7 @@ bool FMetadataMarshaller::HasMetaDataValue(const FProperty* Property, const FNam
 void FMetadataMarshaller::SetMetaDataValue(UBlueprint* InBlueprint, FProperty* InProperty, const FName& InName, TOptional<FString> InValue)
 {
 	check(InProperty);
-	
+
 	if (::IsValid(InBlueprint))
 	{
 		for (FBPVariableDescription& VariableDescription : InBlueprint->NewVariables)

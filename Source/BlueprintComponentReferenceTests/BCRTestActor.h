@@ -58,7 +58,7 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Components)
 	TObjectPtr<USceneComponent> Playtime_LevelOneNP;
-	
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Components)
 	TObjectPtr<USceneComponent> Playtime_LevelOne;
 
@@ -82,7 +82,7 @@ protected:
 	// Simple component reference. Defaults only
 	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Test|Base")
 	FBlueprintComponentReference ReferenceA;
-	
+
 	// Simple component reference. Only SceneComp allowed
 	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Test|Filter", meta=(AllowedClasses="/Script/Engine.SceneComponent"))
 	FBlueprintComponentReference ReferenceFilterA;
@@ -115,7 +115,7 @@ protected:
 	// Display components without properties assigned. Instance only
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Metadata", meta=(ShowNative=false, ShowBlueprint=false, ShowInstanced=false, ShowHidden=true))
 	FBlueprintComponentReference ReferencePathOnly;
-	
+
 	// Display only natively created components. No editor
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Metadata", meta=(ShowNative=true, ShowBlueprint=false, ShowInstanced=false, ShowHidden=false, ShowEditor=false))
 	FBlueprintComponentReference ReferenceNativeOnlyNoEditor;
@@ -126,12 +126,12 @@ protected:
 	TMap<FName, FBlueprintComponentReference> ReferenceMap;
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Containers", meta=(ShowBlueprint=false))
 	//TSet<FBlueprintComponentReference> ReferenceSet;
-	
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Struct")
 	FBCRTestStruct StructTest;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Struct")
 	TArray<FBCRTestStruct> StructTestArray;
-	
+
 };
 
 UCLASS(MinimalAPI, Blueprintable)
@@ -143,7 +143,7 @@ public:
 	// unsupported, can reference only component, not instanced things within spawned actor
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Components)
 	TObjectPtr<UChildActorComponent> LevelNope;
-	
+
 };
 
 // test cases with cached access
@@ -157,17 +157,17 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test|Metadata", meta=(ShowNative=false, ShowBlueprint=true, AllowedClasses="/Script/Engine.SceneComponent"))
 	FBlueprintComponentReference ReferenceSingle;
-	
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test|Metadata", meta=(ShowNative=false, ShowBlueprint=true, AllowedClasses="/Script/Engine.SceneComponent"))
 	TArray<FBlueprintComponentReference> ReferenceArray;
-	
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test|Metadata", meta=(ShowNative=false, ShowBlueprint=true, AllowedClasses="/Script/Engine.SceneComponent"))
 	TMap<FName, FBlueprintComponentReference> ReferenceMap;
-	
+
 	TCachedComponentReference<USceneComponent> CachedReferenceSingle { this, &ReferenceSingle };
-	
+
 	TCachedComponentReferenceArray<USceneComponent> CachedReferenceArray { this, &ReferenceArray };
-	
+
 	TCachedComponentReferenceMap<USceneComponent, decltype(ReferenceMap)::KeyType> CachedReferenceMap { this, &ReferenceMap };
 
 	UFUNCTION(CallInEditor)

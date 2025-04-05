@@ -85,7 +85,7 @@ static FName FComponentEditorUtils_FindVariableNameGivenComponentInstance(const 
 		{
 			UClass* OwnerClass = OwnerActor->GetClass();
 			AActor* SearchTarget = bUseInstance ? OwnerActor : CastChecked<AActor>(OwnerClass->GetDefaultObject());
-			
+
 			for (TFieldIterator<FObjectProperty> PropIt(OwnerClass, EFieldIteratorFlags::IncludeSuper); PropIt; ++PropIt)
 			{
 				FObjectProperty* TestProperty = *PropIt;
@@ -130,7 +130,7 @@ static FName FComponentEditorUtils_FindVariableNameGivenComponentInstance(const 
 
 		return nullptr;
 	};
-	
+
 	if (AActor* OwnerActor = ComponentInstance->GetOwner())
 	{
 		// First see if the name just works
@@ -142,7 +142,7 @@ static FName FComponentEditorUtils_FindVariableNameGivenComponentInstance(const 
 				return TestProperty->GetFName();
 			}
 		}
-		
+
 		// Search on CDO
 		if (FProperty* ReferencingProp = FindPropertyReferencingComponent(ComponentInstance, false))
 		{
@@ -314,7 +314,7 @@ FString FComponentInfo::ToString() const
 	if (IsNativeComponent()) FlagsString += TEXT("Native ");
 	if (IsInstancedComponent()) FlagsString += TEXT("Instanced ");
 	if (IsEditorOnlyComponent()) FlagsString += TEXT("Editor ");
-	
+
 	return FString::Printf(
 			TEXT("Component ID:[%s] V:[%s] P:[%s] F:[%s] %s"),
 			*GetNodeID().ToString(), *GetVariableName().ToString(), *GetObjectName().ToString(), *FlagsString, *GetDisplayText().ToString()
@@ -426,7 +426,7 @@ UClass* FBlueprintComponentReferenceHelper::FindClassByName(const FString& Class
 {
 	if (ClassName.IsEmpty())
 		return nullptr;
-	
+
 	UClass* Class =  UClass::TryFindTypeSlow<UClass>(ClassName, EFindFirstObjectOptions::EnsureIfAmbiguous);
 	if (!Class)
 	{
@@ -523,7 +523,7 @@ TSharedPtr<FComponentInfo> FComponentPickerContext::FindComponent(const FBluepri
 	{
 		return nullptr;
 	}
-	
+
 	for (const auto& ClassDetails : ClassHierarchy)
 	{
 		for (const auto& Node : ClassDetails->GetNodes())
@@ -583,7 +583,7 @@ bool FBlueprintComponentReferenceHelper::IsComponentReferenceType(const UStruct*
 TSharedPtr<FComponentPickerContext> FBlueprintComponentReferenceHelper::CreateChooserContext(AActor* InActor, UClass* InClass, const FString& InLabel)
 {
 	bInitializedAtLeastOnce = true;
-	
+
 	CleanupStaleData(true);
 
 	if (!IsValid(InActor) && !IsValid(InClass))
@@ -607,7 +607,7 @@ TSharedPtr<FComponentPickerContext> FBlueprintComponentReferenceHelper::CreateCh
 			Ctx->ClassHierarchy.Add(InstanceData);
 		}
 	}
-	
+
 	/**
 	 * Record class hierarchy recursively.
  	 */
@@ -711,15 +711,15 @@ TSharedPtr<FHierarchyInfo> FBlueprintComponentReferenceHelper::GetOrCreateInstan
 {
 	// disabled due to problems tracking level editor actor change in a simple way
 	constexpr bool bEnableInstanceDataCache = false;
-	
+
 	ensureAlways(!InActor->IsTemplate());
-	
+
 	TSharedPtr<FHierarchyInstanceInfo>  Entry;
 
 	if (GBCRCacheEnabled && bEnableInstanceDataCache)
 	{
 		const FInstanceKey EntryKey = MakeInstanceKey(InActor);
-		
+
 		if (auto* FoundExisting = InstanceCache.Find(EntryKey))
 		{
 			Entry = *FoundExisting;
@@ -749,10 +749,10 @@ TSharedPtr<FHierarchyInfo> FBlueprintComponentReferenceHelper::GetOrCreateInstan
 				BPA->OnCompiled().AddSP(Entry.ToSharedRef(), &FHierarchyInstanceInfo::OnCompiled);
 			}
 		}
-		
+
 		// todo: need find a way to track level actor change
 	}
-	
+
 	TInlineComponentArray<UActorComponent*> Components;
 	InActor->GetComponents(Components);
 
@@ -764,7 +764,7 @@ TSharedPtr<FHierarchyInfo> FBlueprintComponentReferenceHelper::GetOrCreateInstan
 			Entry->Nodes.Add(CreateFromInstance(Object));
 		}
 	}
-	
+
 	return Entry;
 }
 
@@ -777,7 +777,7 @@ TSharedPtr<FHierarchyInfo> FBlueprintComponentReferenceHelper::GetOrCreateClassD
 	if (GBCRCacheEnabled)
 	{
 		const FClassKey EntryKey = MakeClassKey(InClass);
-		
+
 		if (auto* FoundExisting = ClassCache.Find(EntryKey))
 		{
 			Entry = *FoundExisting;
@@ -793,7 +793,7 @@ TSharedPtr<FHierarchyInfo> FBlueprintComponentReferenceHelper::GetOrCreateClassD
 	{
 		Entry = MakeShared<FHierarchyClassInfo>(InClass);
 	}
-	
+
 	check(Entry.IsValid());
 
 	/**
@@ -802,7 +802,7 @@ TSharedPtr<FHierarchyInfo> FBlueprintComponentReferenceHelper::GetOrCreateClassD
 	if (auto* BPClass = Entry->GetClass<UBlueprintGeneratedClass>())
 	{
 		Entry->bIsBlueprint = true;
-	
+
 		for(USCS_Node* SCSNode : BPClass->SimpleConstructionScript->GetAllNodes())
 		{
 			auto Template = SCSNode->GetActualComponentTemplate(BPClass);
@@ -810,7 +810,7 @@ TSharedPtr<FHierarchyInfo> FBlueprintComponentReferenceHelper::GetOrCreateClassD
 
 			Entry->Nodes.Add(CreateFromNode(SCSNode));
 		}
-		
+
 		if (GBCRCacheEnabled)
 		{ // track blueprint changes to refresh related information
 			if (UBlueprint* BPA = Cast<UBlueprint>(BPClass->ClassGeneratedBy))
@@ -925,7 +925,7 @@ void FBlueprintComponentReferenceHelper::DebugDumpClasses(const TArray<FString>&
 			{
 				FString Dump = CacheEntry.Value->ToString();
 				UE_LOG(LogComponentReferenceEditor, Log, TEXT("Class [%s %s]:\n%s"), *Key.Get<0>().ToString(), *Key.Get<1>().ToString(), *Dump);
-				
+
 				DumpHierarchy(*CacheEntry.Value);
 			}
 		}
@@ -949,13 +949,13 @@ void FBlueprintComponentReferenceHelper::DebugDumpContexts(const TArray<FString>
 			auto& Key = CacheEntry.Key;
 			if (!Key.Contains(Args[0]))
 				continue;
-			
+
 			if (CacheEntry.Value.IsValid())
 			{
 				auto Pinned = CacheEntry.Value.Pin();
 
 				UE_LOG(LogComponentReferenceEditor, Log, TEXT("Context [%s]"), *Key);
-                
+
                 for (const TSharedPtr<FHierarchyInfo>& ErrorHist : Pinned->ClassHierarchy)
                 {
                 	DumpHierarchy(*ErrorHist);

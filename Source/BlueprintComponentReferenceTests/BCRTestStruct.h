@@ -10,7 +10,7 @@ struct FBCRTestStruct
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Test")
 	FBlueprintComponentReference Reference;
-	
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Test")
 	TArray<FBlueprintComponentReference> ReferenceArray;
 };

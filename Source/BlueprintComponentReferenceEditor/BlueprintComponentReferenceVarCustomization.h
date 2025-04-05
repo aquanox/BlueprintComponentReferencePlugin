@@ -18,7 +18,7 @@ class  FBlueprintComponentReferenceVarCustomization : public IDetailCustomizatio
 	using FMetadataContainer = FBlueprintComponentReferenceMetadata;
 public:
 	FBlueprintComponentReferenceVarCustomization(
-		TSharedPtr<IBlueprintEditor> InBlueprintEditor, 
+		TSharedPtr<IBlueprintEditor> InBlueprintEditor,
 		TWeakObjectPtr<UBlueprint> InBlueprintPtr
 	);
 
@@ -26,7 +26,7 @@ public:
 protected:
 	virtual FName GetCategoryName() const { return TEXT("ComponentReferenceMetadata"); }
 	virtual TSharedPtr<TStructOnScope<FMetadataContainer>> CreateContainer() const;
-	
+
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
 
 	virtual void OnContainerPropertyChanged(FName InName);

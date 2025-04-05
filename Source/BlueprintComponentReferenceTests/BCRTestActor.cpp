@@ -33,7 +33,7 @@ void ABCRTestActor::OnConstruction(const FTransform& Transform)
 	Construct_LevelOneNP->SetupAttachment(Default_LevelOne);
 	Construct_LevelOneNP->RegisterComponent();
 	// no addinstancedcomp
-	
+
 	Construct_LevelOne = NewObject<UBCRTestSceneComponent>(this, "Construct_LevelOne");
 	Construct_LevelOne->SetupAttachment(Default_LevelOne);
 	Construct_LevelOne->RegisterComponent();
@@ -77,7 +77,7 @@ void ABCRTestActor::DumpComponents()
 	}
 }
 
-ABCRTestActorWithChild::ABCRTestActorWithChild() 
+ABCRTestActorWithChild::ABCRTestActorWithChild()
 {
 	LevelNope = CreateDefaultSubobject<UChildActorComponent>("LevelNope");
 	LevelNope->SetChildActorClass(ADefaultPawn::StaticClass());
@@ -87,17 +87,17 @@ void ABCRCachedTestActor::Foo()
 {
 	AActor* PtrToActor = GetMutableDefault<AActor>();
 	FName None("SuperKey");
-	
+
 	CachedReferenceSingle.Get();
 	CachedReferenceSingle.Get(PtrToActor);
 	CachedReferenceSingle.InvalidateCache();
-	
+
 	CachedReferenceArray.Get(0);
 	CachedReferenceArray.Get(PtrToActor, 0);
 	CachedReferenceArray.Num();
 	CachedReferenceArray.IsEmpty();
 	CachedReferenceArray.InvalidateCache();
-	
+
 	CachedReferenceMap.Get(None);
 	CachedReferenceMap.Get(PtrToActor, None);
 	CachedReferenceMap.Num();

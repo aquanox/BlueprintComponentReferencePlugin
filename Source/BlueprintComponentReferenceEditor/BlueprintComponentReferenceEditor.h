@@ -27,7 +27,7 @@ private:
 
 	FDelegateHandle VariableCustomizationHandle;
 	FDelegateHandle PostEngineInitHandle;
-	
+
 	FDelegateHandle OnReloadCompleteDelegateHandle;
 	FDelegateHandle OnReloadReinstancingCompleteDelegateHandle;
 	FDelegateHandle OnModulesChangedDelegateHandle;
