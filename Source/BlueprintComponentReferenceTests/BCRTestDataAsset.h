@@ -34,7 +34,7 @@ public:
 	TArray<FBlueprintComponentReference> ReferenceArray;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test|Metadata", meta=(ShowNative=false, ShowBlueprint=true, AllowedClasses="/Script/Engine.SceneComponent"))
-	TMap<FGameplayTag, FBlueprintComponentReference> ReferenceMap;
+	TMap<FName, FBlueprintComponentReference> ReferenceMap;
 
 	TCachedComponentReference<USceneComponent> CachedReferenceSingle { this, &ReferenceSingle };
 
