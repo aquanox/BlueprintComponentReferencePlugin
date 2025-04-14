@@ -1,7 +1,7 @@
 ﻿// Copyright 2024, Aquanox.
 
-
 #include "BlueprintComponentReferenceLibrary.h"
+#include "GameFramework/Actor.h"
 
 inline bool TestComponentClass(UActorComponent* In, UClass* InClass)
 {
@@ -80,4 +80,84 @@ bool UBlueprintComponentReferenceLibrary::NotEqual_ComponentReference(const FBlu
 FString UBlueprintComponentReferenceLibrary::Conv_ComponentReferenceToString(const FBlueprintComponentReference& Reference)
 {
 	return Reference.ToString();
+}
+
+bool UBlueprintComponentReferenceLibrary::Array_ContainsComponent(const TArray<FBlueprintComponentReference>& TargetArray, UActorComponent* ItemToFind)
+{
+	if(TargetArray.Num() && ItemToFind && ItemToFind->GetOwner())
+	{
+		AActor* SearchTarget = ItemToFind->GetOwner();
+		for (const FBlueprintComponentReference& Reference : TargetArray)
+		{
+			if (Reference.GetComponent(SearchTarget) != nullptr)
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+bool UBlueprintComponentReferenceLibrary::Set_ContainsComponent(const TSet<FBlueprintComponentReference>& TargetSet, UActorComponent* ItemToFind)
+{
+	if(TargetSet.Num() && ItemToFind && ItemToFind->GetOwner())
+	{
+		AActor* SearchTarget = ItemToFind->GetOwner();
+		for (const FBlueprintComponentReference& Reference : TargetSet)
+		{
+			if (Reference.GetComponent(SearchTarget) != nullptr)
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+bool UBlueprintComponentReferenceLibrary::Map_FindComponent_Impl(const void* TargetMap, const FMapProperty* MapProperty, const void* KeyPtr, void* OutValuePtr)
+{
+	if (!MapProperty->KeyProp->IsA(FStructProperty::StaticClass()) ||
+		CastFieldChecked<FStructProperty>(MapProperty->KeyProp)->Struct != StaticStruct<FBlueprintComponentReference>())
+	{
+		FFrame::KismetExecutionMessage(
+			*FString::Printf(TEXT("Attempted use 'FindComponentInRefMap' node with map '%s' that does not use 'FBlueprintComponentReference' key!"),
+			*MapProperty->GetName()), ELogVerbosity::Error);
+		return false;
+	}
+	
+	const UActorComponent* SearchComponent = reinterpret_cast<const UActorComponent*>(KeyPtr);
+	if(TargetMap && IsValid(SearchComponent) && IsValid(SearchComponent->GetOwner()))
+	{
+		AActor* SearchTarget = SearchComponent->GetOwner();
+		uint8* FoundValuePtr = nullptr;
+		
+		FScriptMapHelper MapHelper(MapProperty, TargetMap);
+
+		for (FScriptMapHelper::FIterator It(MapHelper); It; ++It)
+		{
+			const FBlueprintComponentReference* pKey = reinterpret_cast<const FBlueprintComponentReference*>(MapHelper.GetKeyPtr(It));
+			uint8* pValue = MapHelper.GetValuePtr(It);
+
+			if (pKey->GetComponent(SearchTarget) == SearchComponent)
+			{
+				FoundValuePtr = pValue;
+				break;
+			}
+		}
+		
+		if (OutValuePtr)
+		{
+			if (FoundValuePtr)
+			{
+				MapProperty->ValueProp->CopyCompleteValueFromScriptVM(OutValuePtr, FoundValuePtr);
+			}
+			else
+			{
+				MapProperty->ValueProp->InitializeValue(OutValuePtr);
+			}
+		}
+		
+		return FoundValuePtr != nullptr;
+	}
+	return false;
 }

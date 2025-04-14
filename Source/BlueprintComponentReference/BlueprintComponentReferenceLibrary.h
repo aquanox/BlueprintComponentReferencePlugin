@@ -4,6 +4,7 @@
 
 #include "BlueprintComponentReference.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "Kismet/BlueprintMapLibrary.h"
 #include "Components/ActorComponent.h"
 #include "BlueprintComponentReferenceLibrary.generated.h"
 
@@ -95,4 +96,100 @@ public:
 	/** Convert reference to readable string */
 	UFUNCTION(BlueprintPure, Category="Utilities|ComponentReference", meta=(DisplayName="To String (BlueprintComponentReference)", CompactNodeTitle = "->", Keywords="cast convert cref", BlueprintThreadSafe, BlueprintAutocast))
 	static FString Conv_ComponentReferenceToString(const FBlueprintComponentReference& Reference);
+
+	/**
+	 * Returns true if the array contains the given item
+	 *
+	 * Uses Component's Owner as Search Target to resolve components. 
+	 *
+	 * @param	TargetArray		The array to search for the item
+	 * @param	ItemToFind		The item to look for
+	 * @return	True if the item was found within the array
+	 */
+	UFUNCTION(BlueprintPure, meta=(DisplayName = "Contains Component (Array)", Category="Utilities|ComponentReference|Containers"))
+	static bool Array_ContainsComponent(const TArray<FBlueprintComponentReference>& TargetArray, UActorComponent* ItemToFind);
+	
+	/**
+	 * Returns true if set contains the given item
+	 *
+	 * Uses Component's Owner as Search Target to resolve components. 
+	 *
+	 * @param	TargetSet		The set to search for the item
+	 * @param	ItemToFind		The item to look for
+	 * @return	True if the item was found within the set
+	 */
+	UFUNCTION(BlueprintPure, meta=(DisplayName = "Contains Component (Set)", Category="Utilities|ComponentReference|Containers"))
+	static bool Set_ContainsComponent(const TSet<FBlueprintComponentReference>& TargetSet, UActorComponent* ItemToFind);
+	
+	/** 
+	 * EXPERIMENTAL: Fast search of component within TMap<FBlueprintComponentReference, GenericValue> for blueprint users
+	 *
+	 * WARNING: It is just a decorated loop due to need to invoke GetComponent on each component reference
+	 * to obtain referenced component for comparsion, but should be much faster than doing it in pure blueprint
+	 * and there is no need to use blueprint macro library ForEach/ForEachWithBreak
+	 * 
+	 * Uses Component's Owner as Search Target to resolve components. 
+	 *
+	 * @param	TargetMap		The map to perform the lookup on
+	 * @param	Component		Actor component to search
+	 * @param	Value			The value associated with the key, default constructed if key was not found
+	 * @return	True if an item was found (False indicates nothing in the map uses the provided key)
+	 */
+	UFUNCTION(BlueprintPure, CustomThunk, meta=(DisplayName = "Find Component (Map)", Category="Utilities|ComponentReference|Containers", MapParam = "TargetMap", MapValueParam = "Value", AutoCreateRefTerm = "Value", BlueprintInternalUseOnly=true))
+	static bool Map_FindComponent(const TMap<int32, int32>& TargetMap, UActorComponent* Component, int32& Value);
+
+	// based on KismetMathLibrary::Map_Find
+	// based on KismetMathLibrary::execMap_Find
+	DECLARE_FUNCTION(execMap_FindComponent)
+	{
+		Stack.MostRecentProperty = nullptr;
+		Stack.StepCompiledIn<FMapProperty>(NULL);
+		void* MapAddr = Stack.MostRecentPropertyAddress;
+		FMapProperty* MapProperty = CastField<FMapProperty>(Stack.MostRecentProperty);
+		if (!MapProperty
+			|| !MapProperty->KeyProp->IsA(FStructProperty::StaticClass())
+			|| !(CastFieldChecked<FStructProperty>(MapProperty->KeyProp)->Struct == StaticStruct<FBlueprintComponentReference>()))
+		{
+			Stack.bArrayContextFailed = true;
+			return;
+		}
+		
+		// Key property is object ptr
+		P_GET_OBJECT(UActorComponent, KeyPtr);
+		
+		// Since Value aren't really an int, step the stack manually
+		const FProperty* CurrValueProp = MapProperty->ValueProp;
+		const int32 ValuePropertySize = CurrValueProp->GetElementSize() * CurrValueProp->ArrayDim;
+		void* ValueStorageSpace = FMemory_Alloca(ValuePropertySize);
+		CurrValueProp->InitializeValue(ValueStorageSpace);
+		
+		Stack.MostRecentPropertyAddress = nullptr;
+		Stack.MostRecentPropertyContainer = nullptr;
+		Stack.StepCompiledIn<FProperty>(ValueStorageSpace);
+		const FFieldClass* CurrValuePropClass = CurrValueProp->GetClass();
+		const FFieldClass* MostRecentPropClass = Stack.MostRecentProperty->GetClass();
+		void* ItemPtr;
+		// If the destination and the inner type are identical in size and their field classes derive from one another,
+		// then permit the writing out of the array element to the destination memory
+		if (Stack.MostRecentPropertyAddress != NULL
+			&& (ValuePropertySize == Stack.MostRecentProperty->GetElementSize()*Stack.MostRecentProperty->ArrayDim)
+			&& (MostRecentPropClass->IsChildOf(CurrValuePropClass) || CurrValuePropClass->IsChildOf(MostRecentPropClass)))
+		{
+			ItemPtr = Stack.MostRecentPropertyAddress;
+		}
+		else
+		{
+			ItemPtr = ValueStorageSpace;
+		}
+		
+		P_FINISH;
+		P_NATIVE_BEGIN;
+		*(bool*)RESULT_PARAM = Map_FindComponent_Impl(MapAddr, MapProperty, KeyPtr, ItemPtr);
+		P_NATIVE_END;
+
+		CurrValueProp->DestroyValue(ValueStorageSpace);
+	}
+
+	// Implementation of Map_FindComponent
+	static bool Map_FindComponent_Impl(const void* TargetMap, const FMapProperty* MapProperty, const void* KeyPtr, void* OutValuePtr);
 };
