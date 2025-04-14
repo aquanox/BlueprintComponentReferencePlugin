@@ -6,6 +6,8 @@
 #include "BlueprintComponentReference.h"
 #include "CachedBlueprintComponentReference.h"
 #include "Engine/DataAsset.h"
+#include "Components/SceneComponent.h"
+#include "GameFramework/Actor.h"
 #include "BCRTestDataAsset.generated.h"
 
 /**

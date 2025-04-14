@@ -190,6 +190,7 @@ public:
 		CurrValueProp->DestroyValue(ValueStorageSpace);
 	}
 
+private:
 	// Implementation of Map_FindComponent
 	static bool Map_FindComponent_Impl(const void* TargetMap, const FMapProperty* MapProperty, const void* KeyPtr, void* OutValuePtr);
 };
