@@ -20,6 +20,7 @@ Plugin provides component picker in following use cases:
  * Generic member UPROPERTY (if ActorClass meta specifier is used).
  * Generic Blueprint variable (if ActorClass meta specifier is used).
  * Array in one of above
+ * Set in one of above
  * Map value in one of above
  
 ## Component Selection Customizations

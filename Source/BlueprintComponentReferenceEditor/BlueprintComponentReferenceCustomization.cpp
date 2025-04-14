@@ -486,9 +486,12 @@ void FBlueprintComponentReferenceCustomization::OnPropertyValueChanged(FName Sou
 		if (ComponentPickerContext.IsValid() && !TmpComponentReference.IsNull())
 		{
 			TSharedPtr<FComponentInfo> Found = ComponentPickerContext->FindComponent(TmpComponentReference, /*  bSafeSearch = */ true);
-			if (Found.IsValid() && Found->IsUnknown())
+			if (Found.IsValid())
 			{
-				PropertyState = EPropertyState::BadInfo;
+				if (Found->IsUnknown())
+					PropertyState = EPropertyState::BadInfo;
+				else if (!TestNode(Found))
+					PropertyState = EPropertyState::BadReference;
 			}
 			CachedComponentNode = Found;
 		}
@@ -578,6 +581,7 @@ FText FBlueprintComponentReferenceCustomization::OnGetComponentName() const
 	{
 		return LOCTEXT("MultipleValues", "Multiple Values");
 	}
+	
 	TSharedPtr<FComponentInfo> LocalNode = CachedComponentNode.Pin();
 	if (LocalNode.IsValid())
 	{

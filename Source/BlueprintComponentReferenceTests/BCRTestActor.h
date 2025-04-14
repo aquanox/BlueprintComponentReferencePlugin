@@ -44,6 +44,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Components)
 	TObjectPtr<USceneComponent> Default_LevelTwo;
 
+	// no uproperty, never set, just to have pretty GET_MEMBER_NAME_CHECKED
+	TObjectPtr<UActorComponent> NonExistingComponent;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Components)
 	TObjectPtr<UActorComponent> Default_LevelZero;
 
@@ -133,12 +136,12 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Metadata", meta=(ShowNative=true, ShowBlueprint=false, ShowInstanced=false, ShowHidden=false, ShowEditor=false))
 	FBlueprintComponentReference ReferenceNativeOnlyNoEditor;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Containers", meta=(ShowBlueprint=false))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Containers", meta=(ShowBlueprint=false, AllowedClasses="/Script/Engine.SceneComponent"))
 	TArray<FBlueprintComponentReference> ReferenceArray;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Containers", meta=(ShowBlueprint=false))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Containers", meta=(ShowBlueprint=false, AllowedClasses="/Script/Engine.SceneComponent"))
 	TMap<FName, FBlueprintComponentReference> ReferenceMap;
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Containers", meta=(ShowBlueprint=false))
-	//TSet<FBlueprintComponentReference> ReferenceSet;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Containers", meta=(ShowBlueprint=false, AllowedClasses="/Script/Engine.SceneComponent"))
+	TSet<FBlueprintComponentReference> ReferenceSet;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Struct")
 	FBCRTestStruct StructTest;
@@ -166,15 +169,15 @@ class ABCRCachedTestActor : public ACharacter
 	GENERATED_BODY()
 
 public:
-	ABCRCachedTestActor() = default;
+	ABCRCachedTestActor();
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test|Metadata", meta=(ShowNative=false, ShowBlueprint=true, AllowedClasses="/Script/Engine.SceneComponent"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test|Metadata", meta=(AllowedClasses="/Script/Engine.SceneComponent"))
 	FBlueprintComponentReference ReferenceSingle;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test|Metadata", meta=(ShowNative=false, ShowBlueprint=true, AllowedClasses="/Script/Engine.SceneComponent"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test|Metadata", meta=(AllowedClasses="/Script/Engine.SceneComponent"))
 	TArray<FBlueprintComponentReference> ReferenceArray;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test|Metadata", meta=(ShowNative=false, ShowBlueprint=true, AllowedClasses="/Script/Engine.SceneComponent"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test|Metadata", meta=(AllowedClasses="/Script/Engine.SceneComponent"))
 	TMap<FName, FBlueprintComponentReference> ReferenceMap;
 
 	TCachedComponentReference<USceneComponent> CachedReferenceSingle { this, &ReferenceSingle };

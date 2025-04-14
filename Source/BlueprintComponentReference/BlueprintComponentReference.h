@@ -34,8 +34,9 @@ enum class EBlueprintComponentReferenceMode : uint8
  *
  * Supported use cases:
  * - Class/Struct member property
- * - Local Blueprint variable
+ * - Blueprint or Local Blueprint Function variable
  * - Array property
+ * - Set property
  * - Map property as Value
  *
  * <p>Example code</p>
@@ -189,6 +190,16 @@ public:
 	friend uint32 GetTypeHash(const FBlueprintComponentReference& A)
 	{
 		return HashCombine(GetTypeHash(A.Mode), GetTypeHash(A.Value));
+	}
+
+	static FBlueprintComponentReference ForProperty(const FName& InName)
+	{
+		return FBlueprintComponentReference(EBlueprintComponentReferenceMode::Property, InName);
+	}
+	
+	static FBlueprintComponentReference ForPath(const FName& InPath)
+	{
+		return FBlueprintComponentReference(EBlueprintComponentReferenceMode::Path, InPath);
 	}
 
 protected:

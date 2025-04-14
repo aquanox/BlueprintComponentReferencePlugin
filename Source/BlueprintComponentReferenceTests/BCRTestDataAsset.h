@@ -17,23 +17,18 @@ class UBCRTestDataAsset : public UDataAsset
 	GENERATED_BODY()
 public:
 	UPROPERTY(EditAnywhere, meta=(ActorClass="/Script/BlueprintComponentReferenceTests.BCRTestActor"), Category=Test)
-	FBlueprintComponentReference ExternalRef;
-
-};
-
-UCLASS(MinimalAPI)
-class UBCRCachedTestDataAsset : public UDataAsset
-{
-	GENERATED_BODY()
-public:
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test|Metadata", meta=(ShowNative=false, ShowBlueprint=true, AllowedClasses="/Script/Engine.SceneComponent"))
+    FBlueprintComponentReference ExternalRef;
+    	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test", meta=(ActorClass="/Script/BlueprintComponentReferenceTests.BCRTestActor", AllowedClasses="/Script/Engine.SceneComponent"))
 	FBlueprintComponentReference ReferenceSingle;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test|Metadata", meta=(ShowNative=false, ShowBlueprint=true, AllowedClasses="/Script/Engine.SceneComponent"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test", meta=(ActorClass="/Script/BlueprintComponentReferenceTests.BCRTestActor", AllowedClasses="/Script/Engine.SceneComponent"))
 	TArray<FBlueprintComponentReference> ReferenceArray;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test|Metadata", meta=(ShowNative=false, ShowBlueprint=true, AllowedClasses="/Script/Engine.SceneComponent"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test", meta=(ActorClass="/Script/BlueprintComponentReferenceTests.BCRTestActor", AllowedClasses="/Script/Engine.SceneComponent"))
+	TSet<FBlueprintComponentReference> ReferenceSet;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test", meta=(ActorClass="/Script/BlueprintComponentReferenceTests.BCRTestActor", AllowedClasses="/Script/Engine.SceneComponent"))
 	TMap<FName, FBlueprintComponentReference> ReferenceMap;
 
 	TCachedComponentReference<USceneComponent> CachedReferenceSingle { this, &ReferenceSingle };
@@ -42,6 +37,8 @@ public:
 
 	TCachedComponentReferenceMap<USceneComponent, decltype(ReferenceMap)::KeyType> CachedReferenceMap { this, &ReferenceMap };
 
+	UBCRTestDataAsset();
+	
 	UFUNCTION(CallInEditor)
 	void Foo();
 };

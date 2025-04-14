@@ -12,6 +12,8 @@ DEFINE_LOG_CATEGORY_STATIC(LogBlueprintComponentRef, Log, All);
 ABCRTestActor::ABCRTestActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass(ACharacter::CharacterMovementComponentName, UBCRTestMovementComponent::StaticClass()))
 {
+	bIsEditorOnlyActor = true;
+	
 	Default_Root = CreateDefaultSubobject<UBCRTestSceneComponent>("Default_Root");
 	Default_Root->SetupAttachment(GetRootComponent());
 
@@ -23,11 +25,29 @@ ABCRTestActor::ABCRTestActor(const FObjectInitializer& ObjectInitializer)
 
 	Default_LevelZero = CreateDefaultSubobject<UBCRTestActorComponent>("Default_LevelZero");
 
-	ReferenceVar = FBlueprintComponentReference(EBlueprintComponentReferenceMode::Property, GET_MEMBER_NAME_CHECKED(ThisClass, Default_Root));
-	ReferencePath = FBlueprintComponentReference(EBlueprintComponentReferenceMode::Path, "Default_LevelZero");
-	ReferenceBadVar = FBlueprintComponentReference(EBlueprintComponentReferenceMode::Property, "NonExistentComponent");
-	ReferenceBadPath = FBlueprintComponentReference(EBlueprintComponentReferenceMode::Path, "Non_Existent_Path");
-	ReferenceBadValue = FBlueprintComponentReference(EBlueprintComponentReferenceMode::Property, GET_MEMBER_NAME_CHECKED(ThisClass, Default_LevelTwo));
+	ReferenceVar = FBlueprintComponentReference::ForProperty(GET_MEMBER_NAME_CHECKED(ThisClass, Default_Root));
+	ReferencePath = FBlueprintComponentReference::ForPath("Default_LevelZero");
+	ReferenceBadVar = FBlueprintComponentReference::ForProperty(GET_MEMBER_NAME_CHECKED(ThisClass, NonExistingComponent));
+	ReferenceBadPath = FBlueprintComponentReference::ForPath("Non_Existent_Path");
+	ReferenceBadValue = FBlueprintComponentReference::ForProperty(GET_MEMBER_NAME_CHECKED(ThisClass, Default_LevelTwo));
+
+	ReferenceArray.Empty();
+	ReferenceArray.Add(FBlueprintComponentReference::ForProperty(GET_MEMBER_NAME_CHECKED(ThisClass, Default_LevelOne)));
+	ReferenceArray.Add(FBlueprintComponentReference::ForProperty(GET_MEMBER_NAME_CHECKED(ThisClass, Default_LevelTwo)));
+	ReferenceArray.Add(FBlueprintComponentReference::ForProperty(GET_MEMBER_NAME_CHECKED(ThisClass, NonExistingComponent)));
+	ReferenceArray.Add(FBlueprintComponentReference::ForProperty(GET_MEMBER_NAME_CHECKED(ThisClass, Default_LevelZero)));
+	
+	ReferenceSet.Empty();
+	ReferenceSet.Add(FBlueprintComponentReference::ForProperty(GET_MEMBER_NAME_CHECKED(ThisClass, Default_LevelOne)));
+	ReferenceSet.Add(FBlueprintComponentReference::ForProperty(GET_MEMBER_NAME_CHECKED(ThisClass, Default_LevelTwo)));
+	ReferenceSet.Add(FBlueprintComponentReference::ForProperty(GET_MEMBER_NAME_CHECKED(ThisClass, NonExistingComponent)));
+	ReferenceSet.Add(FBlueprintComponentReference::ForProperty(GET_MEMBER_NAME_CHECKED(ThisClass, Default_LevelZero)));
+	
+	ReferenceMap.Empty();
+	ReferenceMap.Add("one", FBlueprintComponentReference::ForProperty(GET_MEMBER_NAME_CHECKED(ThisClass, Default_LevelOne)));
+	ReferenceMap.Add("two", FBlueprintComponentReference::ForProperty(GET_MEMBER_NAME_CHECKED(ThisClass, Default_LevelTwo)));
+	ReferenceMap.Add("bad", FBlueprintComponentReference::ForProperty(GET_MEMBER_NAME_CHECKED(ThisClass, NonExistingComponent)));
+	ReferenceMap.Add("zero", FBlueprintComponentReference::ForProperty(GET_MEMBER_NAME_CHECKED(ThisClass, Default_LevelZero)));
 }
 
 void ABCRTestActor::OnConstruction(const FTransform& Transform)
@@ -86,6 +106,16 @@ ABCRTestActorWithChild::ABCRTestActorWithChild()
 {
 	LevelNope = CreateDefaultSubobject<UChildActorComponent>("LevelNope");
 	LevelNope->SetChildActorClass(ADefaultPawn::StaticClass());
+}
+
+ABCRCachedTestActor::ABCRCachedTestActor()
+{
+	ReferenceSingle = FBlueprintComponentReference::ForPath(ACharacter::MeshComponentName);
+	
+	ReferenceArray.Add(FBlueprintComponentReference::ForPath(ACharacter::MeshComponentName));
+	
+	ReferenceMap.Add("property", FBlueprintComponentReference::ForProperty("Mesh"));
+	ReferenceMap.Add("path", FBlueprintComponentReference::ForPath(ACharacter::MeshComponentName));
 }
 
 void ABCRCachedTestActor::Foo()
