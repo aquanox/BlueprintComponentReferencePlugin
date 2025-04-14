@@ -577,7 +577,7 @@ bool FBlueprintComponentReferenceHelper::IsComponentReferenceProperty(const FPro
 	}
 	else if (auto AsMap = CastField<FMapProperty>(InProperty))
 	{
-		bDoesMatch = IsComponentReferenceProperty(AsMap->ValueProp);
+		bDoesMatch = IsComponentReferenceProperty(AsMap->KeyProp) || IsComponentReferenceProperty(AsMap->ValueProp);
 	}
 
 	return bDoesMatch;
@@ -585,8 +585,7 @@ bool FBlueprintComponentReferenceHelper::IsComponentReferenceProperty(const FPro
 
 bool FBlueprintComponentReferenceHelper::IsComponentReferenceType(const UStruct* InStruct)
 {
-	// todo: should handle child structs?
-	return InStruct == FBlueprintComponentReference::StaticStruct();
+	return InStruct && InStruct->IsChildOf(FBlueprintComponentReference::StaticStruct());
 }
 
 TSharedPtr<FComponentPickerContext> FBlueprintComponentReferenceHelper::CreateChooserContext(AActor* InActor, UClass* InClass, const FString& InLabel)
