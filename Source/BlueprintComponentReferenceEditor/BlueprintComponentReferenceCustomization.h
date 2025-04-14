@@ -68,6 +68,7 @@ private:
 
 	const FSlateBrush* GetComponentIcon() const;
 	FText OnGetComponentName() const;
+	FSlateColor OnGetComponentNameColor() const;
 	FText OnGetComponentTooltip() const;
 	const FSlateBrush* GetStatusIcon() const;
 
@@ -104,10 +105,22 @@ private:
 
 	/** component picker helper */
 	TSharedPtr<FComponentPickerContext>	ComponentPickerContext;
+
+	enum class EPropertyState
+	{
+		// no errors
+		Normal,
+		// failed to access property data
+		BadPropertyAccess,
+		// value does not match filters
+		BadReference,
+		// value points to unknown component
+		BadInfo,
+	};
+	/** represents current state of customization since last update */
+	EPropertyState PropertyState = EPropertyState::Normal;
 	/** currently selected node */
 	TWeakPtr<FComponentInfo> CachedComponentNode;
-	/** last call property access state */
-	FPropertyAccess::Result CachedPropertyAccess = FPropertyAccess::Result::Fail;
 
 	struct FSelectionData
 	{

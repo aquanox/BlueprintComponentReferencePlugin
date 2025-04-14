@@ -48,12 +48,16 @@
 
 #define LOCTEXT_NAMESPACE "BlueprintComponentReferenceCustomization"
 
-// Should force reset of component references that failed to resolve into components?
-static bool GResetInvalidReferences = true;
-// Should use short name for logging context label?
-static bool GUseShortLoggingContextName = true;
-// Should filter unique node ids
-static bool GFilterUniqueNodes = true;
+// feature switchers
+namespace Switches
+{
+	// Should force reset of component references that failed to resolve into components?
+	constexpr bool bResetInvalidReferences = false;
+	// Should use short name for logging context label?
+	constexpr bool bUseShortLoggingContextName = true;
+	// Should filter unique node ids
+	constexpr bool bFilterUniqueNodes = true;
+}
 
 TSharedRef<IPropertyTypeCustomization> FBlueprintComponentReferenceCustomization::MakeInstance()
 {
@@ -69,7 +73,6 @@ void FBlueprintComponentReferenceCustomization::CustomizeHeader(TSharedRef<IProp
 
 	ComponentPickerContext.Reset();
 	CachedComponentNode.Reset();
-	CachedPropertyAccess = FPropertyAccess::Fail;
 	CachedContextString = GetLoggingContextString();
 
 	UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("Created customization for %s"), *GetLoggingContextString());
@@ -182,12 +185,14 @@ void FBlueprintComponentReferenceCustomization::CustomizeChildren(TSharedRef<IPr
 FString FBlueprintComponentReferenceCustomization::GetLoggingContextString() const
 {
 	if (!CachedContextString.IsEmpty())
+	{
 		return CachedContextString;
+	}
 
 	TStringBuilder<128> Buffer;
 	if (PropertyHandle.IsValid())
 	{
-		if (!GUseShortLoggingContextName)
+		if (!Switches::bUseShortLoggingContextName)
 		{
 			TArray<UObject*> PropertyOuterObjects;
 			PropertyHandle->GetOuterObjects(PropertyOuterObjects);
@@ -230,6 +235,7 @@ void FBlueprintComponentReferenceCustomization::BuildComboBox()
 			SNew(STextBlock)
 			.Font( FAppStyle::GetFontStyle( "PropertyWindow.NormalFont" ) )
 			.Text(this, &FBlueprintComponentReferenceCustomization::OnGetComponentName)
+			.ColorAndOpacity(this, &FBlueprintComponentReferenceCustomization::OnGetComponentNameColor)
 			.ToolTipText(this, &FBlueprintComponentReferenceCustomization::OnGetComponentTooltip)
 		]
 	];
@@ -462,47 +468,52 @@ FPropertyAccess::Result FBlueprintComponentReferenceCustomization::GetValue(FBlu
 
 void FBlueprintComponentReferenceCustomization::OnPropertyValueChanged(FName Source)
 {
-	UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("%s OnPropertyValueChanged"), *GetLoggingContextString());
+	UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("%s OnPropertyValueChanged (Source=%s)"), *GetLoggingContextString(), *Source.ToString());
 
 	CachedComponentNode.Reset();
+	PropertyState = EPropertyState::Normal;
+	
 	if (!ComponentPickerContext.IsValid())
 	{
 		DetermineContext();
 	}
 
-	bool bRequiresReset = false;
-
 	FBlueprintComponentReference TmpComponentReference;
-	CachedPropertyAccess = GetValue(TmpComponentReference);
-
-	if (CachedPropertyAccess == FPropertyAccess::Success)
+	const FPropertyAccess::Result Result = GetValue(TmpComponentReference);
+	if (Result == FPropertyAccess::Success)
 	{
+		// search for component node information within context
+		if (ComponentPickerContext.IsValid() && !TmpComponentReference.IsNull())
+		{
+			TSharedPtr<FComponentInfo> Found = ComponentPickerContext->FindComponent(TmpComponentReference, /*  bSafeSearch = */ true);
+			if (Found.IsValid() && Found->IsUnknown())
+			{
+				PropertyState = EPropertyState::BadInfo;
+			}
+			CachedComponentNode = Found;
+		}
+
+		// attempt to resolve & validate component reference within current context
 		if (!IsComponentReferenceValid(TmpComponentReference))
 		{
-			bRequiresReset = true;
-		}
-
-		if (ComponentPickerContext.IsValid())
-		{
-			CachedComponentNode = ComponentPickerContext->FindComponent(TmpComponentReference);
+			PropertyState = EPropertyState::BadReference;
 		}
 	}
-
-	if (bRequiresReset)
+	else
 	{
-		CachedComponentNode.Reset();
-
-		if (!TmpComponentReference.IsNull())
+		PropertyState = EPropertyState::BadPropertyAccess;
+	}
+	
+	if (PropertyState != EPropertyState::Normal)
+	{
+		if (Switches::bResetInvalidReferences)
 		{
-			if (GResetInvalidReferences)
-			{
-				UE_LOG(LogComponentReferenceEditor, Warning, TEXT("%s Invalid reference. Resetting to none."), *GetLoggingContextString());
-				SetValue(FBlueprintComponentReference());
-			}
-			else
-			{
-				UE_LOG(LogComponentReferenceEditor, Warning, TEXT("%s has invalid reference (%s)"), *GetLoggingContextString(), *TmpComponentReference.ToString());
-			}
+			UE_LOG(LogComponentReferenceEditor, Warning, TEXT("%s Invalid reference. Resetting to none."), *GetLoggingContextString());
+			SetValue(FBlueprintComponentReference());
+		}
+		else
+		{
+			UE_LOG(LogComponentReferenceEditor, Warning, TEXT("%s has invalid reference (%s)"), *GetLoggingContextString(), *TmpComponentReference.ToString());
 		}
 	}
 }
@@ -527,7 +538,7 @@ bool FBlueprintComponentReferenceCustomization::CanEditChildren() const
 
 const FSlateBrush* FBlueprintComponentReferenceCustomization::GetComponentIcon() const
 {
-	auto LocalNode = CachedComponentNode.Pin();
+	TSharedPtr<FComponentInfo> LocalNode = CachedComponentNode.Pin();
 	if (LocalNode.IsValid())
 	{
 		if (UClass* LocalClass = LocalNode->GetComponentClass())
@@ -540,43 +551,55 @@ const FSlateBrush* FBlueprintComponentReferenceCustomization::GetComponentIcon()
 
 FText FBlueprintComponentReferenceCustomization::OnGetComponentTooltip() const
 {
-	if (CachedPropertyAccess == FPropertyAccess::Success)
-	{
-		auto LocalNode = CachedComponentNode.Pin();
-		if (LocalNode.IsValid())
-		{
-			return LocalNode->GetTooltipText();
-		}
-	}
-	else if (CachedPropertyAccess == FPropertyAccess::MultipleValues)
+	if (PropertyState == EPropertyState::BadPropertyAccess)
 	{
 		return LOCTEXT("MultipleValues", "Multiple Values");
+	}
+	else if (PropertyState == EPropertyState::BadInfo)
+	{
+		return LOCTEXT("UnknownComponentReference", "Failed to locate target component");
+	}
+	else if (PropertyState == EPropertyState::BadReference)
+	{
+		return LOCTEXT("BadComponentReference", "Target component does not match filters specified for this property");
+	}
+	
+	TSharedPtr<FComponentInfo> LocalNode = CachedComponentNode.Pin();
+	if (LocalNode.IsValid())
+	{
+		return LocalNode->GetTooltipText();
 	}
 	return LOCTEXT("NoComponent", "None");
 }
 
 FText FBlueprintComponentReferenceCustomization::OnGetComponentName() const
 {
-	if (CachedPropertyAccess == FPropertyAccess::Success)
-	{
-		auto LocalNode = CachedComponentNode.Pin();
-		if (LocalNode.IsValid())
-		{
-			return LocalNode->GetDisplayText();
-		}
-	}
-	else if (CachedPropertyAccess == FPropertyAccess::MultipleValues)
+	if (PropertyState == EPropertyState::BadPropertyAccess)
 	{
 		return LOCTEXT("MultipleValues", "Multiple Values");
 	}
+	TSharedPtr<FComponentInfo> LocalNode = CachedComponentNode.Pin();
+	if (LocalNode.IsValid())
+	{
+		return LocalNode->GetDisplayText();
+	}
 	return LOCTEXT("NoComponent", "None");
+}
+
+FSlateColor FBlueprintComponentReferenceCustomization::OnGetComponentNameColor() const
+{
+	if (PropertyState != EPropertyState::Normal)
+	{
+		return FLinearColor::Yellow;
+	}
+	return CanEdit() ? FSlateColor::UseForeground() : FSlateColor::UseSubduedForeground();
 }
 
 const FSlateBrush* FBlueprintComponentReferenceCustomization::GetStatusIcon() const
 {
 	static FSlateNoResource EmptyBrush = FSlateNoResource();
 
-	if (CachedPropertyAccess == FPropertyAccess::Fail)
+	if (PropertyState != EPropertyState::Normal)
 	{
 		return FAppStyle::GetBrush("Icons.Error");
 	}
@@ -601,7 +624,7 @@ TSharedRef<SWidget> FBlueprintComponentReferenceCustomization::OnGetMenuContent(
 		// first Node occurrence is preferred
 
 		TArray<TSharedPtr<FHierarchyInfo>> DataSource = ComponentPickerContext->ClassHierarchy;
-		if (GFilterUniqueNodes)
+		if (Switches::bFilterUniqueNodes)
 		{
 			Algo::Reverse(DataSource);
 		}
@@ -624,7 +647,7 @@ TSharedRef<SWidget> FBlueprintComponentReferenceCustomization::OnGetMenuContent(
 				FName NodeId = Node->GetNodeID();
 				if (TestNode(Node) && TestObject(Node->GetComponentTemplate()))
 				{
-					if (!GFilterUniqueNodes || (NodeId.IsNone() || KnownNames.Find(NodeId) == INDEX_NONE))
+					if (!Switches::bFilterUniqueNodes || (NodeId.IsNone() || KnownNames.Find(NodeId) == INDEX_NONE))
 					{
 						Data.Elements.Add(Node);
 						KnownNames.Add(NodeId);
@@ -639,7 +662,7 @@ TSharedRef<SWidget> FBlueprintComponentReferenceCustomization::OnGetMenuContent(
 		}
 
 		// Restore order of found selection items to display
-		if (GFilterUniqueNodes)
+		if (Switches::bFilterUniqueNodes)
 		{
 			Algo::Reverse(ChoosableElements);
 		}

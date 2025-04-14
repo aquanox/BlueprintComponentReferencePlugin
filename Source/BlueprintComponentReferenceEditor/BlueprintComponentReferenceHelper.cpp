@@ -517,20 +517,38 @@ bool FBlueprintComponentReferenceHelper::DoesReferenceMatch(const FBlueprintComp
 	}
 }
 
-TSharedPtr<FComponentInfo> FComponentPickerContext::FindComponent(const FBlueprintComponentReference& InRef) const
+TSharedPtr<FComponentInfo> FComponentPickerContext::FindComponent(const FBlueprintComponentReference& InRef, bool bSafeSearch) const
 {
 	if (InRef.IsNull())
 	{
 		return nullptr;
 	}
 
+	// Search across component hierarchy
 	for (const auto& ClassDetails : ClassHierarchy)
 	{
 		for (const auto& Node : ClassDetails->GetNodes())
 		{
 			if ((FBlueprintComponentReferenceHelper::DoesReferenceMatch(InRef, *Node)))
+			{
 				return Node;
+			}
 		}
+	}
+	
+	// Dealing with unknown component reference
+	{
+		const FString SearchKey = InRef.ToString();
+		if (TSharedPtr<FComponentInfo> Unknown = Unknowns.FindRef(SearchKey))
+		{
+			return Unknown;
+		}
+
+		auto Unknown = MakeShared<FComponentInfo_Unknown>();
+		Unknown->Mode = InRef.GetMode();
+		Unknown->Value = InRef.GetValue();
+		Unknowns.Add(SearchKey, Unknown);
+		return Unknown;
 	}
 
 	return nullptr;
@@ -538,16 +556,7 @@ TSharedPtr<FComponentInfo> FComponentPickerContext::FindComponent(const FBluepri
 
 TSharedPtr<FComponentInfo> FComponentPickerContext::FindComponentForVariable(const FName& InName) const
 {
-	for (const auto& ClassDetails : ClassHierarchy)
-	{
-		for (const auto& Node : ClassDetails->GetNodes())
-		{
-			if (InName == Node->GetVariableName())
-				return Node;
-		}
-	}
-
-	return nullptr;
+	return FindComponent(FBlueprintComponentReference(EBlueprintComponentReferenceMode::Property, InName), false);
 }
 
 bool FBlueprintComponentReferenceHelper::IsComponentReferenceProperty(const FProperty* InProperty)

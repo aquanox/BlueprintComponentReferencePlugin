@@ -23,6 +23,11 @@ ABCRTestActor::ABCRTestActor(const FObjectInitializer& ObjectInitializer)
 
 	Default_LevelZero = CreateDefaultSubobject<UBCRTestActorComponent>("Default_LevelZero");
 
+	ReferenceVar = FBlueprintComponentReference(EBlueprintComponentReferenceMode::Property, GET_MEMBER_NAME_CHECKED(ThisClass, Default_Root));
+	ReferencePath = FBlueprintComponentReference(EBlueprintComponentReferenceMode::Path, "Default_LevelZero");
+	ReferenceBadVar = FBlueprintComponentReference(EBlueprintComponentReferenceMode::Property, "NonExistentComponent");
+	ReferenceBadPath = FBlueprintComponentReference(EBlueprintComponentReferenceMode::Path, "Non_Existent_Path");
+	ReferenceBadValue = FBlueprintComponentReference(EBlueprintComponentReferenceMode::Property, GET_MEMBER_NAME_CHECKED(ThisClass, Default_LevelTwo));
 }
 
 void ABCRTestActor::OnConstruction(const FTransform& Transform)

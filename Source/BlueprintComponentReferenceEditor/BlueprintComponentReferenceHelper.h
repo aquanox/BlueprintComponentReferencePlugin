@@ -49,6 +49,7 @@ public:
 	virtual UBlueprint* GetBlueprint() const;
 	virtual USCS_Node* GetSCSNode() const;
 
+	virtual bool IsUnknown() const { return false; }
 	virtual bool IsBlueprintComponent() const { return !IsNativeComponent(); }
 	virtual bool IsNativeComponent() const { return false; }
 	virtual bool IsInstancedComponent() const { return false; }
@@ -99,7 +100,25 @@ public:
 	virtual bool IsValidInfo() const override { return Super::IsValidInfo() && InstancedComponentOwnerPtr.IsValid(); }
 };
 
-struct FHierarchyInfo //: public TSharedFromThis<FHierarchyInfo>
+struct FComponentInfo_Unknown : public FComponentInfo
+{
+	EBlueprintComponentReferenceMode Mode;
+	FName Value;
+
+	virtual FText GetDisplayText() const override { return FText::FromName(Value); }
+	virtual UClass* GetComponentClass() const override { return UActorComponent::StaticClass(); }
+	virtual UActorComponent* GetComponentTemplate() const override { return nullptr; }
+	virtual FText GetTooltipText() const override { return INVTEXT("Failed to locate component information"); }
+	virtual bool IsUnknown() const override { return true; }
+	virtual bool IsBlueprintComponent() const override { return true; }
+	virtual bool IsNativeComponent() const override { return true; }
+	virtual bool IsInstancedComponent() const override { return true; }
+	virtual EBlueprintComponentReferenceMode GetDesiredMode() const override { return Mode; }
+	virtual FName GetVariableName() const override { return Mode == EBlueprintComponentReferenceMode::Property ? Value : NAME_None; }
+	virtual FName GetObjectName() const override { return Mode == EBlueprintComponentReferenceMode::Path ? Value : NAME_None; }
+};
+
+struct FHierarchyInfo
 {
 	TArray<TSharedPtr<FComponentInfo>> Nodes;
 	bool bDirty = false;
@@ -174,10 +193,18 @@ struct FComponentPickerContext
 	TWeakObjectPtr<UClass>			Class;
 	TArray<TSharedPtr<FHierarchyInfo>>		ClassHierarchy;
 
+	mutable TMap<FString, TSharedPtr<FComponentInfo>> Unknowns;
+
 	AActor* GetActor() const { return Actor.Get(); }
 	UClass* GetClass() const { return Class.Get(); }
 
-	TSharedPtr<FComponentInfo> FindComponent(const FBlueprintComponentReference& InRef) const;
+	/**
+	 * Lookup for component information
+	 * @param InRef Component reference to resolve
+	 * @param bSafeSearch Should return instance of Unknown if no information available
+	 * @return Component information 
+	 */
+	TSharedPtr<FComponentInfo> FindComponent(const FBlueprintComponentReference& InRef, bool bSafeSearch) const;
 	TSharedPtr<FComponentInfo> FindComponentForVariable(const FName& InName) const;
 
 

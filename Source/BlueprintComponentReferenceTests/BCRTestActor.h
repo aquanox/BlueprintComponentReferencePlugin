@@ -81,8 +81,21 @@ protected:
 
 	// Simple component reference. Defaults only
 	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Test|Base")
-	FBlueprintComponentReference ReferenceA;
+	FBlueprintComponentReference ReferenceVar;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Test|Base")
+	FBlueprintComponentReference ReferencePath;
 
+	// Reference to nonexistent var 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Test|Base")
+	FBlueprintComponentReference ReferenceBadVar;
+	// Reference to nonexistent path
+	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Test|Base")
+	FBlueprintComponentReference ReferenceBadPath;
+	// Reference to existing component that does not match filter conditions
+	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Test|Base", meta=(AllowedClasses="/Script/Engine.MovementComponent"))
+	FBlueprintComponentReference ReferenceBadValue;
+	
 	// Simple component reference. Only SceneComp allowed
 	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Test|Filter", meta=(AllowedClasses="/Script/Engine.SceneComponent"))
 	FBlueprintComponentReference ReferenceFilterA;
