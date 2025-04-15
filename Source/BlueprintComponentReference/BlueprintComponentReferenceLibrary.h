@@ -56,8 +56,20 @@ public:
 	 * @param bKeepNulls Preserve order if component resolve failed
 	 * @param Components Resolved components
 	 */
-	UFUNCTION(BlueprintCallable, Category="Utilities|ComponentReference", meta=(DefaultToSelf="Actor", bKeepNulls=false, AdvancedDisplay=3, DeterminesOutputType="Class", DynamicOutputParam="Components", Keywords="cref"))
+	UFUNCTION(BlueprintCallable, Category="Utilities|ComponentReference|Containers", meta=(DisplayName="Get Referenced Components (Array)", DefaultToSelf="Actor", bKeepNulls=false, AdvancedDisplay=3, DeterminesOutputType="Class", DynamicOutputParam="Components", Keywords="cref"))
 	static void GetReferencedComponents(const TArray<FBlueprintComponentReference>& References, AActor* Actor, TSubclassOf<UActorComponent> Class, bool bKeepNulls, TArray<UActorComponent*>& Components);
+
+	/**
+	 * Resolve set of component references in specific actor
+	 *
+	 * @param References Component reference to resolve
+	 * @param Actor Target actor
+	 * @param Class Expected component class
+	 * @param bKeepNulls Preserve order if component resolve failed
+	 * @param Components Resolved components
+	 */
+	UFUNCTION(BlueprintCallable, Category="Utilities|ComponentReference|Containers", meta=(DisplayName="Get Referenced Components (Set)", DefaultToSelf="Actor", DeterminesOutputType="Class", DynamicOutputParam="Components", Keywords="cref"))
+	static void GetSetReferencedComponents(const TSet<FBlueprintComponentReference>& References, AActor* Actor, TSubclassOf<UActorComponent> Class, TSet<UActorComponent*>& Components);
 
 	/**
 	 * Does the component reference have no value set?

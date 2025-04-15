@@ -20,23 +20,6 @@ bool ResolveComponentInternal(const TBase& Reference, AActor* Actor, UClass* Cla
 	return Result != nullptr;
 }
 
-template<typename TBase, typename TContainer>
-void ResolveComponentArrayInternal(TBase References, AActor* Actor, UClass* Class, bool bKeepNulls, TContainer Components)
-{
-	Components.Empty();
-
-	for (const auto& Reference : References)
-	{
-		UActorComponent* Component = nullptr;
-		ResolveComponentInternal(Reference, Actor, Class, Component);
-
-		if (Component != nullptr || bKeepNulls)
-		{
-			Components.Add(Component);
-		}
-	}
-}
-
 bool UBlueprintComponentReferenceLibrary::GetReferencedComponent(const FBlueprintComponentReference& Reference, AActor* Actor, TSubclassOf<UActorComponent> Class, UActorComponent*& Component)
 {
 	return ResolveComponentInternal(Reference, Actor, Class, Component);
@@ -49,7 +32,34 @@ void UBlueprintComponentReferenceLibrary::TryGetReferencedComponent(const FBluep
 
 void UBlueprintComponentReferenceLibrary::GetReferencedComponents(const TArray<FBlueprintComponentReference>& References, AActor* Actor, TSubclassOf<UActorComponent> Class, bool bKeepNulls, TArray<UActorComponent*>& Components)
 {
-	ResolveComponentArrayInternal(References, Actor, Class, bKeepNulls, Components);
+	Components.Empty();
+
+	for (const FBlueprintComponentReference& Reference : References)
+	{
+		UActorComponent* Component = nullptr;
+		ResolveComponentInternal(Reference, Actor, Class, Component);
+
+		if (Component != nullptr || bKeepNulls)
+		{
+			Components.Add(Component);
+		}
+	}
+}
+
+void UBlueprintComponentReferenceLibrary::GetSetReferencedComponents(const TSet<FBlueprintComponentReference>& References, AActor* Actor, TSubclassOf<UActorComponent> Class, TSet<UActorComponent*>& Components)
+{
+	Components.Empty();
+
+	for (const FBlueprintComponentReference& Reference : References)
+	{
+		UActorComponent* Component = nullptr;
+		ResolveComponentInternal(Reference, Actor, Class, Component);
+
+		if (Component != nullptr)
+		{
+			Components.Add(Component);
+		}
+	}
 }
 
 bool UBlueprintComponentReferenceLibrary::IsNullComponentReference(const FBlueprintComponentReference& Reference)
