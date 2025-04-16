@@ -37,7 +37,7 @@ enum class EBlueprintComponentReferenceMode : uint8
  * - Blueprint or Local Blueprint Function variable
  * - Array property
  * - Set property
- * - Map property as Value
+ * - Map property as Key or Value
  *
  * <p>Example code</p>
  * @code

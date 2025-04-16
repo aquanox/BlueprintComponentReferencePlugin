@@ -21,7 +21,7 @@ Plugin provides component picker in following use cases:
  * Generic Blueprint variable (if ActorClass meta specifier is used).
  * Array in one of above
  * Set in one of above
- * Map value in one of above
+ * Map (Key or value) in one of above
  
 ## Component Selection Customizations
 
