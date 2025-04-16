@@ -63,7 +63,7 @@ void UK2Node_FindComponentInMap::ConformPinTypes()
 					TypeToPotentiallyPropagate = Pin->GetPrimaryTerminalType();
 				}
 				
-				if (!FWildcardNodeUtils::IsWildcardPin(TypeToPotentiallyPropagate))
+				if (TypeToPotentiallyPropagate.TerminalCategory != UEdGraphSchema_K2::PC_Wildcard)
 				{
 					bOutPropagated = true;
 					TypeToPropagete = TypeToPotentiallyPropagate;

@@ -154,6 +154,8 @@ public:
 	// based on KismetMathLibrary::execMap_Find
 	DECLARE_FUNCTION(execMap_FindComponent)
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		
 		Stack.MostRecentProperty = nullptr;
 		Stack.StepCompiledIn<FMapProperty>(NULL);
 		void* MapAddr = Stack.MostRecentPropertyAddress;
@@ -171,7 +173,7 @@ public:
 		
 		// Since Value aren't really an int, step the stack manually
 		const FProperty* CurrValueProp = MapProperty->ValueProp;
-		const int32 ValuePropertySize = CurrValueProp->GetElementSize() * CurrValueProp->ArrayDim;
+		const int32 ValuePropertySize = CurrValueProp->ElementSize * CurrValueProp->ArrayDim;
 		void* ValueStorageSpace = FMemory_Alloca(ValuePropertySize);
 		CurrValueProp->InitializeValue(ValueStorageSpace);
 		
@@ -184,7 +186,7 @@ public:
 		// If the destination and the inner type are identical in size and their field classes derive from one another,
 		// then permit the writing out of the array element to the destination memory
 		if (Stack.MostRecentPropertyAddress != NULL
-			&& (ValuePropertySize == Stack.MostRecentProperty->GetElementSize()*Stack.MostRecentProperty->ArrayDim)
+			&& (ValuePropertySize == Stack.MostRecentProperty->ElementSize * Stack.MostRecentProperty->ArrayDim)
 			&& (MostRecentPropClass->IsChildOf(CurrValuePropClass) || CurrValuePropClass->IsChildOf(MostRecentPropClass)))
 		{
 			ItemPtr = Stack.MostRecentPropertyAddress;
@@ -200,6 +202,8 @@ public:
 		P_NATIVE_END;
 
 		CurrValueProp->DestroyValue(ValueStorageSpace);
+		
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 private:
