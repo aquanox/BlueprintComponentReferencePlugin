@@ -14,3 +14,14 @@ struct FBCRTestStruct
 	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Test")
 	TArray<FBlueprintComponentReference> ReferenceArray;
 };
+
+USTRUCT(BlueprintType)
+struct FBCRTestStrustData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere,Category="Test")
+	int32 Data;
+	UPROPERTY(EditAnywhere,Category="Test")
+	FName Sample;
+};

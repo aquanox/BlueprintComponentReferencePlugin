@@ -9,15 +9,13 @@
 #include "CachedBlueprintComponentReference.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Character.h"
-
+#include "Stats/StatsMisc.h"
 #include "Misc/AutomationTest.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
-
 #include "GameFramework/CharacterMovementComponent.h"
-
 #include "Modules/ModuleManager.h"
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, BlueprintComponentReferenceTests);
@@ -51,9 +49,6 @@ struct FTestWorldScope
 	UWorld* operator->() const { return World; }
 };
 
-static FBlueprintComponentReference MakePathRef(FName InValue) { return FBlueprintComponentReference(EBlueprintComponentReferenceMode::Path, InValue); }
-static FBlueprintComponentReference MakePropertyRef(FName InValue) { return FBlueprintComponentReference(EBlueprintComponentReferenceMode::Property, InValue); }
-
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBlueprintComponentReferenceTests_Core,
 	"BlueprintComponentReference.Core", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter | EAutomationTestFlags::HighPriority);
 
@@ -80,55 +75,74 @@ bool FBlueprintComponentReferenceTests_Core::RunTest(FString const&)
 
 		{
 			FBlueprintComponentReference Reference;
-			TestTrue("Empty.IsNull", Reference.IsNull());
-			TestEqual("Empty.ToString", Reference.ToString(), TEXT(""));
-			TestTrue("Empty.GetComponent", Reference.GetComponent(TestActor) == nullptr);
+			TestTrueExpr(Reference.IsNull());
+			TestTrueExpr(Reference.ToString() == TEXT(""));
+			TestTrueExpr(Reference.GetComponent(TestActor) == nullptr);
 		}
 
 		{
-			FBlueprintComponentReference Reference;
-			Reference.ParseString(TEXT("Default_LevelOne"));
-
-			TestTrue("Basic.IsEqual1", Reference == FBlueprintComponentReference(EBlueprintComponentReferenceMode::Property, "Default_LevelOne"));
-			TestTrue("Basic.IsEqual2", Reference == FBlueprintComponentReference(TEXT("property:Default_LevelOne")));
-			TestTrue("Basic.IsEqual3", Reference != FBlueprintComponentReference(TEXT("Default_LevelOne_f34t25tg2")));
-			TestTrue("Basic.IsNull", !Reference.IsNull());
-			TestEqual("Basic.ToString", Reference.ToString(), TEXT("property:Default_LevelOne"));
-			TestTrue("Basic.GetComponent", Reference.GetComponent(TestActor) == LevelOneComponent);
+			FName SampleName0 = "Sample";
+			FName SampleName1 = "Sample";
+			SampleName1.SetNumber(11);
+			FName SampleName2 = "Sample";
+			SampleName2.SetNumber(22);
+			
+			
+			FBlueprintComponentReference Sample0 = FBlueprintComponentReference::ForPath(SampleName0);
+			FBlueprintComponentReference Sample1 = FBlueprintComponentReference::ForPath(SampleName1);
+			FBlueprintComponentReference Sample2 = FBlueprintComponentReference::ForPath(SampleName2);
+			TestTrueExpr(Sample0 != Sample1);
+			TestTrueExpr(Sample0 != Sample2);
+			TestTrueExpr(Sample1 != Sample2);
+			TestTrueExpr(Sample0.ToString() == TEXT("path:Sample"));
+			TestTrueExpr(Sample1.ToString() == TEXT("path:Sample_10"));
+			TestTrueExpr(Sample2.ToString() == TEXT("path:Sample_21"));
 		}
 
 		{
-			FBlueprintComponentReference Reference;
-			Reference.ParseString(TEXT("property:Default_Root"));
+			FBlueprintComponentReference BasicReference;
+			BasicReference.ParseString(TEXT("Default_LevelOne"));
 
-			TestTrue("Full.IsEqual1", Reference == FBlueprintComponentReference(EBlueprintComponentReferenceMode::Property, "Default_Root"));
-			TestTrue("Full.IsEqual2", Reference == FBlueprintComponentReference(TEXT("property:Default_Root")));
-			TestTrue("Full.IsEqual3", Reference != FBlueprintComponentReference(TEXT("path:Default_Root")));
-			TestTrue("Full.IsNull", !Reference.IsNull());
-			TestEqual("Full.ToString", Reference.ToString(), TEXT("property:Default_Root"));
-			TestTrue("Full.GetComponent", Reference.GetComponent(TestActor) == TestRootComponent);
+			TestTrueExpr(BasicReference == FBlueprintComponentReference(EBlueprintComponentReferenceMode::Property, "Default_LevelOne"));
+			TestTrueExpr(BasicReference == FBlueprintComponentReference(TEXT("property:Default_LevelOne")));
+			TestTrueExpr(BasicReference != FBlueprintComponentReference(TEXT("Default_LevelOne_f34t25tg2")));
+			TestTrueExpr(!BasicReference.IsNull());
+			TestTrueExpr(BasicReference.ToString() == TEXT("property:Default_LevelOne"));
+			TestTrueExpr(BasicReference.GetComponent(TestActor) == LevelOneComponent);
 		}
 
 		{
-			FBlueprintComponentReference Reference;
-			Reference.ParseString(TEXT("path:Construct_LevelOne_SomeName"));
+			FBlueprintComponentReference PropReference;
+			PropReference.ParseString(TEXT("property:Default_Root"));
 
-			TestTrue("Path.IsEqual1", Reference == FBlueprintComponentReference(EBlueprintComponentReferenceMode::Path, "Construct_LevelOne_SomeName"));
-			TestTrue("Path.IsEqual2", Reference != FBlueprintComponentReference(TEXT("Construct_LevelOne_SomeName")));
-			TestTrue("Path.IsEqual3", Reference == FBlueprintComponentReference(TEXT("path:Construct_LevelOne_SomeName")));
-			TestTrue("Path.IsNull", !Reference.IsNull());
-			TestEqual("Path.ToString", Reference.ToString(), TEXT("path:Construct_LevelOne_SomeName"));
-			TestTrue("Path.GetComponent", Reference.GetComponent(TestActor) == LevelOneConstructNPComponent);
+			TestTrueExpr(PropReference == FBlueprintComponentReference(EBlueprintComponentReferenceMode::Property, "Default_Root"));
+			TestTrueExpr(PropReference == FBlueprintComponentReference(TEXT("property:Default_Root")));
+			TestTrueExpr(PropReference != FBlueprintComponentReference(TEXT("path:Default_Root")));
+			TestTrueExpr(!PropReference.IsNull());
+			TestTrueExpr(PropReference.ToString() == TEXT("property:Default_Root"));
+			TestTrueExpr(PropReference.GetComponent(TestActor) == TestRootComponent);
 		}
 
 		{
-			FBlueprintComponentReference Reference;
-			Reference.ParseString(TEXT("DoesNotExist"));
+			FBlueprintComponentReference PathReference;
+			PathReference.ParseString(TEXT("path:Construct_LevelOne_SomeName"));
 
-			TestTrue("Bad.IsEqual", Reference == FBlueprintComponentReference(EBlueprintComponentReferenceMode::Property, "DoesNotExist"));
-			TestTrue("Bad.IsEqual2", Reference == FBlueprintComponentReference(TEXT("DoesNotExist")));
-			TestTrue("Bad.IsNull", !Reference.IsNull());
-			TestTrue("Bad.GetComponent", Reference.GetComponent(TestActor) == nullptr);
+			TestTrueExpr(PathReference == FBlueprintComponentReference(EBlueprintComponentReferenceMode::Path, "Construct_LevelOne_SomeName"));
+			TestTrueExpr(PathReference != FBlueprintComponentReference(TEXT("Construct_LevelOne_SomeName")));
+			TestTrueExpr(PathReference == FBlueprintComponentReference(TEXT("path:Construct_LevelOne_SomeName")));
+			TestTrueExpr(!PathReference.IsNull());
+			TestTrueExpr(PathReference.ToString() == TEXT("path:Construct_LevelOne_SomeName"));
+			TestTrueExpr(PathReference.GetComponent(TestActor) == LevelOneConstructNPComponent);
+		}
+
+		{
+			FBlueprintComponentReference BadReference;
+			BadReference.ParseString(TEXT("DoesNotExist"));
+
+			TestTrueExpr(BadReference == FBlueprintComponentReference(EBlueprintComponentReferenceMode::Property, "DoesNotExist"));
+			TestTrueExpr(BadReference == FBlueprintComponentReference(TEXT("DoesNotExist")));
+			TestTrueExpr(!BadReference.IsNull());
+			TestTrueExpr(BadReference.GetComponent(TestActor) == nullptr);
 		}
 	}
 
@@ -152,8 +166,8 @@ bool FBlueprintComponentReferenceTests_Library::RunTest(FString const&)
 	FBlueprintComponentReference MeshVarReference(EBlueprintComponentReferenceMode::Property, TEXT("Mesh"));
 	FBlueprintComponentReference BadReference("property:DoesNotExist");
 
-	TestTrue("IsNullComponentReference.1", UBlueprintComponentReferenceLibrary::IsNullComponentReference(NullReference));
-	TestFalse("IsNullComponentReference.2", UBlueprintComponentReferenceLibrary::IsNullComponentReference(TestBaseReference));
+	TestTrueExpr(UBlueprintComponentReferenceLibrary::IsNullComponentReference(NullReference));
+	TestTrueExpr(!UBlueprintComponentReferenceLibrary::IsNullComponentReference(TestBaseReference));
 
 	FBlueprintComponentReference CopyReference(TestBaseReference);
 	TestTrue("InvalidateComponentReference.1", !CopyReference.IsNull());
@@ -208,11 +222,15 @@ bool FBlueprintComponentReferenceTests_Cached::RunTest(FString const&)
 
 	auto* TestActor = World->SpawnActor<ABCRCachedTestActor>();
 	TestTrueExpr(TestActor != nullptr);
+	TestActor->ReferenceSingle.Invalidate();
+	TestActor->ReferenceArray.Empty();
+	TestActor->ReferenceMap.Empty();
+	TestActor->ReferenceMapKey.Empty();
 
 	//======================================
 
 	USceneComponent* ExpectedComp = TestActor->GetMesh();
-	TestActor->ReferenceSingle = MakePathRef(ABCRCachedTestActor::MeshComponentName);
+	TestActor->ReferenceSingle = FBlueprintComponentReference::ForPath(ABCRCachedTestActor::MeshComponentName);
 
 	TestTrueExpr(ExpectedComp != nullptr);
 	TestTrueExpr(!TestActor->ReferenceSingle.IsNull());
@@ -228,21 +246,27 @@ bool FBlueprintComponentReferenceTests_Cached::RunTest(FString const&)
 
 	for (int i = 0; i < 4; ++i)
 	{
-		auto* Comp = Cast<UBCRTestSceneComponent>(TestActor->AddComponentByClass(UBCRTestSceneComponent::StaticClass(), true, FTransform::Identity, false));
+		auto* Comp = NewObject<UBCRTestSceneComponent>(TestActor);
 		Comp->SampleName =  *FString::Printf(TEXT("MapKey%p"), Comp);
-
+		Comp->SetupAttachment(TestActor->GetRootComponent());
+		Comp->RegisterComponent();
+		
 		ExpectedComps.Add(Comp);
 
-		TestActor->AddInstanceComponent(Comp);
+		UE_LOG(LogTemp, Log, TEXT("Make component. Ptr=%p Name=%s PathName=%s"), Comp, *Comp->GetName(), *Comp->GetPathName(TestActor));
 
-		TestActor->ReferenceArray.Add(MakePathRef(Comp->GetFName()));
+		TestActor->ReferenceArray.Add(FBlueprintComponentReference::ForPath(Comp->GetFName()));
 
-		ExpectedKeys.Add(Comp->SampleName );
-		TestActor->ReferenceMap.Add(Comp->SampleName , MakePathRef(Comp->GetFName()));
+		ExpectedKeys.Add(Comp->SampleName);
+		TestActor->ReferenceMap.Add(Comp->SampleName, FBlueprintComponentReference::ForPath(Comp->GetFName()));
+
+		FBCRTestStrustData Data;
+		Data.Sample = Comp->SampleName;
+		TestActor->ReferenceMapKey.Add(FBlueprintComponentReference::ForPath(Comp->GetFName()), Data);
 	}
 
 	TestTrueExpr(ExpectedComps.Num() == TestActor->ReferenceArray.Num() );
-	TestTrueExpr(TestActor == TestActor->CachedReferenceArray.GetBaseActor() );
+	TestTrueExpr(TestActor == TestActor->CachedReferenceArray.GetBaseActorPtr() );
 	TestTrueExpr(ExpectedComps.Num() == TestActor->CachedReferenceArray.Num() );
 
 	TestTrueExpr(TestActor->ReferenceArray[0].GetComponent(TestActor) == ExpectedComps[0]);
@@ -278,7 +302,313 @@ bool FBlueprintComponentReferenceTests_Cached::RunTest(FString const&)
 		TestTrueExpr(Cached == Direct);
 	}
 
+	//======================================
+
+	TestTrueExpr(ExpectedKeys.Num() == TestActor->ReferenceMapKey.Num() );
+	TestTrueExpr(TestActor == TestActor->CachedReferenceMapKey.GetBaseActor() );
+
+	for (UActorComponent* ExpectedKey : ExpectedComps)
+	{
+		UBCRTestSceneComponent* InKey = Cast<UBCRTestSceneComponent>(ExpectedKey);
+		UE_LOG(LogTemp, Log, TEXT("Searching key %p name=%s"), InKey, *InKey->GetName());
+		FBCRTestStrustData* CachedBased = TestActor->CachedReferenceMapKey.Get(InKey);
+		FBCRTestStrustData* Cached = TestActor->CachedReferenceMapKey.Get(TestActor, InKey);
+		UE_LOG(LogTemp, Log, TEXT("Found data %s"), *Cached->Sample.ToString());
+		TestTrueExpr(Cached == CachedBased);
+		TestTrueExpr(InKey->SampleName == Cached->Sample);
+		TestTrueExpr(InKey->SampleName == CachedBased->Sample);
+	}
+
  	return true;
+}
+
+#define X_NAME_OF(x) TEXT(#x)
+// single prop sequential resolve vs direct
+template<int MaxNum>
+struct PerfRunner_Single
+{
+	AActor* Actor;
+	FBlueprintComponentReference Ref;
+
+	TCachedComponentReference<USceneComponent, TObjectPtr> CachedStrong;
+	
+	TCachedComponentReference<USceneComponent, TWeakObjectPtr> CachedWeak;
+	
+	PerfRunner_Single(AActor* InActor, const FBlueprintComponentReference& InRef)
+		: Actor(InActor), CachedStrong(InActor, &Ref), CachedWeak(InActor, &Ref)
+	{
+		Ref = InRef;
+	}
+	
+	FString GenerateDescription(const TCHAR* AccessType)
+	{
+		return FString::Printf(TEXT("PerfRunner_Single [%-10s] [%-10s] %-8d loops"), AccessType, *Ref.ToString(), MaxNum);
+	}
+
+	void Run()
+	{
+		{
+			FScopeLogTime Scope(*GenerateDescription(TEXT("Direct")), nullptr, FConditionalScopeLogTime::ScopeLog_Milliseconds);
+			for (int32 N = 0; N < MaxNum; ++N)
+			{
+				Ref.GetComponent(Actor);
+			}
+		}
+		
+		{
+			FScopeLogTime Scope(*GenerateDescription(TEXT("Strong")), nullptr, FConditionalScopeLogTime::ScopeLog_Milliseconds);
+			for (int32 N = 0; N < MaxNum; ++N)
+			{
+				CachedStrong.Get(Actor);
+			}
+		}
+		
+		{
+			FScopeLogTime Scope(*GenerateDescription(TEXT("Weak")), nullptr, FConditionalScopeLogTime::ScopeLog_Milliseconds);
+			for (int32 N = 0; N < MaxNum; ++N)
+			{
+				CachedWeak.Get(Actor);
+			}
+		}
+	}
+};
+
+// array random access with resolve vs cached resolve
+template<int32 NumEntries, int NumAccess>
+struct PerfRunner_Array
+{
+	AActor* Actor;
+	FBlueprintComponentReference Ref;
+	TArray<FBlueprintComponentReference> RefArray;
+	TArray<int32> RefAccessSequence;
+
+	TCachedComponentReferenceArray<USceneComponent, TObjectPtr> CachedStrong;
+	
+	TCachedComponentReferenceArray<USceneComponent, TWeakObjectPtr> CachedWeak;
+	
+	PerfRunner_Array(AActor* InActor, const FBlueprintComponentReference& InRef)
+		: Actor(InActor), CachedStrong(InActor, &RefArray), CachedWeak(InActor, &RefArray)
+	{
+		FRandomStream RandomStream( 0xC0FFEE );
+
+		Ref = InRef;
+		
+		RefArray.SetNum(NumEntries);
+		for (int32 Idx = 0; Idx < NumEntries; ++Idx)
+		{
+			RefArray[Idx] = InRef;
+		}
+		RefAccessSequence.SetNum(NumAccess);
+		for (int32 Idx = 0; Idx < NumAccess; ++Idx)
+        {
+        	RefAccessSequence[Idx] = RandomStream.RandHelper(NumEntries);
+        }
+	}
+	
+	FString GenerateDescription(const TCHAR* AccessType)
+	{
+		return FString::Printf(TEXT("PerfRunner_Array [%-10s] [%-10s] %-8d access of %-8d"), AccessType, *Ref.ToString(), NumAccess, NumEntries);
+	}
+	
+	void Run()
+	{
+		{
+			FScopeLogTime Scope(*GenerateDescription(TEXT("Direct")), nullptr, FConditionalScopeLogTime::ScopeLog_Milliseconds);
+			for (int32 Index : RefAccessSequence)
+			{
+				RefArray[Index].GetComponent(Actor);
+			}
+		}
+		{
+			FScopeLogTime Scope(*GenerateDescription(TEXT("Strong")), nullptr, FConditionalScopeLogTime::ScopeLog_Milliseconds);
+			for (int32 Index : RefAccessSequence)
+			{
+				CachedStrong.Get(Actor, Index);
+			}
+		}
+		{
+			FScopeLogTime Scope(*GenerateDescription(TEXT("Weak")), nullptr, FConditionalScopeLogTime::ScopeLog_Milliseconds);
+			for (int32 Index : RefAccessSequence)
+			{
+				CachedWeak.Get(Actor, Index);
+			}
+		}
+		
+	}
+};
+// random map key access vs loop
+template<int32 NumComponents, int32 NumEntries, int NumAccess>
+struct PerfRunner_MapKey
+{
+	AActor* Actor;
+	FBlueprintComponentReference Ref;
+
+	TMap<FBlueprintComponentReference, int32> RefMap;
+	TCachedComponentReferenceMapKey<USceneComponent, int32> CachedMap;
+
+	TArray<USceneComponent*> Components;
+	TArray<USceneComponent*> ComponentsInUse;
+	TArray<USceneComponent*> RefAccessSequence;
+	
+	PerfRunner_MapKey(AActor* InActor)
+		: Actor(InActor), CachedMap(InActor, &RefMap)
+	{
+		FRandomStream RandomStream( 0xC0FFEE );
+
+		// setup components for test
+		Components.Reserve(NumComponents + 10);
+		InActor->GetComponents(UBCRTestSceneComponent::StaticClass(), Components);
+		while (Components.Num() < NumComponents)
+		{
+			auto* Component = NewObject<UBCRTestSceneComponent>(InActor);
+			Component->SetupAttachment(InActor->GetRootComponent());
+			Component->RegisterComponent();
+			Components.Add(Component);
+		}
+
+		// setup map contents
+		ComponentsInUse.Reserve(NumEntries);
+		while (RefMap.Num() < NumEntries)
+		{
+			int32 RIdx = RandomStream.RandHelper(Components.Num());
+			USceneComponent* Target = Components[RIdx];
+
+			RefMap.Add(FBlueprintComponentReference::ForPath(Target->GetFName()), RIdx);
+
+			ComponentsInUse.AddUnique(Target);
+		}
+		
+		// setup search sequence
+		RefAccessSequence.Reserve(NumAccess);
+		for (int32 Idx = 0; Idx < NumAccess; ++Idx)
+		{
+			RefAccessSequence.Add( ComponentsInUse[ RandomStream.RandHelper(ComponentsInUse.Num()) ]  );
+		}
+	}
+
+	FString GenerateDescription(const TCHAR* AccessType)
+	{
+		return FString::Printf(TEXT("PerfRunner_MapKey [%-10s] [%-10s] %-8d access of %-8d/%-8d"), AccessType, *Ref.ToString(), NumAccess, NumEntries, NumComponents);
+	}
+
+	int DirectSearch(AActor* InActor, UActorComponent* InKey)
+	{
+		for (auto& RefToValue : RefMap)
+		{
+			if (RefToValue.Key.GetComponent(InActor) == InKey)
+			{
+				return RefToValue.Value;
+			}
+		}
+		return -1;
+	}
+	
+	void Run()
+	{
+		{
+			FScopeLogTime Scope(*GenerateDescription(TEXT("Direct")), nullptr, FConditionalScopeLogTime::ScopeLog_Milliseconds);
+			for (UActorComponent* Index : RefAccessSequence)
+			{
+				DirectSearch(Actor, Index);
+			}
+		}
+		{
+			FScopeLogTime Scope(*GenerateDescription(TEXT("Weak")), nullptr, FConditionalScopeLogTime::ScopeLog_Milliseconds);
+			for (const USceneComponent* Index : RefAccessSequence)
+			{
+				CachedMap.Get(Actor, Index);
+			}
+		}
+	}
+};
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBlueprintComponentReferenceTests_Perf,
+	"BlueprintComponentReference.Perf", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter);
+
+bool FBlueprintComponentReferenceTests_Perf::RunTest(FString const&)
+{
+	FTestWorldScope World;
+
+	auto* TestActor = World->SpawnActor<ABCRCachedTestActor>();
+	TestTrueExpr(TestActor != nullptr);
+	TestActor->ReferenceSingle.Invalidate();
+	TestActor->ReferenceArray.Empty();
+	TestActor->ReferenceMap.Empty();
+	TestActor->ReferenceMapKey.Empty();
+
+	const auto BY_PROPERTY = FBlueprintComponentReference::ForProperty(ABCRCachedTestActor::MeshPropertyName);
+	const auto BY_PATH = FBlueprintComponentReference::ForPath(ABCRCachedTestActor::MeshComponentName);
+
+	//======================================
+	PerfRunner_Single<100>{ TestActor, BY_PROPERTY }.Run();
+	PerfRunner_Single<1000>{ TestActor, BY_PROPERTY }.Run();
+	PerfRunner_Single<10000>{ TestActor, BY_PROPERTY }.Run();
+	PerfRunner_Single<100000>{ TestActor, BY_PROPERTY }.Run();
+	PerfRunner_Single<1000000>{ TestActor, BY_PROPERTY }.Run();
+	PerfRunner_Single<10000000>{ TestActor, BY_PROPERTY }.Run();
+	//======================================
+	PerfRunner_Single<100>{ TestActor, BY_PATH }.Run();
+	PerfRunner_Single<1000>{ TestActor, BY_PATH }.Run();
+	PerfRunner_Single<10000>{ TestActor, BY_PATH }.Run();
+	PerfRunner_Single<100000>{ TestActor, BY_PATH }.Run();
+	PerfRunner_Single<1000000>{ TestActor, BY_PATH }.Run();
+	PerfRunner_Single<10000000>{ TestActor, BY_PATH }.Run();
+	//======================================
+	PerfRunner_Array<1, 100> { TestActor, BY_PROPERTY }.Run();
+	PerfRunner_Array<1, 1000> { TestActor, BY_PROPERTY }.Run();
+	PerfRunner_Array<1, 10000> { TestActor, BY_PROPERTY }.Run();
+	PerfRunner_Array<1, 100000> { TestActor, BY_PROPERTY }.Run();
+	PerfRunner_Array<1, 1000000> { TestActor, BY_PROPERTY }.Run();
+
+	PerfRunner_Array<10, 100> { TestActor, BY_PROPERTY }.Run();
+	PerfRunner_Array<10, 1000> { TestActor, BY_PROPERTY }.Run();
+	PerfRunner_Array<10, 10000> { TestActor, BY_PROPERTY }.Run();
+	PerfRunner_Array<10, 100000> { TestActor, BY_PROPERTY }.Run();
+	PerfRunner_Array<10, 1000000> { TestActor, BY_PROPERTY }.Run();
+
+	PerfRunner_Array<100, 100> { TestActor, BY_PROPERTY }.Run();
+	PerfRunner_Array<100, 1000> { TestActor, BY_PROPERTY }.Run();
+	PerfRunner_Array<100, 10000> { TestActor, BY_PROPERTY }.Run();
+	PerfRunner_Array<100, 100000> { TestActor, BY_PROPERTY }.Run();
+	PerfRunner_Array<100, 1000000> { TestActor, BY_PROPERTY }.Run();
+	//======================================
+	PerfRunner_Array<1, 100> { TestActor, BY_PATH }.Run();
+	PerfRunner_Array<1, 1000> { TestActor, BY_PATH }.Run();
+	PerfRunner_Array<1, 10000> { TestActor, BY_PATH }.Run();
+	PerfRunner_Array<1, 100000> { TestActor, BY_PATH }.Run();
+	PerfRunner_Array<1, 1000000> { TestActor, BY_PATH }.Run();
+
+	PerfRunner_Array<10, 100> { TestActor, BY_PATH }.Run();
+	PerfRunner_Array<10, 1000> { TestActor, BY_PATH }.Run();
+	PerfRunner_Array<10, 10000> { TestActor, BY_PATH }.Run();
+	PerfRunner_Array<10, 100000> { TestActor, BY_PATH }.Run();
+	PerfRunner_Array<10, 1000000> { TestActor, BY_PATH }.Run();
+
+	PerfRunner_Array<100, 100> { TestActor, BY_PATH }.Run();
+	PerfRunner_Array<100, 1000> { TestActor, BY_PATH }.Run();
+	PerfRunner_Array<100, 10000> { TestActor, BY_PATH }.Run();
+	PerfRunner_Array<100, 100000> { TestActor, BY_PATH }.Run();
+	PerfRunner_Array<100, 1000000> { TestActor, BY_PATH }.Run();
+	//======================================
+	PerfRunner_MapKey<10, 1, 100> { TestActor }.Run();
+	PerfRunner_MapKey<10, 1, 1000> { TestActor }.Run();
+	PerfRunner_MapKey<10, 1, 10000> { TestActor }.Run();
+	PerfRunner_MapKey<10, 1, 100000> { TestActor }.Run();
+	PerfRunner_MapKey<10, 1, 1000000> { TestActor }.Run();
+	
+	PerfRunner_MapKey<100, 10, 100> { TestActor }.Run();
+	PerfRunner_MapKey<100, 10, 1000> { TestActor }.Run();
+	PerfRunner_MapKey<100, 10, 10000> { TestActor }.Run();
+	PerfRunner_MapKey<100, 10, 100000> { TestActor }.Run();
+	PerfRunner_MapKey<100, 10, 1000000> { TestActor }.Run();
+
+	PerfRunner_MapKey<100, 25, 100> { TestActor }.Run();
+	PerfRunner_MapKey<100, 25, 1000> { TestActor }.Run();
+	PerfRunner_MapKey<100, 25, 10000> { TestActor }.Run();
+	PerfRunner_MapKey<100, 25, 100000> { TestActor }.Run();
+	PerfRunner_MapKey<100, 25, 1000000> { TestActor }.Run();
+	
+	return true;
 }
 
 #endif

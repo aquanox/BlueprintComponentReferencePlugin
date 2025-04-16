@@ -163,29 +163,41 @@ public:
 };
 
 // test cases with cached access
-UCLASS(MinimalAPI)
+UCLASS(MinimalAPI, Blueprintable)
 class ABCRCachedTestActor : public ACharacter
 {
 	GENERATED_BODY()
 
 public:
+	static const FName MeshPropertyName;
+	
 	ABCRCachedTestActor();
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test|Metadata", meta=(AllowedClasses="/Script/Engine.SceneComponent"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test|Cached", meta=(AllowedClasses="/Script/Engine.SceneComponent"))
 	FBlueprintComponentReference ReferenceSingle;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test|Metadata", meta=(AllowedClasses="/Script/Engine.SceneComponent"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test|Cached", meta=(AllowedClasses="/Script/Engine.SceneComponent"))
 	TArray<FBlueprintComponentReference> ReferenceArray;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test|Metadata", meta=(AllowedClasses="/Script/Engine.SceneComponent"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test|Cached", meta=(AllowedClasses="/Script/Engine.SceneComponent"))
 	TMap<FName, FBlueprintComponentReference> ReferenceMap;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test|Cached", meta=(AllowedClasses="/Script/Engine.SceneComponent"))
+	TMap<FBlueprintComponentReference, FBCRTestStrustData> ReferenceMapKey;
+
 	TCachedComponentReference<USceneComponent> CachedReferenceSingle { this, &ReferenceSingle };
+	
+	TCachedComponentReference<USceneComponent, TObjectPtr> CachedReferenceSingleRaw { this, &ReferenceSingle };
 
 	TCachedComponentReferenceArray<USceneComponent> CachedReferenceArray { this, &ReferenceArray };
+	
+	TCachedComponentReferenceArray<USceneComponent, TObjectPtr> CachedReferenceArrayRaw { this, &ReferenceArray };
 
 	TCachedComponentReferenceMap<USceneComponent, decltype(ReferenceMap)::KeyType> CachedReferenceMap { this, &ReferenceMap };
+	
+	TCachedComponentReferenceMap<USceneComponent, decltype(ReferenceMap)::KeyType, TObjectPtr> CachedReferenceMapRaw { this, &ReferenceMap };
 
-	UFUNCTION(CallInEditor)
-	void Foo();
+	TCachedComponentReferenceMapKey<USceneComponent, decltype(ReferenceMapKey)::ValueType> CachedReferenceMapKey { this, &ReferenceMapKey };
+
+	void TryCompileTemplates();
 };

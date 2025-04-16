@@ -8,6 +8,8 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogBlueprintComponentRef, Log, All);
 
+const FName ABCRCachedTestActor::MeshPropertyName = TEXT("Mesh");
+
 // Sets default values
 ABCRTestActor::ABCRTestActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass(ACharacter::CharacterMovementComponentName, UBCRTestMovementComponent::StaticClass()))
@@ -26,9 +28,9 @@ ABCRTestActor::ABCRTestActor(const FObjectInitializer& ObjectInitializer)
 	Default_LevelZero = CreateDefaultSubobject<UBCRTestActorComponent>("Default_LevelZero");
 
 	ReferenceVar = FBlueprintComponentReference::ForProperty(GET_MEMBER_NAME_CHECKED(ThisClass, Default_Root));
-	ReferencePath = FBlueprintComponentReference::ForPath("Default_LevelZero");
+	ReferencePath = FBlueprintComponentReference::ForPath(FName("Default_LevelZero"));
 	ReferenceBadVar = FBlueprintComponentReference::ForProperty(GET_MEMBER_NAME_CHECKED(ThisClass, NonExistingComponent));
-	ReferenceBadPath = FBlueprintComponentReference::ForPath("Non_Existent_Path");
+	ReferenceBadPath = FBlueprintComponentReference::ForPath(FName("Non_Existent_Path"));
 	ReferenceBadValue = FBlueprintComponentReference::ForProperty(GET_MEMBER_NAME_CHECKED(ThisClass, Default_LevelTwo));
 
 	ReferenceArray.Empty();
@@ -118,24 +120,45 @@ ABCRCachedTestActor::ABCRCachedTestActor()
 	ReferenceMap.Add("path", FBlueprintComponentReference::ForPath(ACharacter::MeshComponentName));
 }
 
-void ABCRCachedTestActor::Foo()
+void ABCRCachedTestActor::TryCompileTemplates()
 {
-	AActor* PtrToActor = GetMutableDefault<AActor>();
+	check(!"This is just to ensure template code compiles during autobuild");
+	
+	AActor* PtrToActor = nullptr;
+	USceneComponent* PtrToComponent = nullptr;
 	FName None("SuperKey");
 
 	CachedReferenceSingle.Get();
 	CachedReferenceSingle.Get(PtrToActor);
 	CachedReferenceSingle.InvalidateCache();
+	
+	CachedReferenceSingleRaw.Get();
+	CachedReferenceSingleRaw.Get(PtrToActor);
 
 	CachedReferenceArray.Get(0);
 	CachedReferenceArray.Get(PtrToActor, 0);
 	CachedReferenceArray.Num();
 	CachedReferenceArray.IsEmpty();
 	CachedReferenceArray.InvalidateCache();
+	
+	CachedReferenceArrayRaw.Get(0);
+	CachedReferenceArrayRaw.Get(PtrToActor, 0);
 
 	CachedReferenceMap.Get(None);
 	CachedReferenceMap.Get(PtrToActor, None);
 	CachedReferenceMap.Num();
 	CachedReferenceMap.IsEmpty();
 	CachedReferenceMap.InvalidateCache();
+	
+	CachedReferenceMapRaw.Get("root");
+	CachedReferenceMapRaw.Get(PtrToActor, "root");
+	
+	CachedReferenceMapKey.Get(PtrToComponent);
+	CachedReferenceMapKey.Get(PtrToActor, PtrToComponent);
+
+	FReferenceCollector& Collector = *(FReferenceCollector*)nullptr;
+	CachedReferenceSingleRaw.AddReferencedObjects(Collector, PtrToActor);
+	CachedReferenceArrayRaw.AddReferencedObjects(Collector, PtrToActor);
+	CachedReferenceMapRaw.AddReferencedObjects(Collector, PtrToActor);
+	CachedReferenceMapKey.AddReferencedObjects(Collector, PtrToActor);
 }

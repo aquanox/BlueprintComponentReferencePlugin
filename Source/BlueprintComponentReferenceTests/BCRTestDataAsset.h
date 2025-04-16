@@ -33,20 +33,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test", meta=(ActorClass="/Script/BlueprintComponentReferenceTests.BCRTestActor", AllowedClasses="/Script/Engine.SceneComponent"))
 	TMap<FName, FBlueprintComponentReference> ReferenceMap;
 
-	TCachedComponentReference<USceneComponent> CachedReferenceSingle { this, &ReferenceSingle };
-	
-	TCachedComponentReference<USceneComponent, TObjectPtr> CachedReferenceSingleRaw { this, &ReferenceSingle };
-
-	TCachedComponentReferenceArray<USceneComponent> CachedReferenceArray { this, &ReferenceArray };
-	
-	TCachedComponentReferenceArray<USceneComponent, TObjectPtr> CachedReferenceArrayRaw { this, &ReferenceArray };
-
-	TCachedComponentReferenceMap<USceneComponent, decltype(ReferenceMap)::KeyType> CachedReferenceMap { this, &ReferenceMap };
-	
-	TCachedComponentReferenceMap<USceneComponent, decltype(ReferenceMap)::KeyType, TObjectPtr> CachedReferenceMapRaw { this, &ReferenceMap };
-
 	UBCRTestDataAsset();
 	
-	UFUNCTION(CallInEditor)
-	void Foo();
 };

@@ -26,8 +26,3 @@ UBCRTestDataAsset::UBCRTestDataAsset()
 	ReferenceMap.Add("bad", FBlueprintComponentReference::ForProperty(GET_MEMBER_NAME_CHECKED(ABCRTestActor, NonExistingComponent)));
 	ReferenceMap.Add("bad2", FBlueprintComponentReference::ForProperty(GET_MEMBER_NAME_CHECKED(ABCRTestActor, Default_LevelZero)));
 }
-
-void UBCRTestDataAsset::Foo()
-{
-
-}
