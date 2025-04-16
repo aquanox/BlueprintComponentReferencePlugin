@@ -10,9 +10,34 @@ class UObject;
 
 namespace BCRDetails
 {
-	inline AActor* ResolveBaseActor(const TObjectPtr<AActor>& InActor) { return InActor.Get(); }
-	inline AActor* ResolveBaseActor(const TWeakObjectPtr<AActor>& InActor) { return InActor.Get(); }
-	inline AActor* ResolveBaseActor(AActor* InActor) { return InActor; }
+	// wrap raw pointer for the template parameter for pre 5.0?
+	template<typename T>
+	struct TRawPtr
+	{
+		using ViewType = T;
+		T* Value = nullptr;
+		TRawPtr(T* Value = nullptr) : Value(Value) { }
+		TRawPtr(const TRawPtr& Other) : Value(Other.Value) { }
+		TRawPtr& operator=(const TRawPtr& Other) { Value = Other.Value; return *this; }
+		operator bool() const { return Value != nullptr; }
+		T* operator->() const { return Value; }
+		T* Get() const { return Value; }
+		T& operator*() const { return *Value; }
+	};
+
+	template<typename T>
+	T* ResolvePointer(const TObjectPtr<T>& InActor) { return InActor.Get(); }
+	template<typename T>
+	T* ResolvePointer(const TWeakObjectPtr<T>& InActor) { return InActor.Get(); }
+	template<typename T>
+	T* ResolvePointer(const TRawPtr<T>& InActor) { return InActor.Value; }
+
+	template<typename T>
+	bool ValidatePointer(const TObjectPtr<T>& InActor) { return InActor.Get() != nullptr; }
+	template<typename T>
+	bool ValidatePointer(const TWeakObjectPtr<T>& InActor) { return InActor.IsValid(); }
+	template<typename T>
+	bool ValidatePointer(const TRawPtr<T>& InActor) { return InActor.Get() != nullptr; }
 }
 
 /**
@@ -87,15 +112,22 @@ private:
 	FCachedComponentReferenceBase& operator=(const FCachedComponentReferenceBase&) = delete;
 };
 
-template<typename Component, typename Target, typename Storage, typename ActorPtr = TWeakObjectPtr<AActor>>
+/**
+ * 
+ * @tparam Component Expected component type
+ * @tparam Target Source reference type
+ * @tparam Storage Resolved storage type
+ * @tparam InternalPtr Owning actor pointer type
+ */
+template<typename Component, typename Target, typename Storage, template<typename> typename InternalPtr = TWeakObjectPtr>
 class TCachedComponentReferenceBase : public FCachedComponentReferenceBase
 {
 public:
 	using ComponentType = Component;
 	using TargetType = Target;
 	using StorageType = Storage;
-	using ActorPtrType = ActorPtr;
-private:
+	using ActorPtrType = InternalPtr<AActor>;
+protected:
 	// data source
 	TargetType* const InternalTarget;
 	// storage for cached data
@@ -106,11 +138,15 @@ public:
 	TCachedComponentReferenceBase(TargetType* InTarget, AActor* InActor) : InternalTarget(InTarget), BaseActor(InActor) {}
 	~TCachedComponentReferenceBase() = default;
 
-	AActor* GetBaseActor()  { return BCRDetails::ResolveBaseActor(BaseActor); }
+	ActorPtrType& GetBaseActor() { return BaseActor; }
+	AActor* GetBaseActorPtr() const { return BCRDetails::ResolvePointer(BaseActor); }
 	void SetBaseActor(AActor* InActor)  { BaseActor = InActor; }
 
 	TargetType& GetTarget() const { return *InternalTarget; }
 	StorageType& GetStorage() /*fake*/const { return InternalStorage; }
+
+	// TBD: with custom pointer types has to be managed externally
+	void AddReferencedObjects(class FReferenceCollector& Collector) = delete;
 };
 
 /**
@@ -124,11 +160,11 @@ public:
  * @endcode
  *
  */
-template<typename Component>
+template<typename Component, template<typename> typename InternalPtr>
 class TCachedComponentReferenceSingleV1
-	: public TCachedComponentReferenceBase<Component, FBlueprintComponentReference,  TWeakObjectPtr<Component>>
+	: public TCachedComponentReferenceBase<Component, FBlueprintComponentReference,  InternalPtr<Component>>
 {
-	using Super = TCachedComponentReferenceBase<Component, FBlueprintComponentReference, TWeakObjectPtr<Component>>;
+	using Super = TCachedComponentReferenceBase<Component, FBlueprintComponentReference,  InternalPtr<Component>>;
 	using StorageType = typename Super::StorageType;
 	using TargetType = typename Super::TargetType;
 public:
@@ -139,7 +175,7 @@ public:
 	template<typename T = Component>
 	Component* Get()
 	{
-		return this->Get<T>(this->GetBaseActor());
+		return this->Get<T>(this->GetBaseActorPtr());
 	}
 
 	template<typename T = Component>
@@ -162,6 +198,12 @@ public:
 	{
 		this->GetStorage().Reset();
 	}
+	
+	/*void AddReferencedObjects(class FReferenceCollector& Collector)
+	{
+		Collector.AddReferencedObject(this->BaseActor);
+		Collector.AddReferencedObject(this->InternalStorage);
+	}*/
 };
 
 /**
@@ -184,11 +226,11 @@ public:
  * @endcode
  *
  */
-template<typename Component>
+template<typename Component, template<typename> typename InternalPtr>
 class TCachedComponentReferenceArrayV1
-	: public TCachedComponentReferenceBase<Component, TArray<FBlueprintComponentReference>, TArray<TWeakObjectPtr<Component>>>
+	: public TCachedComponentReferenceBase<Component, TArray<FBlueprintComponentReference>, TArray<InternalPtr<Component>>>
 {
-	using Super = TCachedComponentReferenceBase<Component, TArray<FBlueprintComponentReference>, TArray<TWeakObjectPtr<Component>>>;
+	using Super = TCachedComponentReferenceBase<Component, TArray<FBlueprintComponentReference>, TArray<InternalPtr<Component>>>;
 	using StorageType = typename Super::StorageType;
 	using TargetType = typename Super::TargetType;
 public:
@@ -199,7 +241,7 @@ public:
 	template<typename T = Component>
 	T* Get(int32 Index)
 	{
-		return this->Get<T>(this->GetBaseActor(), Index);
+		return this->Get<T>(this->GetBaseActorPtr(), Index);
 	}
 
 	template<typename T = Component>
@@ -280,11 +322,11 @@ public:
  * @endcode
  *
  */
-template<typename Component, typename Key>
+template<typename Component, typename Key, template<typename> typename InternalPtr>
 class TCachedComponentReferenceMapV1
-	: public TCachedComponentReferenceBase<Component, TMap<Key, FBlueprintComponentReference>, TMap<Key, TWeakObjectPtr<Component>>>
+	: public TCachedComponentReferenceBase<Component, TMap<Key, FBlueprintComponentReference>, TMap<Key, InternalPtr<Component>>>
 {
-	using Super = TCachedComponentReferenceBase<Component, TMap<Key, FBlueprintComponentReference>, TMap<Key, TWeakObjectPtr<Component>>>;
+	using Super = TCachedComponentReferenceBase<Component, TMap<Key, FBlueprintComponentReference>, TMap<Key, InternalPtr<Component>>>;
 	using StorageType = typename Super::StorageType;
     using TargetType = typename Super::TargetType;
 public:
@@ -295,7 +337,7 @@ public:
 	template<typename T = Component>
 	Component* Get(const Key& InKey)
 	{
-		return this->Get<T>(this->GetBaseActor(), InKey);
+		return this->Get<T>(this->GetBaseActorPtr(), InKey);
 	}
 
 	template<typename T = Component>
@@ -413,9 +455,30 @@ public:
 
 #endif
 
-template<typename TComponent>
-using  TCachedComponentReference = TCachedComponentReferenceSingleV1<TComponent>;
-template<typename TComponent>
-using  TCachedComponentReferenceArray = TCachedComponentReferenceArrayV1<TComponent>;
-template<typename TComponent, typename TKey>
-using  TCachedComponentReferenceMap = TCachedComponentReferenceMapV1<TComponent, TKey>;
+/**
+ * Templated wrapper over FBlueprintComponentReference that caches pointer to resolved objects
+ * 
+ * @tparam TComponent Component expected type
+ * @tparam TInternalPtr Internal storage type
+ */
+template<typename TComponent, template<typename> typename TInternalPtr = TWeakObjectPtr>
+using  TCachedComponentReference = TCachedComponentReferenceSingleV1<TComponent, TInternalPtr>;
+
+/**
+ * Templated wrapper over TArray<FBlueprintComponentReference> that stores pointers to resolved objects
+ *
+ * @tparam TComponent Component expected type
+ * @tparam TInternalPtr Internal storage type
+ */
+template<typename TComponent, template<typename> typename TInternalPtr = TWeakObjectPtr>
+using  TCachedComponentReferenceArray = TCachedComponentReferenceArrayV1<TComponent, TInternalPtr>;
+
+/**
+ * Templated wrapper over TMap<TKey, FBlueprintComponentReference> that stores pointers to resolved objects
+ *
+ * @tparam TComponent Component expected type
+ * @tparam TKey Map key type
+ * @tparam TInternalPtr Internal storage type
+ */
+template<typename TComponent, typename TKey, template<typename> typename TInternalPtr = TWeakObjectPtr>
+using  TCachedComponentReferenceMap = TCachedComponentReferenceMapV1<TComponent, TKey, TInternalPtr>;
