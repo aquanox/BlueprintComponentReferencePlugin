@@ -4,6 +4,7 @@
 #include "Containers/Map.h"
 #include "Containers/Array.h"
 #include "UObject/ObjectKey.h"
+#include "Misc/CoreMiscDefines.h"
 
 class AActor;
 class UActorComponent;
@@ -14,7 +15,6 @@ namespace BCRDetails
 	template<typename T>
 	struct TUnused {};
 	
-	// wrap raw pointer for the template parameter for pre 5.0?
 	template<typename T>
 	struct TRawPtr
 	{
@@ -61,12 +61,26 @@ namespace BCRDetails
 	};
 }
 
+#define BCR_DEFAULT_CONSTRUCTORS(TypeName) \
+	explicit TypeName(ENoInit) : Super(ENoInit::NoInit) { } \
+	explicit TypeName(TargetType* InTarget) : Super(InTarget, nullptr) { } \
+	explicit TypeName(AActor* InBaseActor, TargetType* InTarget) : Super(InTarget, InBaseActor) { } \
+
+#define BCR_MOVE_ONLY_TYPE(TypeName) \
+	TypeName(const TypeName&) = delete; \
+	TypeName& operator=(const TypeName&) = delete; \
+	TypeName(TypeName&& Other) : Super(Forward<TypeName>(Other)) {}  \
+	TypeName& operator=(TypeName&& Other) { Super::operator=(Forward<TypeName>(Other)); return *this; } \
+
 /**
  * EXPERIMENTAL. <br/>
  *
- * A helper type that wraps FBlueprintComponentReference with a cached weak pointer to component and explicit type.
+ * A helper type that proxies FBlueprintComponentReference calls with a cached weak pointer to resolved component with explicit type.
  *
- * Goal is to provide caching behavior and type safety for usage in code on hot paths similar to other "accessor" assistants in engine.
+ * Goal is to provide caching of resolved value and type safety for usage in code, without adding cached pointer into original reference struct.
+ *
+ * Data source expected to be immutable and read-only (changes only in editor at design time, no runtime modification).
+ * If original data ever changes in runtime - cache must be invalidated or changes synced by accessing Storage directly.
  *
  * Helpers wrap each common use:
  *
@@ -83,33 +97,17 @@ namespace BCRDetails
  *	public:
  *      // single entry
  *
- *		UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test", meta=(AllowedClasses="/Script/Engine.SceneComponent"))
+ *		UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Test", meta=(AllowedClasses="/Script/Engine.SceneComponent"))
  *		FBlueprintComponentReference ReferenceSingle;
  *
  *		TCachedComponentReference<USceneComponent> CachedReferenceSingle { this, &ReferenceSingle };
  *
  *      // array entry
  *
- *		UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test", meta=(AllowedClasses="/Script/Engine.SceneComponent"))
+ *		UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Test", meta=(AllowedClasses="/Script/Engine.SceneComponent"))
  *		TArray<FBlueprintComponentReference> ReferenceArray;
  *
  *		TCachedComponentReferenceArray<USceneComponent> CachedReferenceArray { this, &ReferenceArray };
- *
- * };
- *
- * //
- * UCLASS()
- * class UMyDataAsset : public UDataAsset
- * {
- *	   GENERATED_BODY()
- *	public:
- *      // single entry
- *
- *		UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test", meta=(AllowedClasses="/Script/Engine.SceneComponent"))
- *		FBlueprintComponentReference ReferenceSingle;
- *
- *		TCachedComponentReference<USceneComponent> CachedReferenceSingle { this, &ReferenceSingle };
- *
  * };
  *
  * @endcode
@@ -127,32 +125,53 @@ private:
 };
 
 /**
+ * Generic base
  * 
  * @tparam Component Expected component type
  * @tparam Target Source reference type
  * @tparam Storage Resolved storage type
- * @tparam InternalPtr Owning actor pointer type
+ * @tparam InternalPtr Internal pointer type
  */
-template<typename Component, typename Target, typename Storage, template<typename> typename InternalPtr = TWeakObjectPtr>
+template<typename Component, typename Target, typename Storage, template<typename> typename InternalPtr>
 class TCachedComponentReferenceBase : public FCachedComponentReferenceBase
 {
 public:
 	using ComponentType = Component;
 	using TargetType = Target;
 	using StorageType = Storage;
-	using ActorPtrType = InternalPtr<AActor>;
 protected:
 	// data source
-	TargetType* const InternalTarget;
+	TargetType* InternalTarget;
 	// storage for cached data
 	mutable StorageType InternalStorage;
 	// base actor for lookup
-	ActorPtrType BaseActor;
+	InternalPtr<AActor> BaseActor;
 public:
-	TCachedComponentReferenceBase(TargetType* InTarget, AActor* InActor) : InternalTarget(InTarget), BaseActor(InActor) {}
-	~TCachedComponentReferenceBase() = default;
+	TCachedComponentReferenceBase(ENoInit)
+	{
+	}
+	
+	TCachedComponentReferenceBase(TargetType* InTarget, AActor* InActor)
+		: InternalTarget(InTarget), BaseActor(InActor)
+	{
+	}
+	
+	TCachedComponentReferenceBase(TCachedComponentReferenceBase&& Other)
+		: InternalTarget(MoveTemp(Other.InternalTarget))
+		, InternalStorage(MoveTemp(Other.InternalStorage))
+		, BaseActor(MoveTemp(Other.BaseActor))
+	{
+	}
 
-	ActorPtrType& GetBaseActor() { return BaseActor; }
+	TCachedComponentReferenceBase& operator=(TCachedComponentReferenceBase&& Other)
+	{
+		InternalTarget = MoveTemp(Other.InternalTarget);
+		InternalStorage = MoveTemp(Other.InternalStorage);
+		BaseActor = MoveTemp(Other.BaseActor);
+		return *this;
+	}
+
+	InternalPtr<AActor>& GetBaseActor() { return BaseActor; }
 	AActor* GetBaseActorPtr() const { return BCRDetails::ResolvePointer(BaseActor); }
 	void SetBaseActor(AActor* InActor)  { BaseActor = InActor; }
 
@@ -166,25 +185,27 @@ public:
 /**
  * EXPERIMENTAL. <br/>
  *
- * Version 1: Cached componenent reference over a simple property target
+ * Templated wrapper over FBlueprintComponentReference that caches pointer to resolved objects.
  *
  * @code
  *     TCachedComponentReferenceSingle<USceneComponent> CachedTargetCompA  { this, &TargetComponent };
  *     TCachedComponentReferenceSingle<USceneComponent> CachedTargetCompB  { &TargetComponent };
  * @endcode
- *
+ * 
+ * @tparam Component Expected component type
+ * @tparam InternalPtr Internal pointer type
  */
-template<typename Component, template<typename> typename InternalPtr>
-class TCachedComponentReferenceSingleV1
-	: public TCachedComponentReferenceBase<Component, FBlueprintComponentReference,  InternalPtr<Component>>
+template<typename Component, template<typename> typename InternalPtr = TWeakObjectPtr>
+class TCachedComponentReferenceSingle
+	: public TCachedComponentReferenceBase<Component, FBlueprintComponentReference,  InternalPtr<Component>, InternalPtr>
 {
-	using Super = TCachedComponentReferenceBase<Component, FBlueprintComponentReference,  InternalPtr<Component>>;
+	using Super = TCachedComponentReferenceBase<Component, FBlueprintComponentReference,  InternalPtr<Component>, InternalPtr>;
+public:
 	using StorageType = typename Super::StorageType;
 	using TargetType = typename Super::TargetType;
-public:
-	explicit TCachedComponentReferenceSingleV1(FBlueprintComponentReference* InTarget) : Super(InTarget, nullptr) { }
-	explicit TCachedComponentReferenceSingleV1(UObject* InOwner, FBlueprintComponentReference* InTarget) : Super(InTarget, nullptr) { }
-	explicit TCachedComponentReferenceSingleV1(AActor* InBaseActor, FBlueprintComponentReference* InTarget) : Super(InTarget, InBaseActor) { }
+
+	BCR_DEFAULT_CONSTRUCTORS(TCachedComponentReferenceSingle)
+	BCR_MOVE_ONLY_TYPE(TCachedComponentReferenceSingle)
 
 	template<typename T = Component>
 	Component* Get()
@@ -208,6 +229,16 @@ public:
 		return Cast<T>(Result);
 	}
 
+	void WarmupCache(AActor* InActor)
+	{
+		if (!InActor)
+		{
+			InActor = this->GetBaseActorPtr();
+		}
+		
+		this->GetStorage() = this->GetTarget().template GetComponent<Component>(InActor);
+	}
+
 	void InvalidateCache()
 	{
 		this->GetStorage().Reset();
@@ -221,10 +252,13 @@ public:
 	}
 };
 
+template<typename Component, template<typename> typename InternalPtr = TWeakObjectPtr>
+using  TCachedComponentReference = TCachedComponentReferenceSingle<Component, InternalPtr>;
+
 /**
  * EXPERIMENTAL. <br/>
- *
- * Array note: there is no point in specifying other template params for array, as blueprints work only with default arrays.
+ * 
+ * Templated wrapper over TArray<FBlueprintComponentReference> that stores pointers to resolved objects.
  *
  * @code
  * UCLASS()
@@ -235,23 +269,25 @@ public:
  *     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, AllowedClasses="/Script/Engine.SceneComponent")
  *     TArray<FBlueprintComponentReference> TargetComponents;
  *
- *     TCachedComponentReferenceArray<USceneComponent> CachedTargetComp { this, &ThisClass::TargetComponents };
+ *     TCachedComponentReferenceArray<USceneComponent> CachedTargetComp { this, &TargetComponents };
  * };
  *
  * @endcode
  *
+ * @tparam Component Expected component type
+ * @tparam InternalPtr Internal pointer type
  */
-template<typename Component, template<typename> typename InternalPtr>
-class TCachedComponentReferenceArrayV1
-	: public TCachedComponentReferenceBase<Component, TArray<FBlueprintComponentReference>, TArray<InternalPtr<Component>>>
+template<typename Component, template<typename> typename InternalPtr = TWeakObjectPtr>
+class TCachedComponentReferenceArray
+	: public TCachedComponentReferenceBase<Component, TArray<FBlueprintComponentReference>, TArray<InternalPtr<Component>>, InternalPtr>
 {
-	using Super = TCachedComponentReferenceBase<Component, TArray<FBlueprintComponentReference>, TArray<InternalPtr<Component>>>;
+	using Super = TCachedComponentReferenceBase<Component, TArray<FBlueprintComponentReference>, TArray<InternalPtr<Component>>, InternalPtr>;
+public:
 	using StorageType = typename Super::StorageType;
 	using TargetType = typename Super::TargetType;
-public:
-	explicit TCachedComponentReferenceArrayV1(TArray<FBlueprintComponentReference>* InTarget) : Super(InTarget, nullptr) {}
-	explicit TCachedComponentReferenceArrayV1(UObject* InOwner, TArray<FBlueprintComponentReference>* InTarget) : Super(InTarget, nullptr) {}
-	explicit TCachedComponentReferenceArrayV1(AActor* InBaseActor, TArray<FBlueprintComponentReference>* InTarget) : Super(InTarget, InBaseActor) {}
+
+	BCR_DEFAULT_CONSTRUCTORS(TCachedComponentReferenceArray)
+	BCR_MOVE_ONLY_TYPE(TCachedComponentReferenceArray)
 
 	template<typename T = Component>
 	T* Get(int32 Index)
@@ -286,10 +322,26 @@ public:
 			return Cast<T>(Result);
 		}
 
-
 		Result = Target[Index].template GetComponent<Component>(InActor);
 		ElementRef = Result;
 		return Cast<T>(Result);
+	}
+	
+	void WarmupCache(AActor* InActor)
+	{
+		if (!InActor)
+		{
+			InActor = this->GetBaseActorPtr();
+		}
+		
+		TargetType& Target = this->GetTarget();
+		StorageType& Storage = this->GetStorage();
+		Storage.SetNum(Target.Num());
+
+		for (int32 Index = 0, Num = Target.Num(); Index < Num; ++Index)
+		{
+			Storage[Index] = Target[Index].template GetComponent<Component>(InActor);
+		}
 	}
 
 	/**  reset cached component */
@@ -298,7 +350,7 @@ public:
 		StorageType& Storage = this->GetStorage();
 		if (Storage.IsValidIndex(Index))
 		{
-			Storage[Index].Reset();
+			Storage[Index] = nullptr;
 		}
 		else
 		{
@@ -330,7 +382,7 @@ public:
 /**
  * EXPERIMENTAL. <br/>
  *
- * Map note: there is no point in specifying other template params for map, as blueprints work only with default maps.
+ * Templated wrapper over TMap<TKey, FBlueprintComponentReference> that stores pointers to resolved objects
  *
  * @code
  * UCLASS()
@@ -341,23 +393,26 @@ public:
  *     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, AllowedClasses="/Script/Engine.SceneComponent")
  *     TMap<FGameplayTag, FBlueprintComponentReference> TargetComponents;
  *
- *     TCachedComponentReferenceMapValue<USceneComponent, FGameplayTag> CachedTargetComp { this, &ThisClass::TargetComponents };
+ *     TCachedComponentReferenceMapValue<USceneComponent, FGameplayTag> CachedTargetComp { this, &TargetComponents };
  * };
  *
  * @endcode
  *
+ * @tparam Component Expected component type
+ * @tparam Key Map key type
+ * @tparam InternalPtr Type of internal pointer
  */
-template<typename Component, typename Key, template<typename> typename InternalPtr>
-class TCachedComponentReferenceMapValueV1
-	: public TCachedComponentReferenceBase<Component, TMap<Key, FBlueprintComponentReference>, TMap<Key, InternalPtr<Component>>>
+template<typename Component, typename Key, template<typename> typename InternalPtr = TWeakObjectPtr>
+class TCachedComponentReferenceMapValue
+	: public TCachedComponentReferenceBase<Component, TMap<Key, FBlueprintComponentReference>, TMap<Key, InternalPtr<Component>>, InternalPtr>
 {
-	using Super = TCachedComponentReferenceBase<Component, TMap<Key, FBlueprintComponentReference>, TMap<Key, InternalPtr<Component>>>;
+	using Super = TCachedComponentReferenceBase<Component, TMap<Key, FBlueprintComponentReference>, TMap<Key, InternalPtr<Component>>, InternalPtr>;
+public:
 	using StorageType = typename Super::StorageType;
     using TargetType = typename Super::TargetType;
-public:
-	explicit TCachedComponentReferenceMapValueV1(TMap<Key, FBlueprintComponentReference>* InTarget) : Super(InTarget, nullptr) {}
-	explicit TCachedComponentReferenceMapValueV1(UObject* InOwner, TMap<Key, FBlueprintComponentReference>* InTarget) : Super(InTarget, nullptr) {}
-	explicit TCachedComponentReferenceMapValueV1(AActor* InBaseActor, TMap<Key, FBlueprintComponentReference>* InTarget) : Super(InTarget, InBaseActor) {}
+
+	BCR_DEFAULT_CONSTRUCTORS(TCachedComponentReferenceMapValue)
+	BCR_MOVE_ONLY_TYPE(TCachedComponentReferenceMapValue)
 
 	template<typename T = Component>
 	Component* Get(const Key& InKey)
@@ -395,6 +450,24 @@ public:
 		return Cast<T>(Result);
 	}
 
+	void WarmupCache(AActor* InActor)
+	{
+		if (!InActor)
+		{
+			InActor = this->GetBaseActorPtr();
+		}
+		
+		TargetType& Target = this->GetTarget();
+		StorageType& Storage = this->GetStorage();
+
+		for (auto& KeyToRef : Target)
+		{
+			Component* Resolved = KeyToRef.Value.template GetComponent<Component>(InActor);
+			
+			Target.Add(KeyToRef.Key, Resolved);
+		}
+	}
+
 	void InvalidateCache()
 	{
 		this->GetStorage().Reset();
@@ -421,9 +494,14 @@ public:
 	}
 };
 
+
 /**
  * EXPERIMENTAL. <br/>
+ * 
+ * Templated wrapper over TMap<FBlueprintComponentReference, TValue> that stores pointers to resolved objects.
  *
+ * This version always using TObjectKey for internal storage key.
+ * 
  * @code
  * UCLASS()
  * class AMyActorClass : public AActor
@@ -433,22 +511,25 @@ public:
  *     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, AllowedClasses="/Script/Engine.SceneComponent")
  *     TMap<FBlueprintComponentReference, FDemoStruct> TargetComponents;
  *
- *     TCachedComponentReferenceMapKey<USceneComponent, FDemoStruct> CachedTargetComp { this, &ThisClass::TargetComponents };
+ *     TCachedComponentReferenceMapKey<USceneComponent, FDemoStruct> CachedTargetComp { this, &TargetComponents };
  * };
  *
  * @endcode
+ * 
+ * @tparam Component Expected component type
+ * @tparam Value Map key type
  */
-template<typename Component, typename Value, template<typename> typename InternalPtr = BCRDetails::TUnused>
-class TCachedComponentReferenceMapKeyV1
-	: public TCachedComponentReferenceBase<Component, TMap<FBlueprintComponentReference, Value>, TMap<TObjectKey<Component>, FBlueprintComponentReference>>
+template<typename Component, typename Value , template<typename> typename InternalPtr = TWeakObjectPtr>
+class TCachedComponentReferenceMapKey
+	: public TCachedComponentReferenceBase<Component, TMap<FBlueprintComponentReference, Value>, TMap<TObjectKey<Component>, Value*>, InternalPtr>
 {
-	using Super = TCachedComponentReferenceBase<Component, TMap<FBlueprintComponentReference, Value>, TMap<TObjectKey<Component>, FBlueprintComponentReference>>;
+	using Super = TCachedComponentReferenceBase<Component, TMap<FBlueprintComponentReference, Value>, TMap<TObjectKey<Component>, Value*>, InternalPtr>;
+public:
 	using StorageType = typename Super::StorageType;
 	using TargetType = typename Super::TargetType;
-public:
-	explicit TCachedComponentReferenceMapKeyV1(TMap<FBlueprintComponentReference, Value>* InTarget) : Super(InTarget, nullptr) {}
-	explicit TCachedComponentReferenceMapKeyV1(UObject* InOwner, TMap<FBlueprintComponentReference, Value>* InTarget) : Super(InTarget, nullptr) {}
-	explicit TCachedComponentReferenceMapKeyV1(AActor* InBaseActor, TMap<FBlueprintComponentReference, Value>* InTarget) : Super(InTarget, InBaseActor) {}
+
+	BCR_DEFAULT_CONSTRUCTORS(TCachedComponentReferenceMapKey)
+	BCR_MOVE_ONLY_TYPE(TCachedComponentReferenceMapKey)
 
 	Value* Get(const Component* InKey)
 	{
@@ -469,16 +550,21 @@ public:
 		TargetType& Target = this->GetTarget();
 		StorageType& Storage = this->GetStorage();
 
+		// if Storage is Ptr->BCR 
 		// cache hit would require to do lookup to ensure taking appropriate data from target
 		// cached raw ptr -> cref
 		// target cref -> value
 		// cache miss would require resolve loop to find who references input component
+		/////////////////////////////////
+		// if Storage is Ptr->Value Ptr
+		// cache hit will give value pointer
+		// cache miss will require resolve loop
 		Value* FoundValue = nullptr;
 
-		const FBlueprintComponentReference* StoragePtr = Storage.Find(TObjectKey<Component>(InKey));
+		const auto* StoragePtr = Storage.Find(InKey);
 		if (StoragePtr != nullptr)
 		{
-			FoundValue = Target.Find(*StoragePtr);
+			FoundValue = *StoragePtr;// Target.Find(*StoragePtr);
 		}
 		else
 		{    // if nothing found the only way is to do loop and find our component
@@ -487,7 +573,7 @@ public:
 				const FBlueprintComponentReference& Ref = RefToValue.Key;
 				if (Ref.GetComponent<Component>(InActor) == InKey)
 				{
-					Storage.Add(InKey, Ref);
+					Storage.Add(InKey, &RefToValue.Value);
 
 					FoundValue = &RefToValue.Value;
 					break;
@@ -496,6 +582,26 @@ public:
 		}
 		
 		return FoundValue;
+	}
+
+	void WarmupCache(AActor* InActor)
+	{
+		if (!InActor)
+		{
+			InActor = this->GetBaseActorPtr();
+		}
+		
+		TargetType& Target = this->GetTarget();
+		StorageType& Storage = this->GetStorage();
+
+		for (auto& RefToValue : Target)
+		{
+			Component* Resolved = RefToValue.Key.template GetComponent<Component>(InActor);
+			if (Resolved)
+			{
+			     Storage.Add(Resolved, &RefToValue.Value);
+			}
+		}
 	}
 
 	void InvalidateCache()
@@ -519,40 +625,3 @@ public:
 		Collector.AddReferencedObject(this->GetBaseActor(), ReferencingObject);
 	}
 };
-
-/**
- * Templated wrapper over FBlueprintComponentReference that caches pointer to resolved objects
- * 
- * @tparam TComponent Component expected type
- * @tparam TInternalPtr Internal storage type
- */
-template<typename TComponent, template<typename> typename TInternalPtr = TWeakObjectPtr>
-using  TCachedComponentReference = TCachedComponentReferenceSingleV1<TComponent, TInternalPtr>;
-
-/**
- * Templated wrapper over TArray<FBlueprintComponentReference> that stores pointers to resolved objects
- *
- * @tparam TComponent Component expected type
- * @tparam TInternalPtr Internal storage type
- */
-template<typename TComponent, template<typename> typename TInternalPtr = TWeakObjectPtr>
-using  TCachedComponentReferenceArray = TCachedComponentReferenceArrayV1<TComponent, TInternalPtr>;
-
-/**
- * Templated wrapper over TMap<TKey, FBlueprintComponentReference> that stores pointers to resolved objects
- *
- * @tparam TComponent Component expected type
- * @tparam TKey Map key type
- * @tparam TInternalPtr Internal storage type
- */
-template<typename TComponent, typename TKey, template<typename> typename TInternalPtr = TWeakObjectPtr>
-using  TCachedComponentReferenceMap = TCachedComponentReferenceMapValueV1<TComponent, TKey, TInternalPtr>;
-
-/**
- * Templated wrapper over TMap<FBlueprintComponentReference, TValue> that stores pointers to resolved objects
- *
- * @tparam TComponent Component expected type
- * @tparam TKey Map key type
- */
-template<typename TComponent, typename TValue>
-using  TCachedComponentReferenceMapKey = TCachedComponentReferenceMapKeyV1<TComponent, TValue>;

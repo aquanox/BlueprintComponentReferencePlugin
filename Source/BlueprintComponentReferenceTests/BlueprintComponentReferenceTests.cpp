@@ -334,8 +334,10 @@ struct PerfRunner_Single
 	
 	TCachedComponentReference<USceneComponent, TWeakObjectPtr> CachedWeak;
 	
+	TCachedComponentReference<USceneComponent, TWeakObjectPtr> CachedWarm;
+	
 	PerfRunner_Single(AActor* InActor, const FBlueprintComponentReference& InRef)
-		: Actor(InActor), CachedStrong(InActor, &Ref), CachedWeak(InActor, &Ref)
+		: Actor(InActor), CachedStrong(InActor, &Ref), CachedWeak(InActor, &Ref), CachedWarm(InActor, &Ref)
 	{
 		Ref = InRef;
 	}
@@ -370,6 +372,16 @@ struct PerfRunner_Single
 				CachedWeak.Get(Actor);
 			}
 		}
+		
+		{
+			CachedWarm.WarmupCache(Actor);
+			
+			FScopeLogTime Scope(*GenerateDescription(TEXT("WWarm")), nullptr, FConditionalScopeLogTime::ScopeLog_Milliseconds);
+			for (int32 N = 0; N < MaxNum; ++N)
+			{
+				CachedWarm.Get(Actor);
+			}
+		}
 	}
 };
 
@@ -383,11 +395,11 @@ struct PerfRunner_Array
 	TArray<int32> RefAccessSequence;
 
 	TCachedComponentReferenceArray<USceneComponent, TObjectPtr> CachedStrong;
-	
 	TCachedComponentReferenceArray<USceneComponent, TWeakObjectPtr> CachedWeak;
+	TCachedComponentReferenceArray<USceneComponent, TWeakObjectPtr> CachedWarm;
 	
 	PerfRunner_Array(AActor* InActor, const FBlueprintComponentReference& InRef)
-		: Actor(InActor), CachedStrong(InActor, &RefArray), CachedWeak(InActor, &RefArray)
+		: Actor(InActor), CachedStrong(InActor, &RefArray), CachedWeak(InActor, &RefArray), CachedWarm(InActor, &RefArray)
 	{
 		FRandomStream RandomStream( 0xC0FFEE );
 
@@ -433,7 +445,15 @@ struct PerfRunner_Array
 				CachedWeak.Get(Actor, Index);
 			}
 		}
-		
+		{
+			CachedWarm.WarmupCache(Actor);
+			
+			FScopeLogTime Scope(*GenerateDescription(TEXT("WWarm")), nullptr, FConditionalScopeLogTime::ScopeLog_Milliseconds);
+			for (int32 Index : RefAccessSequence)
+			{
+				CachedWarm.Get(Actor, Index);
+			}
+		}
 	}
 };
 // random map key access vs loop
@@ -445,13 +465,14 @@ struct PerfRunner_MapKey
 
 	TMap<FBlueprintComponentReference, int32> RefMap;
 	TCachedComponentReferenceMapKey<USceneComponent, int32> CachedMap;
+	TCachedComponentReferenceMapKey<USceneComponent, int32> CachedMapWarm;
 
 	TArray<USceneComponent*> Components;
 	TArray<USceneComponent*> ComponentsInUse;
 	TArray<USceneComponent*> RefAccessSequence;
 	
 	PerfRunner_MapKey(AActor* InActor)
-		: Actor(InActor), CachedMap(InActor, &RefMap)
+		: Actor(InActor), CachedMap(InActor, &RefMap), CachedMapWarm(InActor, &RefMap)
 	{
 		FRandomStream RandomStream( 0xC0FFEE );
 
@@ -519,6 +540,15 @@ struct PerfRunner_MapKey
 				CachedMap.Get(Actor, Index);
 			}
 		}
+		{
+			CachedMapWarm.WarmupCache(Actor);
+			
+			FScopeLogTime Scope(*GenerateDescription(TEXT("Warm")), nullptr, FConditionalScopeLogTime::ScopeLog_Milliseconds);
+			for (const USceneComponent* Index : RefAccessSequence)
+			{
+				CachedMapWarm.Get(Actor, Index);
+			}
+		}
 	}
 };
 
@@ -545,14 +575,12 @@ bool FBlueprintComponentReferenceTests_Perf::RunTest(FString const&)
 	PerfRunner_Single<10000>{ TestActor, BY_PROPERTY }.Run();
 	PerfRunner_Single<100000>{ TestActor, BY_PROPERTY }.Run();
 	PerfRunner_Single<1000000>{ TestActor, BY_PROPERTY }.Run();
-	PerfRunner_Single<10000000>{ TestActor, BY_PROPERTY }.Run();
 	//======================================
 	PerfRunner_Single<100>{ TestActor, BY_PATH }.Run();
 	PerfRunner_Single<1000>{ TestActor, BY_PATH }.Run();
 	PerfRunner_Single<10000>{ TestActor, BY_PATH }.Run();
 	PerfRunner_Single<100000>{ TestActor, BY_PATH }.Run();
 	PerfRunner_Single<1000000>{ TestActor, BY_PATH }.Run();
-	PerfRunner_Single<10000000>{ TestActor, BY_PATH }.Run();
 	//======================================
 	PerfRunner_Array<1, 100> { TestActor, BY_PROPERTY }.Run();
 	PerfRunner_Array<1, 1000> { TestActor, BY_PROPERTY }.Run();
@@ -602,11 +630,11 @@ bool FBlueprintComponentReferenceTests_Perf::RunTest(FString const&)
 	PerfRunner_MapKey<100, 10, 100000> { TestActor }.Run();
 	PerfRunner_MapKey<100, 10, 1000000> { TestActor }.Run();
 
-	PerfRunner_MapKey<100, 25, 100> { TestActor }.Run();
-	PerfRunner_MapKey<100, 25, 1000> { TestActor }.Run();
-	PerfRunner_MapKey<100, 25, 10000> { TestActor }.Run();
-	PerfRunner_MapKey<100, 25, 100000> { TestActor }.Run();
-	PerfRunner_MapKey<100, 25, 1000000> { TestActor }.Run();
+	PerfRunner_MapKey<100, 50, 100> { TestActor }.Run();
+	PerfRunner_MapKey<100, 50, 1000> { TestActor }.Run();
+	PerfRunner_MapKey<100, 50, 10000> { TestActor }.Run();
+	PerfRunner_MapKey<100, 50, 100000> { TestActor }.Run();
+	PerfRunner_MapKey<100, 50, 1000000> { TestActor }.Run();
 	
 	return true;
 }

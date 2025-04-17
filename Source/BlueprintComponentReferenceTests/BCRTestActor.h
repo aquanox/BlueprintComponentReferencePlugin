@@ -185,17 +185,17 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test|Cached", meta=(AllowedClasses="/Script/Engine.SceneComponent"))
 	TMap<FBlueprintComponentReference, FBCRTestStrustData> ReferenceMapKey;
 
-	TCachedComponentReference<USceneComponent> CachedReferenceSingle { this, &ReferenceSingle };
+	TCachedComponentReferenceSingle<USceneComponent> CachedReferenceSingle { this, &ReferenceSingle };
 	
-	TCachedComponentReference<USceneComponent, TObjectPtr> CachedReferenceSingleRaw { this, &ReferenceSingle };
+	TCachedComponentReferenceSingle<USceneComponent, TObjectPtr> CachedReferenceSingleRaw { this, &ReferenceSingle };
 
 	TCachedComponentReferenceArray<USceneComponent> CachedReferenceArray { this, &ReferenceArray };
 	
 	TCachedComponentReferenceArray<USceneComponent, TObjectPtr> CachedReferenceArrayRaw { this, &ReferenceArray };
 
-	TCachedComponentReferenceMap<USceneComponent, decltype(ReferenceMap)::KeyType> CachedReferenceMap { this, &ReferenceMap };
+	TCachedComponentReferenceMapValue<USceneComponent, decltype(ReferenceMap)::KeyType> CachedReferenceMap { this, &ReferenceMap };
 	
-	TCachedComponentReferenceMap<USceneComponent, decltype(ReferenceMap)::KeyType, TObjectPtr> CachedReferenceMapRaw { this, &ReferenceMap };
+	TCachedComponentReferenceMapValue<USceneComponent, decltype(ReferenceMap)::KeyType, TObjectPtr> CachedReferenceMapRaw { this, &ReferenceMap };
 
 	TCachedComponentReferenceMapKey<USceneComponent, decltype(ReferenceMapKey)::ValueType> CachedReferenceMapKey { this, &ReferenceMapKey };
 
