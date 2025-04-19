@@ -21,7 +21,7 @@ struct FBCRTestStrustData
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere,Category="Test")
-	int32 Data;
+	int32 Data = 0;
 	UPROPERTY(EditAnywhere,Category="Test")
 	FName Sample;
 };

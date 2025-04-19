@@ -131,30 +131,37 @@ void ABCRCachedTestActor::TryCompileTemplates()
 	CachedReferenceSingle.Get();
 	CachedReferenceSingle.Get(PtrToActor);
 	CachedReferenceSingle.InvalidateCache();
+	CachedReferenceSingle.WarmupCache(PtrToActor);
 	
 	CachedReferenceSingleRaw.Get();
 	CachedReferenceSingleRaw.Get(PtrToActor);
+	CachedReferenceSingleRaw.WarmupCache(PtrToActor);
 
 	CachedReferenceArray.Get(0);
 	CachedReferenceArray.Get(PtrToActor, 0);
 	CachedReferenceArray.Num();
 	CachedReferenceArray.IsEmpty();
 	CachedReferenceArray.InvalidateCache();
+	CachedReferenceArray.WarmupCache(PtrToActor);
 	
 	CachedReferenceArrayRaw.Get(0);
 	CachedReferenceArrayRaw.Get(PtrToActor, 0);
+	CachedReferenceArrayRaw.WarmupCache(PtrToActor);
 
 	CachedReferenceMap.Get(None);
 	CachedReferenceMap.Get(PtrToActor, None);
 	CachedReferenceMap.Num();
 	CachedReferenceMap.IsEmpty();
 	CachedReferenceMap.InvalidateCache();
+	CachedReferenceMap.WarmupCache(PtrToActor);
 	
 	CachedReferenceMapRaw.Get("root");
 	CachedReferenceMapRaw.Get(PtrToActor, "root");
+	CachedReferenceMapRaw.WarmupCache(PtrToActor);
 	
 	CachedReferenceMapKey.Get(PtrToComponent);
 	CachedReferenceMapKey.Get(PtrToActor, PtrToComponent);
+	CachedReferenceMapKey.WarmupCache(PtrToActor);
 
 	FReferenceCollector& Collector = *(FReferenceCollector*)nullptr;
 	CachedReferenceSingleRaw.AddReferencedObjects(Collector, PtrToActor);

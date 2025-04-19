@@ -148,6 +148,7 @@ protected:
 	InternalPtr<AActor> BaseActor;
 public:
 	TCachedComponentReferenceBase(ENoInit)
+		: InternalTarget(nullptr), BaseActor(nullptr)
 	{
 	}
 	
@@ -464,7 +465,7 @@ public:
 		{
 			Component* Resolved = KeyToRef.Value.template GetComponent<Component>(InActor);
 			
-			Target.Add(KeyToRef.Key, Resolved);
+			Storage.Add(KeyToRef.Key, Resolved);
 		}
 	}
 
