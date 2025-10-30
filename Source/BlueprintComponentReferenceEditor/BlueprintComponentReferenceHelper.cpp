@@ -9,7 +9,6 @@
 #include "Misc/CoreDelegates.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/UObjectIterator.h"
-#include "UObject/PropertyOptional.h"
 #include "Misc/EngineVersionComparison.h"
 #include "HAL/IConsoleManager.h"
 
@@ -26,13 +25,13 @@ static FAutoConsoleVariableRef BCR_CacheEnabled_Var(
 
 static FBlueprintComponentReferenceHelper::FInstanceKey MakeInstanceKey(const AActor* InActor)
 {
-	FString FullKey = InActor ? FObjectPropertyBase::GetExportPath(InActor) : TEXT("");
+	FString FullKey = InActor ? FObjectPropertyBase::GetExportPath(InActor, nullptr, nullptr, PPF_None) : TEXT("");
 	return FBlueprintComponentReferenceHelper::FInstanceKey { FName(*FullKey), GetFNameSafe(InActor), GetFNameSafe(InActor->GetClass()) };
 }
 
 static FBlueprintComponentReferenceHelper::FClassKey MakeClassKey(const UClass* InClass)
 {
-	FString FullKey = InClass ? FObjectPropertyBase::GetExportPath(InClass) : TEXT("");
+	FString FullKey = InClass ? FObjectPropertyBase::GetExportPath(InClass, nullptr, nullptr, PPF_None) : TEXT("");
 	return FBlueprintComponentReferenceHelper::FClassKey { FName(*FullKey), GetFNameSafe(InClass) };
 }
 
@@ -426,13 +425,24 @@ UClass* FBlueprintComponentReferenceHelper::FindClassByName(const FString& Class
 {
 	if (ClassName.IsEmpty())
 		return nullptr;
-
-	UClass* Class =  UClass::TryFindTypeSlow<UClass>(ClassName, EFindFirstObjectOptions::EnsureIfAmbiguous);
-	if (!Class)
+	UClass* ResultClass = nullptr;
+#if UE_VERSION_OLDER_THAN(5, 0, 0)
+	if (FPackageName::IsShortPackageName(ClassName))
 	{
-		Class = LoadObject<UClass>(nullptr, *ClassName);
+		ResultClass = FindObject<UClass>(ANY_PACKAGE, *ClassName);
 	}
-	return Class;
+	else
+	{
+		ResultClass = FindObject<UClass>(nullptr, *ClassName);
+	}
+#else
+	ResultClass =  UClass::TryFindTypeSlow<UClass>(ClassName, EFindFirstObjectOptions::EnsureIfAmbiguous);
+	if (!ResultClass)
+	{
+		ResultClass = LoadObject<UClass>(nullptr, *ClassName);
+	}
+#endif
+	return ResultClass;
 }
 
 bool FBlueprintComponentReferenceHelper::GetHierarchyFromClass(const UClass* InClass, TArray<UClass*>& OutResult)

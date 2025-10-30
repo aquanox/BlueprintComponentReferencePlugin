@@ -10,6 +10,7 @@
 #include "DetailLayoutBuilder.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "ScopedTransaction.h"
+#include "UObject/WeakFieldPtr.h"
 
 FBlueprintComponentReferenceVarCustomization::FBlueprintComponentReferenceVarCustomization(TSharedPtr<IBlueprintEditor> InBlueprintEditor, TWeakObjectPtr<UBlueprint> InBlueprintPtr)
 {
@@ -96,7 +97,7 @@ void FBlueprintComponentReferenceVarCustomization::CustomizeDetails(IDetailLayou
 		auto& Builder = DetailLayout.EditCategory(GetCategoryName());
 		Builder.InitiallyCollapsed(false);
 
-		for (TFieldIterator<FProperty> It(ScopedSettings->GetStruct(), EFieldIterationFlags::Default); It; ++It)
+		for (TFieldIterator<FProperty> It(ScopedSettings->GetStruct()); It; ++It)
 		{
 			if (It->HasAnyPropertyFlags(CPF_Deprecated|CPF_Transient))
 				continue;

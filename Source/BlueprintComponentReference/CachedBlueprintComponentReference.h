@@ -9,43 +9,73 @@
 class AActor;
 class UActorComponent;
 class UObject;
+class FReferenceCollector;
 
 namespace BCRDetails
 {
-	template<typename T>
-	struct TUnused {};
-	
-	template<typename T>
-	struct TRawPtr
+	/**
+	 * A helper to abstract away certain combinations when using CBCR
+	 * 
+	 * ObjectPtr Actor   WeakPtr Component 
+	 * WeakPtr   Actor   WeakPtr Component 
+	 * ObjectPtr Actor   ObjectPtr Component 
+	 */
+	struct TPointerFuncs
 	{
-		using ViewType = T;
-		T* Value = nullptr;
-		TRawPtr(T* Value = nullptr) : Value(Value) { }
-		TRawPtr(TRawPtr&& Other) : Value(Other.Value) { }
-		TRawPtr(const TRawPtr& Other) : Value(Other.Value) { }
-		TRawPtr& operator=(const TRawPtr& Other) { Value = Other.Value; return *this; }
-		TRawPtr& operator=(TRawPtr&& Other) { Value = Other.Value; return *this; }
-		operator bool() const { return Value != nullptr; }
-		void Reset() { Value = nullptr; }
-		T* operator->() const { return Value; }
-		T* Get() const { return Value; }
-		T& operator*() const { return *Value; }
+		static constexpr bool ExposeActor = false;
+		static constexpr bool ExposeComponent = false;
+		
+		template<typename T>
+		static T* ToRawPointer(const T& InPtr) = delete;
+		template<typename T>
+		static bool IsValidPointer(const T& InPtr) = delete;
+		template<typename T>
+		static void ExposePointer(const T& InPtr, FReferenceCollector& Collector, const T* ReferencingObject) = delete;
+	};
+	/**
+	 * Weak/Weak combination 
+     */
+	struct TWeakPointerFuncs : TPointerFuncs
+	{
+		template<typename T>
+		using PtrTypeForActor = TWeakObjectPtr<T>;
+		template<typename T>
+		using PtrTypeForComponent = TWeakObjectPtr<T>;
+
+		static constexpr bool ExposeActor = false;
+		static constexpr bool ExposeComponent = false;
+
+		template<typename T>
+		static T* ToRawPointer(const TWeakObjectPtr<T>& InPtr) { return InPtr.Get(); }
+		template<typename T>
+		static bool IsValidPointer(const TWeakObjectPtr<T>& InPtr) { return InPtr.IsValid(); }
+		template<typename T>
+		static void ExposePointer(const T& InPtr, FReferenceCollector& Collector, const T* ReferencingObject) {}
+	};
+	/**
+	 * Strong/Strong raw pointers
+	 */
+	struct TRawPointerFuncs : TPointerFuncs
+	{
+		template<typename T>
+		using PtrTypeForActor = T*;
+		template<typename T>
+		using PtrTypeForComponent = T*;
+
+		static constexpr bool ExposeActor = true;
+		static constexpr bool ExposeComponent = true;
+
+		template<typename T>
+		static T* ToRawPointer(T* InPtr) { return InPtr; }
+		template<typename T>
+		static bool IsValidPointer(T* InPtr) { return ::IsValid(InPtr); }
+		template<typename T>
+		static void ExposePointer(T*& InPtr, FReferenceCollector& Collector, const T* ReferencingObject)
+		{
+			Collector.AddReferencedObject(InPtr, ReferencingObject);
+		}
 	};
 
-	template<typename T>
-	T* ResolvePointer(const TObjectPtr<T>& InActor) { return InActor.Get(); }
-	template<typename T>
-	T* ResolvePointer(const TWeakObjectPtr<T>& InActor) { return InActor.Get(); }
-	template<typename T>
-	T* ResolvePointer(const TRawPtr<T>& InActor) { return InActor.Value; }
-
-	template<typename T>
-	bool ValidatePointer(const TObjectPtr<T>& InActor) { return InActor.Get() != nullptr; }
-	template<typename T>
-	bool ValidatePointer(const TWeakObjectPtr<T>& InActor) { return InActor.IsValid(); }
-	template<typename T>
-	bool ValidatePointer(const TRawPtr<T>& InActor) { return InActor.Get() != nullptr; }
-	
 	struct TSetKeyFuncs : DefaultKeyFuncs<FBlueprintComponentReference, false>
 	{
 		using KeyInitType = typename DefaultKeyFuncs<FBlueprintComponentReference, false>::KeyInitType;
@@ -127,25 +157,25 @@ private:
 /**
  * Generic base
  * 
- * @tparam Component Expected component type
  * @tparam Target Source reference type
  * @tparam Storage Resolved storage type
- * @tparam InternalPtr Internal pointer type
+ * @tparam Traits Internal traits type
  */
-template<typename Component, typename Target, typename Storage, template<typename> typename InternalPtr>
+template<typename Target, typename Storage, typename Traits>
 class TCachedComponentReferenceBase : public FCachedComponentReferenceBase
 {
 public:
-	using ComponentType = Component;
 	using TargetType = Target;
 	using StorageType = Storage;
+	using TraitsType = Traits;
+	using ActorType = typename Traits::template PtrTypeForActor<AActor>;
 protected:
 	// data source
 	TargetType* InternalTarget;
 	// storage for cached data
 	mutable StorageType InternalStorage;
 	// base actor for lookup
-	InternalPtr<AActor> BaseActor;
+	mutable ActorType BaseActor;
 public:
 	TCachedComponentReferenceBase(ENoInit)
 		: InternalTarget(nullptr), BaseActor(nullptr)
@@ -172,15 +202,11 @@ public:
 		return *this;
 	}
 
-	InternalPtr<AActor>& GetBaseActor() { return BaseActor; }
-	AActor* GetBaseActorPtr() const { return BCRDetails::ResolvePointer(BaseActor); }
-	void SetBaseActor(AActor* InActor)  { BaseActor = InActor; }
+	ActorType& GetBaseActor() /*fake*/ const { return BaseActor; }
+	AActor* GetBaseActorPtr() const { return Traits::ToRawPointer(BaseActor); }
 
 	TargetType& GetTarget() const { return *InternalTarget; }
-	StorageType& GetStorage() /*fake*/const { return InternalStorage; }
-
-	// TBD: with custom pointer types has to be managed externally
-	void AddReferencedObjects(class FReferenceCollector& Collector, const UObject* ReferencingObject = nullptr) = delete;
+	StorageType& GetStorage() /*fake*/ const { return InternalStorage; }
 };
 
 /**
@@ -194,13 +220,13 @@ public:
  * @endcode
  * 
  * @tparam Component Expected component type
- * @tparam InternalPtr Internal pointer type
+ * @tparam Traits Internal traits type
  */
-template<typename Component, template<typename> typename InternalPtr = TWeakObjectPtr>
+template<typename Component, typename Traits = BCRDetails::TWeakPointerFuncs>
 class TCachedComponentReferenceSingle
-	: public TCachedComponentReferenceBase<Component, FBlueprintComponentReference,  InternalPtr<Component>, InternalPtr>
+	: public TCachedComponentReferenceBase<FBlueprintComponentReference, typename Traits::template PtrTypeForComponent<Component>, Traits>
 {
-	using Super = TCachedComponentReferenceBase<Component, FBlueprintComponentReference,  InternalPtr<Component>, InternalPtr>;
+	using Super = TCachedComponentReferenceBase<FBlueprintComponentReference, typename Traits::template PtrTypeForComponent<Component>, Traits>;
 public:
 	using StorageType = typename Super::StorageType;
 	using TargetType = typename Super::TargetType;
@@ -211,7 +237,7 @@ public:
 	template<typename T = Component>
 	Component* Get()
 	{
-		return this->Get<T>(this->GetBaseActorPtr());
+		return this->template Get<T>(this->GetBaseActorPtr());
 	}
 
 	template<typename T = Component>
@@ -219,7 +245,7 @@ public:
 	{
 		static_assert(std::is_base_of_v<Component, T>, "T must be a descendant of Component");
 
-		Component* Result = BCRDetails::ResolvePointer(this->GetStorage());
+		Component* Result = Traits::ToRawPointer(this->GetStorage());
 		if (Result && Result->GetOwner() == InActor)
 		{
 			return Cast<T>(Result);
@@ -230,31 +256,26 @@ public:
 		return Cast<T>(Result);
 	}
 
-	void WarmupCache(AActor* InActor)
+	void Invalidate()
 	{
-		if (!InActor)
+		this->GetStorage() = nullptr;
+	}
+
+	void AddReferencedObjects(FReferenceCollector& Collector, const UObject* ReferencingObject = nullptr)
+	{
+		if (Traits::ExposeActor)
 		{
-			InActor = this->GetBaseActorPtr();
+			Traits::ExposePointer(this->GetBaseActor(), Collector, ReferencingObject);
 		}
-		
-		this->GetStorage() = this->GetTarget().template GetComponent<Component>(InActor);
-	}
-
-	void InvalidateCache()
-	{
-		this->GetStorage().Reset();
-	}
-
-	template<typename T = UObject>
-	void AddReferencedObjects(class FReferenceCollector& Collector, const T* ReferencingObject = nullptr)
-	{
-		Collector.AddReferencedObject(this->GetBaseActor(), ReferencingObject);
-		Collector.AddReferencedObject(this->GetStorage(), ReferencingObject);
+		if (Traits::ExposeComponent)
+		{
+			Traits::ExposePointer(this->GetStorage(), Collector, ReferencingObject);
+		}
 	}
 };
 
-template<typename Component, template<typename> typename InternalPtr = TWeakObjectPtr>
-using  TCachedComponentReference = TCachedComponentReferenceSingle<Component, InternalPtr>;
+template<typename Component, typename Traits = BCRDetails::TWeakPointerFuncs>
+using  TCachedComponentReference = TCachedComponentReferenceSingle<Component, Traits>;
 
 /**
  * EXPERIMENTAL. <br/>
@@ -276,13 +297,13 @@ using  TCachedComponentReference = TCachedComponentReferenceSingle<Component, In
  * @endcode
  *
  * @tparam Component Expected component type
- * @tparam InternalPtr Internal pointer type
+ * @tparam Traits Internal type traits
  */
-template<typename Component, template<typename> typename InternalPtr = TWeakObjectPtr>
+template<typename Component, typename Traits = BCRDetails::TWeakPointerFuncs>
 class TCachedComponentReferenceArray
-	: public TCachedComponentReferenceBase<Component, TArray<FBlueprintComponentReference>, TArray<InternalPtr<Component>>, InternalPtr>
+	: public TCachedComponentReferenceBase<TArray<FBlueprintComponentReference>, TArray<typename Traits::template PtrTypeForComponent<Component>>, Traits>
 {
-	using Super = TCachedComponentReferenceBase<Component, TArray<FBlueprintComponentReference>, TArray<InternalPtr<Component>>, InternalPtr>;
+	using Super = TCachedComponentReferenceBase<TArray<FBlueprintComponentReference>, TArray<typename Traits::template PtrTypeForComponent<Component>>, Traits>;
 public:
 	using StorageType = typename Super::StorageType;
 	using TargetType = typename Super::TargetType;
@@ -293,7 +314,7 @@ public:
 	template<typename T = Component>
 	T* Get(int32 Index)
 	{
-		return this->Get<T>(this->GetBaseActorPtr(), Index);
+		return this->template Get<T>(this->GetBaseActorPtr(), Index);
 	}
 
 	template<typename T = Component>
@@ -317,7 +338,7 @@ public:
 
 		auto& ElementRef = Storage[Index];
 
-		Component* Result = BCRDetails::ResolvePointer(ElementRef);
+		Component* Result = Traits::ToRawPointer(ElementRef);
 		if (Result && Result->GetOwner() == InActor)
 		{
 			return Cast<T>(Result);
@@ -328,7 +349,7 @@ public:
 		return Cast<T>(Result);
 	}
 	
-	void WarmupCache(AActor* InActor)
+	void GetAll(AActor* InActor)
 	{
 		if (!InActor)
 		{
@@ -346,36 +367,46 @@ public:
 	}
 
 	/**  reset cached component */
-	void InvalidateCache(int32 Index = -1)
+	void Invalidate()
+	{
+		for (auto& ElementRef : this->GetStorage())
+		{
+			ElementRef = nullptr;
+		}
+	}
+	
+	/**  reset cached component at index */
+	void InvalidateAt(int32 Index)
 	{
 		StorageType& Storage = this->GetStorage();
 		if (Storage.IsValidIndex(Index))
 		{
 			Storage[Index] = nullptr;
 		}
-		else
-		{
-			Storage.Reset();
-		}
 	}
 
-	int32	Num() const
+	int32 Num() const
 	{
 		return this->GetTarget().Num();
 	}
 
-	bool	IsEmpty() const
+	bool IsEmpty() const
 	{
 		return this->GetTarget().Num() == 0;
 	}
 	
-	template<typename T = UObject>
-	void AddReferencedObjects(class FReferenceCollector& Collector, const T* ReferencingObject = nullptr)
+	void AddReferencedObjects(FReferenceCollector& Collector, const UObject* ReferencingObject = nullptr)
 	{
-		Collector.AddReferencedObject(this->GetBaseActor(), ReferencingObject);
-		for (auto& ElementRef : this->GetStorage())
+		if (Traits::ExposeActor)
 		{
-			Collector.AddReferencedObject(ElementRef, ReferencingObject);
+			Traits::ExposePointer(this->GetBaseActor(), Collector, ReferencingObject);
+		}
+		if (Traits::ExposeComponent)
+		{
+			for (auto& ElementRef : this->GetStorage())
+			{
+				Traits::ExposePointer(ElementRef, Collector, ReferencingObject);
+			}
 		}
 	}
 };
@@ -401,13 +432,13 @@ public:
  *
  * @tparam Component Expected component type
  * @tparam Key Map key type
- * @tparam InternalPtr Type of internal pointer
+ * @tparam Traits Internal type traits
  */
-template<typename Component, typename Key, template<typename> typename InternalPtr = TWeakObjectPtr>
+template<typename Component, typename Key, typename Traits = BCRDetails::TWeakPointerFuncs>
 class TCachedComponentReferenceMapValue
-	: public TCachedComponentReferenceBase<Component, TMap<Key, FBlueprintComponentReference>, TMap<Key, InternalPtr<Component>>, InternalPtr>
+	: public TCachedComponentReferenceBase<TMap<Key, FBlueprintComponentReference>, TMap<Key, typename Traits::template PtrTypeForComponent<Component>>, Traits>
 {
-	using Super = TCachedComponentReferenceBase<Component, TMap<Key, FBlueprintComponentReference>, TMap<Key, InternalPtr<Component>>, InternalPtr>;
+	using Super = TCachedComponentReferenceBase<TMap<Key, FBlueprintComponentReference>, TMap<Key, typename Traits::template PtrTypeForComponent<Component>>, Traits>;
 public:
 	using StorageType = typename Super::StorageType;
     using TargetType = typename Super::TargetType;
@@ -418,7 +449,7 @@ public:
 	template<typename T = Component>
 	Component* Get(const Key& InKey)
 	{
-		return this->Get<T>(this->GetBaseActorPtr(), InKey);
+		return this->template Get<T>(this->GetBaseActorPtr(), InKey);
 	}
 
 	template<typename T = Component>
@@ -431,7 +462,7 @@ public:
 
 		auto& ElementRef = Storage.FindOrAdd(InKey, {});
 
-		Component* Result = BCRDetails::ResolvePointer(ElementRef);
+		Component* Result = Traits::ToRawPointer(ElementRef);
 		if (Result && Result->GetOwner() == InActor)
 		{
 			return Cast<T>(Result);
@@ -451,46 +482,23 @@ public:
 		return Cast<T>(Result);
 	}
 
-	void WarmupCache(AActor* InActor)
+	void Invalidate()
 	{
-		if (!InActor)
+		this->GetStorage().Empty();
+	}
+
+	void AddReferencedObjects(FReferenceCollector& Collector, const UObject* ReferencingObject = nullptr)
+	{
+		if (Traits::ExposeActor)
 		{
-			InActor = this->GetBaseActorPtr();
+			Traits::ExposePointer(this->GetBaseActor(), Collector, ReferencingObject);
 		}
-		
-		TargetType& Target = this->GetTarget();
-		StorageType& Storage = this->GetStorage();
-
-		for (auto& KeyToRef : Target)
+		if (Traits::ExposeComponent)
 		{
-			Component* Resolved = KeyToRef.Value.template GetComponent<Component>(InActor);
-			
-			Storage.Add(KeyToRef.Key, Resolved);
-		}
-	}
-
-	void InvalidateCache()
-	{
-		this->GetStorage().Reset();
-	}
-
-	int32 Num() const
-	{
-		return this->GetTarget().Num();
-	}
-
-	bool IsEmpty() const
-	{
-		return this->GetTarget().Num() == 0;
-	}
-	
-	template<typename T = UObject>
-	void AddReferencedObjects(class FReferenceCollector& Collector, const T* ReferencingObject = nullptr)
-	{
-		Collector.AddReferencedObject(this->GetBaseActor(), ReferencingObject);
-		for (auto& ElementRef : this->GetStorage())
-		{
-			Collector.AddReferencedObject(ElementRef.Value, ReferencingObject);
+			for (auto& ElementRef : this->GetStorage())
+			{
+				Traits::ExposePointer(ElementRef.Value, Collector, ReferencingObject);
+			}
 		}
 	}
 };
@@ -519,12 +527,13 @@ public:
  * 
  * @tparam Component Expected component type
  * @tparam Value Map key type
+ * @tparam Traits Internal type traits
  */
-template<typename Component, typename Value , template<typename> typename InternalPtr = TWeakObjectPtr>
+template<typename Component, typename Value, typename Traits = BCRDetails::TWeakPointerFuncs>
 class TCachedComponentReferenceMapKey
-	: public TCachedComponentReferenceBase<Component, TMap<FBlueprintComponentReference, Value>, TMap<TObjectKey<Component>, Value*>, InternalPtr>
+	: public TCachedComponentReferenceBase<TMap<FBlueprintComponentReference, Value>, TMap<TObjectKey<Component>, Value*>, Traits>
 {
-	using Super = TCachedComponentReferenceBase<Component, TMap<FBlueprintComponentReference, Value>, TMap<TObjectKey<Component>, Value*>, InternalPtr>;
+	using Super = TCachedComponentReferenceBase<TMap<FBlueprintComponentReference, Value>, TMap<TObjectKey<Component>, Value*>, Traits>;
 public:
 	using StorageType = typename Super::StorageType;
 	using TargetType = typename Super::TargetType;
@@ -585,7 +594,7 @@ public:
 		return FoundValue;
 	}
 
-	void WarmupCache(AActor* InActor)
+	void GetAll(AActor* InActor)
 	{
 		if (!InActor)
 		{
@@ -605,24 +614,17 @@ public:
 		}
 	}
 
-	void InvalidateCache()
+	void Invalidate()
 	{
 		this->GetStorage().Reset();
 	}
 
-	int32 Num() const
-	{
-		return this->GetTarget().Num();
-	}
-
-	bool IsEmpty() const
-	{
-		return this->GetTarget().Num() == 0;
-	}
-	
 	template<typename T = UObject>
 	void AddReferencedObjects(class FReferenceCollector& Collector, const T* ReferencingObject = nullptr)
 	{
-		Collector.AddReferencedObject(this->GetBaseActor(), ReferencingObject);
+		if (Traits::ExposeActor)
+		{
+			Traits::ExposePointer(this->GetBaseActor(), Collector, ReferencingObject);
+		}
 	}
 };

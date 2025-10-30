@@ -37,7 +37,8 @@ public class BlueprintComponentReferenceEditor : ModuleRules
 			"PropertyEditor",
 			"ApplicationCore",
 			"Kismet",
-			"BlueprintGraph"
+			"BlueprintGraph",
+			"EditorStyle"
 		});
 	}
 }

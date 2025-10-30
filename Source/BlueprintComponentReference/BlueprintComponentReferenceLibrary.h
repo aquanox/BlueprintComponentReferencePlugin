@@ -6,6 +6,7 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Kismet/BlueprintMapLibrary.h"
 #include "Components/ActorComponent.h"
+#include "Misc/EngineVersionComparison.h"
 #include "BlueprintComponentReferenceLibrary.generated.h"
 
 UENUM()
@@ -65,7 +66,6 @@ public:
 	 * @param References Component reference to resolve
 	 * @param Actor Target actor
 	 * @param Class Expected component class
-	 * @param bKeepNulls Preserve order if component resolve failed
 	 * @param Components Resolved components
 	 */
 	UFUNCTION(BlueprintCallable, Category="Utilities|ComponentReference|Containers", meta=(DisplayName="Get Referenced Components (Set)", DefaultToSelf="Actor", DeterminesOutputType="Class", DynamicOutputParam="Components", Keywords="cref"))
@@ -157,7 +157,7 @@ public:
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		
 		Stack.MostRecentProperty = nullptr;
-		Stack.StepCompiledIn<FMapProperty>(NULL);
+		Stack.StepCompiledIn<FMapProperty>(nullptr);
 		void* MapAddr = Stack.MostRecentPropertyAddress;
 		FMapProperty* MapProperty = CastField<FMapProperty>(Stack.MostRecentProperty);
 		if (!MapProperty
@@ -173,20 +173,30 @@ public:
 		
 		// Since Value aren't really an int, step the stack manually
 		const FProperty* CurrValueProp = MapProperty->ValueProp;
+#if UE_VERSION_OLDER_THAN(5, 5, 0)
 		const int32 ValuePropertySize = CurrValueProp->ElementSize * CurrValueProp->ArrayDim;
+#else
+		const int32 ValuePropertySize = CurrValueProp->GetElementSize() * CurrValueProp->ArrayDim;
+#endif
 		void* ValueStorageSpace = FMemory_Alloca(ValuePropertySize);
 		CurrValueProp->InitializeValue(ValueStorageSpace);
 		
 		Stack.MostRecentPropertyAddress = nullptr;
+#if !UE_VERSION_OLDER_THAN(5, 0, 0)
 		Stack.MostRecentPropertyContainer = nullptr;
+#endif
 		Stack.StepCompiledIn<FProperty>(ValueStorageSpace);
 		const FFieldClass* CurrValuePropClass = CurrValueProp->GetClass();
 		const FFieldClass* MostRecentPropClass = Stack.MostRecentProperty->GetClass();
 		void* ItemPtr;
 		// If the destination and the inner type are identical in size and their field classes derive from one another,
 		// then permit the writing out of the array element to the destination memory
-		if (Stack.MostRecentPropertyAddress != NULL
+		if (Stack.MostRecentPropertyAddress != nullptr
+#if UE_VERSION_OLDER_THAN(5, 5, 0)
 			&& (ValuePropertySize == Stack.MostRecentProperty->ElementSize * Stack.MostRecentProperty->ArrayDim)
+#else
+			&& (ValuePropertySize == Stack.MostRecentProperty->GetElementSize() * Stack.MostRecentProperty->ArrayDim)
+#endif
 			&& (MostRecentPropClass->IsChildOf(CurrValuePropClass) || CurrValuePropClass->IsChildOf(MostRecentPropClass)))
 		{
 			ItemPtr = Stack.MostRecentPropertyAddress;

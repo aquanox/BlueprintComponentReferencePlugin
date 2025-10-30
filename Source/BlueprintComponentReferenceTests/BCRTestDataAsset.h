@@ -4,9 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "BlueprintComponentReference.h"
-#include "CachedBlueprintComponentReference.h"
 #include "Engine/DataAsset.h"
-#include "Components/SceneComponent.h"
 #include "GameFramework/Actor.h"
 #include "BCRTestDataAsset.generated.h"
 
@@ -18,6 +16,8 @@ class UBCRTestDataAsset : public UDataAsset
 {
 	GENERATED_BODY()
 public:
+	UBCRTestDataAsset();
+
 	UPROPERTY(EditAnywhere, meta=(ActorClass="/Script/BlueprintComponentReferenceTests.BCRTestActor"), Category=Test)
     FBlueprintComponentReference ExternalRef;
     	
@@ -32,7 +32,4 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test", meta=(ActorClass="/Script/BlueprintComponentReferenceTests.BCRTestActor", AllowedClasses="/Script/Engine.SceneComponent"))
 	TMap<FName, FBlueprintComponentReference> ReferenceMap;
-
-	UBCRTestDataAsset();
-	
 };

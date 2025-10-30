@@ -8,14 +8,14 @@
 #include "GameFramework/Info.h"
 #include "Engine/EngineTypes.h"
 #include "Engine/DataAsset.h"
-#include "UObject/StrongObjectPtr.h"
 #include "GameplayTagsManager.h"
-#include "GameplayTagContainer.h"
-#include "GameplayTagAssetInterface.h"
-#include "CachedBlueprintComponentReference.h"
 #include "GameFramework/Character.h"
 #include "BCRTestStruct.h"
 #include "BCRTestActorComponent.h"
+
+#if WITH_CACHED_COMPONENT_REFERENCE_TESTS
+#include "CachedBlueprintComponentReference.h"
+#endif
 
 #include "BCRTestActor.generated.h"
 
@@ -36,51 +36,45 @@ public:
 public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Components)
-	TObjectPtr<USceneComponent> Default_Root;
+	USceneComponent* Default_Root = nullptr;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Components)
-	TObjectPtr<USceneComponent> Default_LevelOne;
+	USceneComponent* Default_LevelOne = nullptr;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Components)
-	TObjectPtr<USceneComponent> Default_LevelTwo;
+	USceneComponent* Default_LevelTwo = nullptr;
 
 	// no uproperty, never set, just to have pretty GET_MEMBER_NAME_CHECKED
-	TObjectPtr<UActorComponent> NonExistingComponent;
+	UActorComponent* NonExistingComponent = nullptr;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Components)
-	TObjectPtr<UActorComponent> Default_LevelZero;
+	UActorComponent* Default_LevelZero = nullptr;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Components)
-	TObjectPtr<USceneComponent> Construct_LevelOneNP;
+	USceneComponent* Construct_LevelOneNP = nullptr;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Components)
-	TObjectPtr<USceneComponent> Construct_LevelOne;
+	USceneComponent* Construct_LevelOne = nullptr;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Components)
-	TObjectPtr<UActorComponent> Construct_LevelZero;
+	UActorComponent* Construct_LevelZero = nullptr;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Components)
-	TObjectPtr<USceneComponent> Playtime_LevelOneNP;
+	USceneComponent* Playtime_LevelOneNP = nullptr;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Components)
-	TObjectPtr<USceneComponent> Playtime_LevelOne;
+	USceneComponent* Playtime_LevelOne;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Components)
-	TObjectPtr<UActorComponent> Playtime_LevelZero;
+	UActorComponent* Playtime_LevelZero = nullptr;
 
 protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test")
-	TObjectPtr<UPrimaryDataAsset> TargetDA;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Engine")
-	FBaseComponentReference BaseComponentReference;
+	UPrimaryDataAsset* TargetDA = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Test|Engine")
 	FComponentReference ComponentReference;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Test|Engine")
-	FSoftComponentReference SoftComponentReference;
 
 	// Simple component reference. Defaults only
 	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Test|Base")
@@ -158,7 +152,7 @@ public:
 	ABCRTestActorWithChild();
 	// unsupported, can reference only component, not instanced things within spawned actor
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Components)
-	TObjectPtr<UChildActorComponent> LevelNope;
+	UChildActorComponent* LevelNope = nullptr;
 
 };
 
@@ -167,7 +161,6 @@ UCLASS(MinimalAPI, Blueprintable)
 class ABCRCachedTestActor : public ACharacter
 {
 	GENERATED_BODY()
-
 public:
 	static const FName MeshPropertyName;
 	
@@ -185,19 +178,16 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test|Cached", meta=(AllowedClasses="/Script/Engine.SceneComponent"))
 	TMap<FBlueprintComponentReference, FBCRTestStrustData> ReferenceMapKey;
 
+#if WITH_CACHED_COMPONENT_REFERENCE_TESTS
+	
 	TCachedComponentReferenceSingle<USceneComponent> CachedReferenceSingle { this, &ReferenceSingle };
 	
-	TCachedComponentReferenceSingle<USceneComponent, TObjectPtr> CachedReferenceSingleRaw { this, &ReferenceSingle };
-
 	TCachedComponentReferenceArray<USceneComponent> CachedReferenceArray { this, &ReferenceArray };
 	
-	TCachedComponentReferenceArray<USceneComponent, TObjectPtr> CachedReferenceArrayRaw { this, &ReferenceArray };
-
-	TCachedComponentReferenceMapValue<USceneComponent, decltype(ReferenceMap)::KeyType> CachedReferenceMap { this, &ReferenceMap };
+	TCachedComponentReferenceMapValue<USceneComponent, FName> CachedReferenceMap { this, &ReferenceMap };
 	
-	TCachedComponentReferenceMapValue<USceneComponent, decltype(ReferenceMap)::KeyType, TObjectPtr> CachedReferenceMapRaw { this, &ReferenceMap };
+	TCachedComponentReferenceMapKey<USceneComponent, FBCRTestStrustData> CachedReferenceMapKey { this, &ReferenceMapKey };
 
-	TCachedComponentReferenceMapKey<USceneComponent, decltype(ReferenceMapKey)::ValueType> CachedReferenceMapKey { this, &ReferenceMapKey };
-
-	void TryCompileTemplates();
+#endif
+	
 };

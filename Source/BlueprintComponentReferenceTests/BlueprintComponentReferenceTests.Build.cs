@@ -21,15 +21,16 @@ public class BlueprintComponentReferenceTests : ModuleRules
 		}
 
 		PublicIncludePaths.Add(ModuleDirectory);
+		PrivateDefinitions.Add("WITH_CACHED_COMPONENT_REFERENCE_TESTS=1");
 
 		PublicDependencyModuleNames.AddRange(new string[] {
-				"Core",
-				"CoreUObject",
-				"Engine",
-				"BlueprintComponentReference",
-				"BlueprintComponentReferenceEditor"
+			"Core",
+			"CoreUObject",
+			"Engine",
+			"BlueprintComponentReference",
+			"BlueprintComponentReferenceEditor"
 		});
-
+		
 		if (Target.Version.MajorVersion >= 5)
 		{
 			PrivateDependencyModuleNames.AddRange(new string[] {

@@ -6,6 +6,7 @@
 #include "BlueprintEditorModule.h"
 #include "HAL/IConsoleManager.h"
 #include "UnrealEdGlobals.h"
+#include "Misc/EngineVersionComparison.h"
 #include "Editor/EditorEngine.h"
 
 IMPLEMENT_MODULE(FBCREditorModule, BlueprintComponentReferenceEditor);
@@ -67,8 +68,10 @@ void FBCREditorModule::OnPostEngineInit()
 {
 	FCoreDelegates::OnPostEngineInit.Remove(PostEngineInitHandle);
 
+#if !UE_VERSION_OLDER_THAN(5, 0, 0)
 	OnReloadCompleteDelegateHandle = FCoreUObjectDelegates::ReloadCompleteDelegate.AddRaw(this, &FBCREditorModule::OnReloadComplete);
 	OnReloadReinstancingCompleteDelegateHandle = FCoreUObjectDelegates::ReloadReinstancingCompleteDelegate.AddRaw(this, &FBCREditorModule::OnReinstancingComplete);
+#endif
 	OnModulesChangedDelegateHandle = FModuleManager::Get().OnModulesChanged().AddRaw(this, &FBCREditorModule::OnModulesChanged);
 	OnBlueprintCompiledHandle = GEditor->OnBlueprintCompiled().AddRaw(this, &FBCREditorModule::OnBlueprintRecompile);
 
@@ -78,9 +81,15 @@ void FBCREditorModule::OnPostEngineInit()
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FBlueprintComponentReferenceCustomization::MakeInstance));
 
 	FBlueprintEditorModule& BlueprintEditorModule = FModuleManager::GetModuleChecked<FBlueprintEditorModule>("Kismet");
+#if UE_VERSION_OLDER_THAN(5, 0, 0)
+	BlueprintEditorModule.RegisterVariableCustomization(
+		FProperty::StaticClass(),
+		FOnGetVariableCustomizationInstance::CreateStatic(&FBlueprintComponentReferenceVarCustomization::MakeInstance));
+#else
 	VariableCustomizationHandle = BlueprintEditorModule.RegisterVariableCustomization(
 		FProperty::StaticClass(),
 		FOnGetVariableCustomizationInstance::CreateStatic(&FBlueprintComponentReferenceVarCustomization::MakeInstance));
+#endif
 }
 
 void FBCREditorModule::ShutdownModule()
@@ -88,8 +97,10 @@ void FBCREditorModule::ShutdownModule()
 	if (GIsEditor && !IsRunningCommandlet())
 	{
 		FCoreDelegates::OnPostEngineInit.Remove(PostEngineInitHandle);
+#if !UE_VERSION_OLDER_THAN(5, 0, 0)
 		FCoreUObjectDelegates::ReloadCompleteDelegate.Remove(OnReloadCompleteDelegateHandle);
 		FCoreUObjectDelegates::ReloadReinstancingCompleteDelegate.Remove(OnReloadReinstancingCompleteDelegateHandle);
+#endif
 		FModuleManager::Get().OnModulesChanged().Remove(OnModulesChangedDelegateHandle);
 
 		if (GEditor)
@@ -106,7 +117,11 @@ void FBCREditorModule::ShutdownModule()
 		if (FModuleManager::Get().IsModuleLoaded("Kismet"))
 		{
 			FBlueprintEditorModule& BlueprintEditorModule = FModuleManager::GetModuleChecked<FBlueprintEditorModule>("Kismet");
+#if UE_VERSION_OLDER_THAN(5, 0, 0)
+			BlueprintEditorModule.UnregisterVariableCustomization(FProperty::StaticClass());
+#else
 			BlueprintEditorModule.UnregisterVariableCustomization(FProperty::StaticClass(), VariableCustomizationHandle);
+#endif
 		}
 	}
 }

@@ -6,7 +6,6 @@
 #include "BlueprintComponentReferenceLibrary.h"
 #include "BlueprintNodeSpawner.h"
 #include "EdGraphSchema_K2.h"
-#include "Kismet2/WildcardNodeUtils.h"
 
 UK2Node_FindComponentInMap::UK2Node_FindComponentInMap()
 {

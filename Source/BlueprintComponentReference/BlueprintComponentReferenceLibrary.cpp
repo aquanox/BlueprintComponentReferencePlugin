@@ -135,7 +135,7 @@ bool UBlueprintComponentReferenceLibrary::Map_FindComponent_Impl(const void* Tar
 		return false;
 	}
 	
-	const UActorComponent* SearchComponent = reinterpret_cast<const UActorComponent*>(KeyPtr);
+	const UActorComponent* SearchComponent = static_cast<const UActorComponent*>(KeyPtr);
 	if(TargetMap && IsValid(SearchComponent) && IsValid(SearchComponent->GetOwner()))
 	{
 		AActor* SearchTarget = SearchComponent->GetOwner();
@@ -143,6 +143,22 @@ bool UBlueprintComponentReferenceLibrary::Map_FindComponent_Impl(const void* Tar
 		
 		FScriptMapHelper MapHelper(MapProperty, TargetMap);
 
+#if UE_VERSION_OLDER_THAN(5, 0, 0)
+		int32 Size = MapHelper.Num();
+		for( int32 I = 0; Size; ++I )
+		{
+			if(MapHelper.IsValidIndex(I))
+			{
+				const FBlueprintComponentReference* Reference = reinterpret_cast<const FBlueprintComponentReference*>(MapHelper.GetKeyPtr(I));
+				if (Reference->GetComponent(SearchTarget) == SearchComponent)
+				{
+					FoundValuePtr = MapHelper.GetValuePtr(I);
+					break;
+				}
+				--Size;
+			}
+		}
+#else
 		for (FScriptMapHelper::FIterator It(MapHelper); It; ++It)
 		{
 			const FBlueprintComponentReference* pKey = reinterpret_cast<const FBlueprintComponentReference*>(MapHelper.GetKeyPtr(It));
@@ -154,6 +170,7 @@ bool UBlueprintComponentReferenceLibrary::Map_FindComponent_Impl(const void* Tar
 				break;
 			}
 		}
+#endif
 		
 		if (OutValuePtr)
 		{

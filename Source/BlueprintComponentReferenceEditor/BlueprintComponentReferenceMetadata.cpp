@@ -77,17 +77,22 @@ void FBlueprintComponentReferenceMetadata::ApplySettingsToProperty(UBlueprint* I
 
 	auto ClassToString = [](const UClass* InClass) ->  TOptional<FString>
 	{
-		return InClass ? InClass->GetClassPathName().ToString() : TOptional<FString>();
+		if (!IsValid(InClass))
+		{
+			return TOptional<FString>();
+		}
+		return FString::Printf(TEXT("%s.%s"), *InClass->GetOuter()->GetFName().ToString(), *InClass->GetFName().ToString());
 	};
 
-	auto ArrayToString = [](const TArray<TSubclassOf<UActorComponent>>& InArray)
+	auto ArrayToString = [ClassToString](const TArray<TSubclassOf<UActorComponent>>& InArray)
 	{
 		TArray<FString, TInlineAllocator<8>> Paths;
 		for (const TSubclassOf<UActorComponent>& Class : InArray)
 		{
-			if (IsValid(Class))
+			TOptional<FString> Result = ClassToString(Class);
+			if (Result.IsSet())
 			{
-				Paths.AddUnique(Class->GetClassPathName().ToString());
+				Paths.AddUnique(Result.GetValue());
 			}
 		}
 		return FString::Join(Paths, TEXT(","));

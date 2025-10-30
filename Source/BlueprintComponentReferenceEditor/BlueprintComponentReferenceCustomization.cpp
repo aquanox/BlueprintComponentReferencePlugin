@@ -17,10 +17,8 @@
 #include "Delegates/Delegate.h"
 #include "GameFramework/Actor.h"
 #include "Internationalization/Internationalization.h"
-#include "Layout/BasicLayoutWidgetSlot.h"
 #include "Misc/AssertionMacros.h"
 #include "Misc/Attribute.h"
-#include "Styling/AppStyle.h"
 #include "Styling/SlateIconFinder.h"
 #include "Templates/Casts.h"
 #include "Types/SlateEnums.h"
@@ -30,7 +28,6 @@
 #include "UObject/NameTypes.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
-#include "UObject/ObjectPtr.h"
 #include "UObject/UnrealType.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UObjectIterator.h"
@@ -40,10 +37,15 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Misc/EngineVersionComparison.h"
 
-#if WITH_BCR_DRAG_DROP
-#include "SDropTarget.h"
-#include "BPVariableDragDropAction.h"
+#if UE_VERSION_OLDER_THAN(5, 0, 0)
+#include "EditorStyle.h"
+using FStyleSourceHelper = FEditorStyle;
+#else
+#include "Styling/AppStyle.h"
+#include "UObject/ObjectPtr.h"
+using FStyleSourceHelper = FAppStyle;
 #endif
 
 #define LOCTEXT_NAMESPACE "BlueprintComponentReferenceCustomization"
@@ -112,6 +114,7 @@ void FBlueprintComponentReferenceCustomization::CustomizeHeader(TSharedRef<IProp
 
 		if (ViewSettings.bUseNavigate)
 		{
+#if !UE_VERSION_OLDER_THAN(5, 0, 0)
 			ValueContent->AddSlot()
 			.AutoWidth()
 			.HAlign(HAlign_Center)
@@ -123,7 +126,9 @@ void FBlueprintComponentReferenceCustomization::CustomizeHeader(TSharedRef<IProp
 					LOCTEXT( "NavigateButtonToolTipText", "Select Component in Component Editor"),
 					/* enabled = */ true, /* actor icon = */ true
 				)
+
 			];
+#endif
 		}
 
 		if (ViewSettings.bUseClear)
@@ -199,7 +204,7 @@ FString FBlueprintComponentReferenceCustomization::GetLoggingContextString() con
 			for(const UObject* OuterObject : PropertyOuterObjects)
 			{
 				Buffer.Append(OuterObject->GetPathName());
-				Buffer.Append(".");
+				Buffer.Append(TEXT("."));
 			}
 		}
 		Buffer.Append(PropertyHandle->GeneratePathToProperty());
@@ -233,7 +238,10 @@ void FBlueprintComponentReferenceCustomization::BuildComboBox()
 		.VAlign(VAlign_Center)
 		[
 			SNew(STextBlock)
-			.Font( FAppStyle::GetFontStyle( "PropertyWindow.NormalFont" ) )
+#if UE_VERSION_OLDER_THAN(5, 0, 0)
+			.TextStyle( FStyleSourceHelper::Get(), "PropertyEditor.AssetClass" )
+#endif
+			.Font( FStyleSourceHelper::GetFontStyle( "PropertyWindow.NormalFont" ) )
 			.Text(this, &FBlueprintComponentReferenceCustomization::OnGetComponentName)
 			.ColorAndOpacity(this, &FBlueprintComponentReferenceCustomization::OnGetComponentNameColor)
 			.ToolTipText(this, &FBlueprintComponentReferenceCustomization::OnGetComponentTooltip)
@@ -241,6 +249,10 @@ void FBlueprintComponentReferenceCustomization::BuildComboBox()
 	];
 
 	SAssignNew(ComponentComboButton, SComboButton)
+#if UE_VERSION_OLDER_THAN(5, 0, 0)
+		.ButtonStyle( FStyleSourceHelper::Get(), "PropertyEditor.AssetComboStyle" )
+		.ForegroundColor(FStyleSourceHelper::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
+#endif
 		.OnGetMenuContent(this, &FBlueprintComponentReferenceCustomization::OnGetMenuContent)
 		.OnMenuOpenChanged(this, &FBlueprintComponentReferenceCustomization::OnMenuOpenChanged)
 		.ContentPadding(FMargin(2,2,2,1))
@@ -594,7 +606,11 @@ FSlateColor FBlueprintComponentReferenceCustomization::OnGetComponentNameColor()
 {
 	if (PropertyState != EPropertyState::Normal)
 	{
+#if UE_VERSION_OLDER_THAN(5, 0, 0)
+		return FLinearColor(FColor(0xffbbbb22));
+#else
 		return FLinearColor::Yellow;
+#endif
 	}
 	return CanEdit() ? FSlateColor::UseForeground() : FSlateColor::UseSubduedForeground();
 }
@@ -605,7 +621,7 @@ const FSlateBrush* FBlueprintComponentReferenceCustomization::GetStatusIcon() co
 
 	if (PropertyState != EPropertyState::Normal)
 	{
-		return FAppStyle::GetBrush("Icons.Error");
+		return FStyleSourceHelper::GetBrush("Icons.Error");
 	}
 	return &EmptyBrush;
 }
@@ -615,7 +631,7 @@ TSharedRef<SWidget> FBlueprintComponentReferenceCustomization::OnGetMenuContent(
 	FMenuBuilder MenuBuilder(true, nullptr);
 
 	if (!ComponentPickerContext.IsValid())
-	{ // this is nesessary after updating metadata or a new property
+	{ // this is necessary after updating metadata or a new property
 		DetermineContext();
 	}
 
@@ -637,7 +653,7 @@ TSharedRef<SWidget> FBlueprintComponentReferenceCustomization::OnGetMenuContent(
 
 		for (const TSharedPtr<FHierarchyInfo>& HierarchyInfo : DataSource)
 		{
-			if (HierarchyInfo->GetNodes().IsEmpty())
+			if (!HierarchyInfo->GetNodes().Num())
 				continue;
 			// do not show 'Instanced' category when no instanced choises needed, even if we browsing actor instance
 			if ((!ViewSettings.bShowInstanced && !ViewSettings.bShowHidden) && HierarchyInfo->IsInstance())
@@ -659,7 +675,7 @@ TSharedRef<SWidget> FBlueprintComponentReferenceCustomization::OnGetMenuContent(
 				}
 			}
 
-			if (!Data.Elements.IsEmpty())
+			if (Data.Elements.Num())
 			{
 				ChoosableElements.Emplace(MoveTemp(Data));
 			}
@@ -674,7 +690,7 @@ TSharedRef<SWidget> FBlueprintComponentReferenceCustomization::OnGetMenuContent(
 		CachedChoosableElements = MoveTemp(ChoosableElements);
 	}
 
-	if (!CachedChoosableElements.IsEmpty())
+	if (CachedChoosableElements.Num())
 	{
 		for (const FSelectionData& Element : CachedChoosableElements)
 		{
@@ -728,6 +744,7 @@ void FBlueprintComponentReferenceCustomization::OnClear()
 
 void FBlueprintComponentReferenceCustomization::OnNavigateComponent()
 {
+#if !UE_VERSION_OLDER_THAN(5, 0, 0)
 	TSharedPtr<FComponentInfo> LocalNode = CachedComponentNode.Pin();
 	if (!LocalNode.IsValid() || !ComponentPickerContext.IsValid())
 	{
@@ -765,9 +782,11 @@ void FBlueprintComponentReferenceCustomization::OnNavigateComponent()
 		// Select the Component in the Viewport tab view
 		if (auto Template = LocalNode->GetComponentTemplate())
 		{
+
 			BlueprintEditor->FindAndSelectSubobjectEditorTreeNode(Template, false);
 		}
 	}
+#endif
 }
 
 void FBlueprintComponentReferenceCustomization::OnComponentSelected(TSharedPtr<FComponentInfo> Node)
