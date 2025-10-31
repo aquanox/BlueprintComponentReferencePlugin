@@ -51,7 +51,7 @@ Blueprint variables supported via variable editor extension.
  
 ## Unreal Engine Versions
 
-Plugin is compatible with 5.0+, ue5-main and can be modified to work with other engine versions.
+Plugin is compatible with 4.27, 5.0+, ue5-main and can be modified to work with other engine versions.
 
 ## License
 
