@@ -33,6 +33,9 @@ public:
 
 	UFUNCTION(CallInEditor)
 	void DumpComponents();
+
+	UFUNCTION()
+	static bool TestComponent(const UActorComponent* InComponent);
 public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Components)
@@ -100,6 +103,14 @@ protected:
 	// Simple component reference.  SceneComp disallowed
 	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Test|Filter", meta=(DisallowedClasses="/Script/Engine.SceneComponent"))
 	FBlueprintComponentReference ReferenceFilterB;
+
+	// Simple component reference with member filter func. 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Test|Filter", meta=(ComponentFilter="TestComponent"))
+	FBlueprintComponentReference ReferenceFilterUser;
+
+	// Simple component reference with external user filter func. 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Test|Filter", meta=(ComponentFilter="BlueprintComponentReferenceTests.BCRTestActor.TestComponent"))
+	FBlueprintComponentReference ReferenceFilterUserExternal;
 
 	// Hide clear button
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Metadata", NoClear, meta=(NoClear))

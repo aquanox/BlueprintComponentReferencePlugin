@@ -893,6 +893,14 @@ bool FBlueprintComponentReferenceCustomization::TestObject(const UObject* Object
 		}
 	}
 
+	if (!ViewSettings.ComponentFilter.IsEmpty() && bAllowedToSetBasedOnFilter)
+	{
+		if (!FBlueprintComponentReferenceHelper::InvokeComponentFilter(PropertyHandle, ViewSettings.ComponentFilter, Object))
+		{
+			bAllowedToSetBasedOnFilter = false;
+		}
+	}
+
 	return bAllowedToSetBasedOnFilter;
 }
 

@@ -291,6 +291,8 @@ public:
 
 	static bool DoesReferenceMatch(const FBlueprintComponentReference& InRef, const FComponentInfo& Value);
 
+	static bool InvokeComponentFilter(TSharedPtr<class IPropertyHandle> InProperty, const FString& InFilterFn, const UObject* InObj);
+
 	void DebugDumpInstances(const TArray<FString>& Args);
 	void DebugDumpClasses(const TArray<FString>& Args);
 	void DebugDumpContexts(const TArray<FString> Array);

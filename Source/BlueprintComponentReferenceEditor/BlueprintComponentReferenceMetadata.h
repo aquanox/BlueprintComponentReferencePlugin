@@ -25,6 +25,8 @@ struct FCRMetadataKey
 	static const FName ShowInstanced;
 	static const FName ShowHidden;
 	static const FName ShowEditor;
+	// advanced filtering
+	static const FName ComponentFilter;
 };
 
 /**
@@ -35,14 +37,20 @@ struct BLUEPRINTCOMPONENTREFERENCEEDITOR_API FBlueprintComponentReferenceMetadat
 {
 	GENERATED_BODY()
 public:
-	/** Allow to use Picker feature */
-	UPROPERTY(EditAnywhere, Category=Metadata, meta=(MDSpecifier="NoPicker", MDHandler="InverseBool"))
+	/**
+	 * Enables component picker
+	 */
+	UPROPERTY(EditAnywhere, Category=Metadata, meta=(MDSpecifier="NoPicker", MDHandler="!Flag"))
 	bool bUsePicker	= true;
-	/** Allow to use Navigate/Browse feature */
-	UPROPERTY(EditAnywhere, Category=Metadata, meta=(MDSpecifier="NoNavigate", MDHandler="InverseBool"))
+	/**
+	 * Enables Navigate to Component button
+	 */
+	UPROPERTY(EditAnywhere, Category=Metadata, meta=(MDSpecifier="NoNavigate", MDHandler="!Flag"))
 	bool bUseNavigate = true;
-	/** Allow reference to be reset */
-	UPROPERTY(EditAnywhere, Category=Metadata, meta=(MDSpecifier="NoClear", MDHandler="InverseBool"))
+	/**
+	 * Enables Reset/Clear button
+	 */
+	UPROPERTY(EditAnywhere, Category=Metadata, meta=(MDSpecifier="NoClear", MDHandler="!Flag"))
 	bool bUseClear	= true;
 
 	/**
@@ -84,6 +92,17 @@ public:
 	UPROPERTY(EditAnywhere, DisplayName="Disallowed Classes", Category=Metadata, NoClear, meta=(MDSpecifier="DisallowedClasses", MDHandler="ClassList", DisplayThumbnail=false, NoElementDuplicate, AllowAbstract=true, NoBrowse, NoCreate, DisallowCreateNew))
 	TArray<TSubclassOf<UActorComponent>>	DisallowedClasses;
 
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FComponentFilterFunc, const UActorComponent*);
+
+	/**
+	 * Specifies custom component filtering function.
+	 * 
+	 * Must be of signature
+	 * `bool MyFunction(const UActorComponent* InComponent);`
+	 */
+	UPROPERTY(EditAnywhere, DisplayName="Component Filter", Category=Metadata, meta=(MDSpecifier="ComponentFilter", MDHandler="String"))
+	FString ComponentFilter;
+
 public:
 	virtual ~FBlueprintComponentReferenceMetadata() = default;
 	virtual void ResetSettings();
@@ -102,6 +121,8 @@ struct BLUEPRINTCOMPONENTREFERENCEEDITOR_API FMetadataMarshaller
 
 	static void SetMetaDataValue(UBlueprint* Blueprint, FProperty* Property, const FName& InName, TOptional<FString> InValue);
 
+	static TOptional<FString> GetStringMetaDataValue(const FProperty* Property, const FName& InName);
+	
 	static TOptional<bool> GetBoolMetaDataValue(const FProperty* Property, const FName& InName);
 
 	static void GetClassMetadata(const FProperty* Property, const FName& InName, const TFunctionRef<void(UClass*)>& Func);

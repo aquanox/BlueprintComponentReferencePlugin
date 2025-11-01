@@ -11,6 +11,7 @@
 #include "UObject/UObjectIterator.h"
 #include "Misc/EngineVersionComparison.h"
 #include "HAL/IConsoleManager.h"
+#include "PropertyHandle.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintComponentReference"
 
@@ -525,6 +526,47 @@ bool FBlueprintComponentReferenceHelper::DoesReferenceMatch(const FBlueprintComp
 	default:
 		return false;
 	}
+}
+
+bool FBlueprintComponentReferenceHelper::InvokeComponentFilter(TSharedPtr<class IPropertyHandle> InProperty, const FString& InFilterFn, const UObject* InObj)
+{
+	if (!InFilterFn.IsEmpty())
+	{
+		TArray<UObject*> ObjectList;
+		InProperty->GetOuterObjects(ObjectList);
+
+		FName CallableName (*InFilterFn);
+
+		// Check for external function references
+		if (InFilterFn.Contains(TEXT(".")))
+		{
+			ObjectList.Empty();
+			const UFunction* FilterFunction = FindObject<UFunction>(nullptr, *InFilterFn, true);
+			if (FilterFunction && FilterFunction->HasAnyFunctionFlags(EFunctionFlags::FUNC_Static))
+			{
+				UObject* FilterOwnerCDO = FilterFunction->GetOuterUClass()->GetDefaultObject();
+				CallableName = FilterFunction->GetFName();
+				ObjectList.Add(FilterOwnerCDO);
+			}
+		}
+
+		if (ObjectList.Num())
+		{
+			FEditorScriptExecutionGuard ScriptExecutionGuard;
+
+			for (UObject* Object : ObjectList)
+			{
+				if (Object && Object->FindFunction(CallableName) != nullptr)
+				{
+					FBlueprintComponentReferenceMetadata::FComponentFilterFunc Func;
+					Func.BindUFunction(Object, CallableName);
+					return Func.Execute(Cast<const UActorComponent>(InObj));
+				}
+			}
+		}
+	}
+
+	return true;
 }
 
 TSharedPtr<FComponentInfo> FComponentPickerContext::FindComponent(const FBlueprintComponentReference& InRef, bool bSafeSearch) const

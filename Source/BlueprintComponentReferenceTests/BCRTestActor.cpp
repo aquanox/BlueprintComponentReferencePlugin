@@ -104,6 +104,13 @@ void ABCRTestActor::DumpComponents()
 	}
 }
 
+bool ABCRTestActor::TestComponent(const UActorComponent* InComponent)
+{
+	return InComponent
+		&& InComponent->IsA(USceneComponent::StaticClass())
+		&& InComponent->GetName().Contains(TEXT("Level"), ESearchCase::IgnoreCase);
+}
+
 ABCRTestActorWithChild::ABCRTestActorWithChild()
 {
 	LevelNope = CreateDefaultSubobject<UChildActorComponent>("LevelNope");

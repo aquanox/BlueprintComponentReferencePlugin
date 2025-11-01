@@ -20,6 +20,7 @@ const FName FCRMetadataKey::ShowNative = "ShowNative";
 const FName FCRMetadataKey::ShowInstanced = "ShowInstanced";
 const FName FCRMetadataKey::ShowHidden = "ShowHidden";
 const FName FCRMetadataKey::ShowEditor = "ShowEditor";
+const FName FCRMetadataKey::ComponentFilter = "ComponentFilter";
 
 void FBlueprintComponentReferenceMetadata::ResetSettings()
 {
@@ -44,6 +45,7 @@ void FBlueprintComponentReferenceMetadata::LoadSettingsFromProperty(const FPrope
 	bShowInstanced = FMetadataMarshaller::GetBoolMetaDataValue(InProp, FCRMetadataKey::ShowInstanced).Get(DefaultValues.bShowInstanced);
 	bShowHidden = FMetadataMarshaller::GetBoolMetaDataValue(InProp, FCRMetadataKey::ShowHidden).Get(DefaultValues.bShowHidden);
 	bShowEditor = FMetadataMarshaller::GetBoolMetaDataValue(InProp, FCRMetadataKey::ShowEditor).Get( DefaultValues.bShowEditor);
+	ComponentFilter = FMetadataMarshaller::GetStringMetaDataValue(InProp, FCRMetadataKey::ComponentFilter).Get( DefaultValues.ComponentFilter);
 
 	FMetadataMarshaller::GetClassMetadata(InProp, FCRMetadataKey::ActorClass, [this](UClass* InClass)
 	{
@@ -143,6 +145,10 @@ void FBlueprintComponentReferenceMetadata::ApplySettingsToProperty(UBlueprint* I
 	{
 		FMetadataMarshaller::SetMetaDataValue(InBlueprint, InProperty, FCRMetadataKey::ActorClass, ClassToString(ActorClass.Get()));
 	}
+	if (InChanged.IsNone() || InChanged == GET_MEMBER_NAME_CHECKED(FBlueprintComponentReferenceMetadata, ComponentFilter))
+	{
+		FMetadataMarshaller::SetMetaDataValue(InBlueprint, InProperty, FCRMetadataKey::ComponentFilter, ComponentFilter);
+	}
 }
 
 bool FMetadataMarshaller::HasMetaDataValue(const FProperty* Property, const FName& InName)
@@ -187,6 +193,15 @@ void FMetadataMarshaller::SetMetaDataValue(UBlueprint* InBlueprint, FProperty* I
 			InProperty->RemoveMetaData(InName);
 		}
 	}
+}
+
+TOptional<FString> FMetadataMarshaller::GetStringMetaDataValue(const FProperty* Property, const FName& InName)
+{
+	if (const FString* Value = Property->FindMetaData(InName))
+	{
+		return TOptional<FString>(*Value);
+	}
+	return TOptional<FString>();
 }
 
 TOptional<bool> FMetadataMarshaller::GetBoolMetaDataValue(const FProperty* Property, const FName& InName)
