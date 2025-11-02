@@ -13,7 +13,7 @@ class UBlueprint;
 /**
  *
  */
-class  FBlueprintComponentReferenceVarCustomization : public IDetailCustomization
+class BLUEPRINTCOMPONENTREFERENCEEDITOR_API FBlueprintComponentReferenceVarCustomization : public IDetailCustomization
 {
 	using FMetadataContainer = FBlueprintComponentReferenceMetadata;
 public:
