@@ -427,7 +427,7 @@ UClass* FBlueprintComponentReferenceHelper::FindClassByName(const FString& Class
 	if (ClassName.IsEmpty())
 		return nullptr;
 	UClass* ResultClass = nullptr;
-#if UE_VERSION_OLDER_THAN(5, 0, 0)
+#if UE_VERSION_OLDER_THAN(5, 1, 0)
 	if (FPackageName::IsShortPackageName(ClassName))
 	{
 		ResultClass = FindObject<UClass>(ANY_PACKAGE, *ClassName);
