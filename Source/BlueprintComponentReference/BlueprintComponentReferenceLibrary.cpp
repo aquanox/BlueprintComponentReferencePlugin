@@ -124,6 +124,12 @@ bool UBlueprintComponentReferenceLibrary::Set_ContainsComponent(const TSet<FBlue
 	return false;
 }
 
+bool UBlueprintComponentReferenceLibrary::Map_FindComponent(const TMap<int32, int32>& TargetMap, UActorComponent* Component, int32& Value)
+{
+	checkNoEntry();
+	return false;
+}
+
 bool UBlueprintComponentReferenceLibrary::Map_FindComponent_Impl(const void* TargetMap, const FMapProperty* MapProperty, const void* KeyPtr, void* OutValuePtr)
 {
 	if (!MapProperty->KeyProp->IsA(FStructProperty::StaticClass()) ||
