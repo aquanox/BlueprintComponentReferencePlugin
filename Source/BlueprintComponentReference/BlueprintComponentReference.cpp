@@ -73,7 +73,7 @@ FString FBlueprintComponentReference::ToString() const
 	return Result.ToString();
 }
 
-UActorComponent* FBlueprintComponentReference::GetComponent(AActor* SearchActor) const
+UActorComponent* FBlueprintComponentReference::GetComponent(const AActor* SearchActor) const
 {
 	UActorComponent* Result = nullptr;
 
@@ -90,7 +90,8 @@ UActorComponent* FBlueprintComponentReference::GetComponent(AActor* SearchActor)
 			break;
 		case EBlueprintComponentReferenceMode::Path:
 			// Variation 2: subobject path
-			Result = FindObjectFast<UActorComponent>(SearchActor, Value);
+			// const-cast is used as FindObjectFast does not provide a signature with const AActor*
+			Result = FindObjectFast<UActorComponent>(const_cast<AActor*>SearchActor, Value);
 			break;
 		//case EBlueprintComponentReferenceMode::Dynamic:
 			// Variation 3: dynamic selection

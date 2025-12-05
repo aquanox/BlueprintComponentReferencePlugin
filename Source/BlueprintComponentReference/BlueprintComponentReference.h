@@ -154,7 +154,7 @@ public:
 	 *
 	 * @param SearchActor Actor to perform search in
 	 */
-	UActorComponent* GetComponent(AActor* SearchActor) const;
+	UActorComponent* GetComponent(const AActor* SearchActor) const;
 
 	/**
 	 * Get the actual component pointer from this reference
@@ -162,7 +162,7 @@ public:
 	 * @param SearchActor Actor to perform search in
 	 */
 	template<typename T>
-	T* GetComponent(AActor* SearchActor) const
+	T* GetComponent(const AActor* SearchActor) const
 	{
 		return Cast<T>(GetComponent(SearchActor));
 	}
