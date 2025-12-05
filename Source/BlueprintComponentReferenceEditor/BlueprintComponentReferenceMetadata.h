@@ -19,6 +19,7 @@ struct FCRMetadataKey
 	static const FName NoClear;
 	static const FName NoNavigate;
 	static const FName NoPicker;
+	static const FName ComponentViewMode;
 	// filter flags
 	static const FName ShowBlueprint;
 	static const FName ShowNative;
@@ -30,6 +31,19 @@ struct FCRMetadataKey
 	static const FName ComponentFilter;
 };
 
+UENUM()
+enum class EBlueprintComponentReferenceViewMode
+{
+	// Shortcut for default mode determined in runtime
+	Default,
+	// Disable picker
+	Off,
+	// Use menu style picker
+	Menu,
+	// Use table style picker (class -> components)
+	Table,
+};
+
 /**
  * Internal struct for blueprint property configuration and view settings
  */
@@ -39,10 +53,10 @@ struct BLUEPRINTCOMPONENTREFERENCEEDITOR_API FBlueprintComponentReferenceMetadat
 	GENERATED_BODY()
 public:
 	/**
-	 * Enables component picker
+	 * Type of component picker interface
 	 */
-	UPROPERTY(EditAnywhere, Category=Metadata, meta=(MDSpecifier="NoPicker", MDHandler="!Flag"))
-	bool bUsePicker	= true;
+	UPROPERTY(EditAnywhere, Category=Metadata, meta=(MDSpecifier="ComponentViewMode", MDHandler="Enum"))
+	EBlueprintComponentReferenceViewMode ComponentViewMode = EBlueprintComponentReferenceViewMode::Default;
 	/**
 	 * Enables Navigate to Component button
 	 */
@@ -115,6 +129,8 @@ public:
 	virtual void ResetSettings();
 	virtual void LoadSettingsFromProperty(const FProperty* InProp);
 	virtual void ApplySettingsToProperty(UBlueprint* InBlueprint, FProperty* InProperty, const FName& InChanged);
+
+	bool UsePicker() const { return ComponentViewMode != EBlueprintComponentReferenceViewMode::Off; }
 };
 
 class UBlueprint;
@@ -131,6 +147,14 @@ struct BLUEPRINTCOMPONENTREFERENCEEDITOR_API FMetadataMarshaller
 	static TOptional<FString> GetStringMetaDataValue(const FProperty* Property, const FName& InName);
 
 	static TOptional<bool> GetBoolMetaDataValue(const FProperty* Property, const FName& InName);
+
+	template<typename T>
+	static T GetEnumMetaDataValue(const FProperty* Property, const FName& InName)
+	{
+		return (T) GetEnumMetaDataValue( Property, StaticEnum<T>(), InName ).Get( (int64) T::Default );
+	}
+
+	static TOptional<int64> GetEnumMetaDataValue(const FProperty* Property, UEnum* EnumType, const FName& InName);
 
 	static void GetClassMetadata(const FProperty* Property, const FName& InName, const TFunctionRef<void(UClass*)>& Func);
 

@@ -39,15 +39,9 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Misc/EngineVersionComparison.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-
-#if UE_VERSION_OLDER_THAN(5, 0, 0)
-#include "EditorStyleSet.h"
-using FStyleSourceHelper = FEditorStyle;
-#else
-#include "Styling/AppStyle.h"
-#include "UObject/ObjectPtr.h"
-using FStyleSourceHelper = FAppStyle;
-#endif
+#include "Misc/ConfigCacheIni.h"
+#include "SComponentPickerTableWidget.h"
+#include "SlateStyleHelper.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintComponentReferenceCustomization"
 
@@ -60,6 +54,8 @@ namespace Switches
 	constexpr bool bUseShortLoggingContextName = true;
 	// Should filter unique node ids
 	constexpr bool bFilterUniqueNodes = true;
+
+	constexpr int64 DefaultViewMode = static_cast<int64>(EBlueprintComponentReferenceViewMode::Menu);
 }
 
 TSharedRef<IPropertyTypeCustomization> FBlueprintComponentReferenceCustomization::MakeInstance()
@@ -181,8 +177,8 @@ void FBlueprintComponentReferenceCustomization::CustomizeChildren(TSharedRef<IPr
 			);
 
 			StructBuilder.AddProperty(ChildPropertyHandle)
-				.ShowPropertyButtons(!ViewSettings.bUsePicker)
-				.ShouldAutoExpand(!ViewSettings.bUsePicker)
+				.ShowPropertyButtons(!ViewSettings.UsePicker())
+				.ShouldAutoExpand(!ViewSettings.UsePicker())
 				.IsEnabled(MakeAttributeSP(this, &FBlueprintComponentReferenceCustomization::CanEditChildren));
 		}
 	}
@@ -240,9 +236,9 @@ void FBlueprintComponentReferenceCustomization::BuildComboBox()
 		[
 			SNew(STextBlock)
 #if UE_VERSION_OLDER_THAN(5, 0, 0)
-			.TextStyle( FStyleSourceHelper::Get(), "PropertyEditor.AssetClass" )
+			.TextStyle( FSlateStyleHelper::Get(), "PropertyEditor.AssetClass" )
 #endif
-			.Font( FStyleSourceHelper::GetFontStyle( "PropertyWindow.NormalFont" ) )
+			.Font( FSlateStyleHelper::GetFontStyle( "PropertyWindow.NormalFont" ) )
 			.Text(this, &FBlueprintComponentReferenceCustomization::OnGetComponentName)
 			.ColorAndOpacity(this, &FBlueprintComponentReferenceCustomization::OnGetComponentNameColor)
 			.ToolTipText(this, &FBlueprintComponentReferenceCustomization::OnGetComponentTooltip)
@@ -251,13 +247,13 @@ void FBlueprintComponentReferenceCustomization::BuildComboBox()
 
 	SAssignNew(ComponentComboButton, SComboButton)
 #if UE_VERSION_OLDER_THAN(5, 0, 0)
-		.ButtonStyle( FStyleSourceHelper::Get(), "PropertyEditor.AssetComboStyle" )
-		.ForegroundColor(FStyleSourceHelper::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
+		.ButtonStyle( FSlateStyleHelper::Get(), "PropertyEditor.AssetComboStyle" )
+		.ForegroundColor(FSlateStyleHelper::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
 #endif
 		.OnGetMenuContent(this, &FBlueprintComponentReferenceCustomization::OnGetMenuContent)
 		.OnMenuOpenChanged(this, &FBlueprintComponentReferenceCustomization::OnMenuOpenChanged)
 		.ContentPadding(FMargin(2,2,2,1))
-		.Visibility(ViewSettings.bUsePicker ? EVisibility::Visible : EVisibility::Collapsed)
+		.Visibility(ViewSettings.UsePicker() ? EVisibility::Visible : EVisibility::Collapsed)
 		.ButtonContent()
 		[
 			SNew(SHorizontalBox)
@@ -545,12 +541,12 @@ bool FBlueprintComponentReferenceCustomization::CanEdit() const
 	{
 		return !PropertyHandle->IsEditConst();
 	}
-	return ViewSettings.bUsePicker;
+	return ViewSettings.UsePicker();
 }
 
 bool FBlueprintComponentReferenceCustomization::CanEditChildren() const
 {
-	if (!ViewSettings.bUsePicker)
+	if (!ViewSettings.UsePicker())
 	{
 		return CanEdit();
 	}
@@ -627,15 +623,43 @@ const FSlateBrush* FBlueprintComponentReferenceCustomization::GetStatusIcon() co
 
 	if (PropertyState != EPropertyState::Normal)
 	{
-		return FStyleSourceHelper::GetBrush("Icons.Error");
+		return FSlateStyleHelper::GetBrush("Icons.Error");
 	}
 	return &EmptyBrush;
 }
 
 TSharedRef<SWidget> FBlueprintComponentReferenceCustomization::OnGetMenuContent()
 {
-	FMenuBuilder MenuBuilder(true, nullptr);
+	UpdateSelectionList();
 
+	EBlueprintComponentReferenceViewMode ViewMode = ViewSettings.ComponentViewMode;
+	if (ViewMode == EBlueprintComponentReferenceViewMode::Default)
+	{
+		FString Value;
+		if (!GConfig->GetString(TEXT("BlueprintComponentReference"), TEXT("DefaultViewMode"), Value, GEditorIni) || Value.IsEmpty())
+		{
+			Value = StaticEnum<EBlueprintComponentReferenceViewMode>()->GetNameStringByValue(Switches::DefaultViewMode);
+		}
+
+		int64 EnumValue = StaticEnum<EBlueprintComponentReferenceViewMode>()->GetValueByNameString(Value);
+		if (EnumValue == INDEX_NONE) EnumValue = Switches::DefaultViewMode;
+		ViewMode = static_cast<EBlueprintComponentReferenceViewMode>(EnumValue);
+	}
+
+	switch (ViewMode)
+	{
+	default:
+	case EBlueprintComponentReferenceViewMode::Menu:
+		return BuildComponentSelectionMenu();
+	case EBlueprintComponentReferenceViewMode::Table:
+		return BuildComponentSelectionTable();
+	case EBlueprintComponentReferenceViewMode::Off:
+		return SNullWidget::NullWidget;
+	}
+}
+
+void FBlueprintComponentReferenceCustomization::UpdateSelectionList()
+{
 	if (!ComponentPickerContext.IsValid())
 	{ // this is necessary after updating metadata or a new property
 		DetermineContext();
@@ -643,7 +667,7 @@ TSharedRef<SWidget> FBlueprintComponentReferenceCustomization::OnGetMenuContent(
 
 	if (ComponentPickerContext.IsValid())
 	{
-		TArray<FSelectionData> ChoosableElements;
+		TArray<FComponentPickerGroup> ChoosableElements;
 
 		// collect unique picker contents, with lowest level one being most important
 		// ClassHistory order is  Instance Class ParentClass GrantParentClass so iterating in reverse
@@ -665,7 +689,7 @@ TSharedRef<SWidget> FBlueprintComponentReferenceCustomization::OnGetMenuContent(
 			if ((!ViewSettings.bShowInstanced && !ViewSettings.bShowHidden) && HierarchyInfo->IsInstance())
 				continue;
 
-			FSelectionData Data;
+			FComponentPickerGroup Data;
 			Data.Category = HierarchyInfo;
 
 			for (const TSharedPtr<FComponentInfo>& Node : HierarchyInfo->GetNodes())
@@ -705,7 +729,7 @@ TSharedRef<SWidget> FBlueprintComponentReferenceCustomization::OnGetMenuContent(
 				}
 				else
 				{
-					FSelectionData MenuSection;
+					FComponentPickerGroup MenuSection;
 					MenuSection.Category = DataSource.Last();
 					MenuSection.Elements.Add(RootInfo);
 					ChoosableElements.Add(MenuSection);
@@ -715,10 +739,15 @@ TSharedRef<SWidget> FBlueprintComponentReferenceCustomization::OnGetMenuContent(
 
 		CachedChoosableElements = MoveTemp(ChoosableElements);
 	}
+}
+
+TSharedRef<SWidget> FBlueprintComponentReferenceCustomization::BuildComponentSelectionMenu()
+{
+	FMenuBuilder MenuBuilder(true, nullptr);
 
 	if (CachedChoosableElements.Num())
 	{
-		for (const FSelectionData& Element : CachedChoosableElements)
+		for (const FComponentPickerGroup& Element : CachedChoosableElements)
 		{
 			MenuBuilder.BeginSection(NAME_None, Element.Category->GetDisplayText());
 
@@ -749,8 +778,16 @@ TSharedRef<SWidget> FBlueprintComponentReferenceCustomization::OnGetMenuContent(
 		MenuBuilder.EndSection();
 	}
 
-
 	return MenuBuilder.MakeWidget();
+}
+
+TSharedRef<SWidget> FBlueprintComponentReferenceCustomization::BuildComponentSelectionTable()
+{
+	return SNew(SComponentPickerTableWidget)
+		.Items(CachedChoosableElements)
+		.Context(ComponentPickerContext)
+		.OnClear(this, &FBlueprintComponentReferenceCustomization::OnClear)
+		.OnSelected(this, &FBlueprintComponentReferenceCustomization::OnComponentSelected);
 }
 
 void FBlueprintComponentReferenceCustomization::OnMenuOpenChanged(bool bOpen)

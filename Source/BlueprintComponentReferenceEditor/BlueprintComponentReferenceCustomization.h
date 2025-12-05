@@ -73,6 +73,9 @@ private:
 	const FSlateBrush* GetStatusIcon() const;
 
 	TSharedRef<SWidget> OnGetMenuContent();
+	void UpdateSelectionList();
+	TSharedRef<SWidget> BuildComponentSelectionMenu();
+	TSharedRef<SWidget> BuildComponentSelectionTable();
 	void OnMenuOpenChanged(bool bOpen);
 
 	void OnClear();
@@ -122,10 +125,5 @@ private:
 	/** currently selected node */
 	TWeakPtr<FComponentInfo> CachedComponentNode;
 
-	struct FSelectionData
-	{
-		TSharedPtr<FHierarchyInfo>			Category;
-		TArray<TSharedPtr<FComponentInfo>>	Elements;
-	};
-	TArray<FSelectionData> CachedChoosableElements;
+	TArray<FComponentPickerGroup> CachedChoosableElements;
 };

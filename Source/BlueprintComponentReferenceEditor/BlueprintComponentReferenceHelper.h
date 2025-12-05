@@ -223,7 +223,20 @@ struct FComponentPickerContext
 	TSharedPtr<FComponentInfo> FindComponent(const FBlueprintComponentReference& InRef, bool bSafeSearch);
 	TSharedPtr<FComponentInfo> FindComponentForVariable(const FName& InName);
 
-	TSharedPtr<FComponentInfo> GetRoot() /*fake*/;
+	TSharedPtr<FComponentInfo> GetRoot();
+};
+
+struct FComponentPickerGroup
+{
+	TSharedPtr<FHierarchyInfo>			Category;
+	TArray<TSharedPtr<FComponentInfo>>	Elements;
+};
+
+struct FComponentPickerFilter
+{
+	virtual ~FComponentPickerFilter() = default;
+	virtual bool TestNode(TSharedPtr<FComponentInfo> Info) const;
+	virtual bool TestObject(UActorComponent* Component) const;
 };
 
 /**

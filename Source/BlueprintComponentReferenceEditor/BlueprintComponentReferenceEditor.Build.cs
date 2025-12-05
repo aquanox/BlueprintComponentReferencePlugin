@@ -6,7 +6,7 @@ public class BlueprintComponentReferenceEditor : ModuleRules
 {
 	// This is to emulate engine installation and verify includes during development
 	// Gives effect similar to BuildPlugin with -StrictIncludes
-	public bool bStrictIncludesCheck = false;
+	public bool bStrictIncludesCheck = true;
 
 	public BlueprintComponentReferenceEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
@@ -21,7 +21,7 @@ public class BlueprintComponentReferenceEditor : ModuleRules
 		}
 
 		PublicIncludePaths.Add(ModuleDirectory);
-		
+
 		PublicDependencyModuleNames.AddRange(new string[] {
 			"Core",
 			"CoreUObject",
@@ -32,6 +32,7 @@ public class BlueprintComponentReferenceEditor : ModuleRules
 			"Engine",
 			"Slate",
 			"SlateCore",
+			"InputCore",
 			"UnrealEd",
 			"EditorWidgets",
 			"PropertyEditor",

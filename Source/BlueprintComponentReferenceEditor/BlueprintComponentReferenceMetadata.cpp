@@ -15,6 +15,7 @@ const FName FCRMetadataKey::DisallowedClasses = "DisallowedClasses";
 const FName FCRMetadataKey::NoClear = "NoClear";
 const FName FCRMetadataKey::NoNavigate = "NoNavigate";
 const FName FCRMetadataKey::NoPicker = "NoPicker";
+const FName FCRMetadataKey::ComponentViewMode = "ComponentViewMode";
 const FName FCRMetadataKey::ShowBlueprint = "ShowBlueprint";
 const FName FCRMetadataKey::ShowNative = "ShowNative";
 const FName FCRMetadataKey::ShowInstanced = "ShowInstanced";
@@ -36,7 +37,9 @@ void FBlueprintComponentReferenceMetadata::LoadSettingsFromProperty(const FPrope
 	static const FBlueprintComponentReferenceMetadata DefaultValues;
 
 	// picker
-	bUsePicker = !FMetadataMarshaller::HasMetaDataValue(InProp, FCRMetadataKey::NoPicker);
+	ComponentViewMode = FMetadataMarshaller::GetEnumMetaDataValue<EBlueprintComponentReferenceViewMode>(InProp, FCRMetadataKey::ComponentViewMode);
+	if (FMetadataMarshaller::HasMetaDataValue(InProp, FCRMetadataKey::NoPicker))
+		ComponentViewMode = EBlueprintComponentReferenceViewMode::Off;
 	// actions
 	bUseNavigate = !FMetadataMarshaller::HasMetaDataValue(InProp, FCRMetadataKey::NoNavigate);
 	bUseClear = !(InProp->PropertyFlags & CPF_NoClear) && !FMetadataMarshaller::HasMetaDataValue(InProp, FCRMetadataKey::NoClear);
@@ -102,9 +105,10 @@ void FBlueprintComponentReferenceMetadata::ApplySettingsToProperty(UBlueprint* I
 		return FString::Join(Paths, TEXT(","));
 	};
 
-	if (InChanged.IsNone() || InChanged == GET_MEMBER_NAME_CHECKED(FBlueprintComponentReferenceMetadata, bUsePicker))
+	if (InChanged.IsNone() || InChanged == GET_MEMBER_NAME_CHECKED(FBlueprintComponentReferenceMetadata, ComponentViewMode))
 	{
-		FMetadataMarshaller::SetMetaDataValue(InBlueprint, InProperty, FCRMetadataKey::NoPicker, BoolToFlag(!bUsePicker));
+		FString Value = StaticEnum<EBlueprintComponentReferenceViewMode>()->GetNameStringByValue((int64)ComponentViewMode);
+		FMetadataMarshaller::SetMetaDataValue(InBlueprint, InProperty, FCRMetadataKey::ComponentViewMode, Value);
 	}
 	if (InChanged.IsNone() || InChanged == GET_MEMBER_NAME_CHECKED(FBlueprintComponentReferenceMetadata, bUseNavigate))
 	{
@@ -233,6 +237,16 @@ TOptional<bool> FMetadataMarshaller::GetBoolMetaDataValue(const FProperty* Prope
 	}
 
 	return TOptional<bool>();
+}
+
+TOptional<int64> FMetadataMarshaller::GetEnumMetaDataValue(const FProperty* Property, UEnum* EnumType, const FName& InName)
+{
+	const FString& String = Property->GetMetaData(InName);
+	if (String.IsEmpty())
+	{
+		return TOptional<int64>();
+	}
+	return EnumType->GetValueByNameString(String);
 }
 
 void FMetadataMarshaller::GetClassMetadata(const FProperty* Property, const FName& InName, const TFunctionRef<void(UClass*)>& Func)

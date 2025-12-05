@@ -116,6 +116,16 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Filter", meta=(ComponentFilter="BlueprintComponentReferenceTests.BCRTestActor.TestComponent"))
 	FBlueprintComponentReference ReferenceFilterUserExternal;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|View", meta=(ComponentViewMode=Off))
+	FBlueprintComponentReference ViewOff;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|View", meta=(ComponentViewMode=Menu))
+	FBlueprintComponentReference ViewMenu;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|View", meta=(ComponentViewMode=Table))
+	FBlueprintComponentReference ViewTable;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|View", meta=(ComponentViewMode=Default))
+	FBlueprintComponentReference ViewDefault;
+
+
 	// Hide clear button
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Metadata", NoClear, meta=(NoClear))
 	FBlueprintComponentReference ReferenceNoClear;
