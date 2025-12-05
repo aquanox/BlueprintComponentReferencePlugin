@@ -6,6 +6,7 @@
 #include "BlueprintComponentReferenceMetadata.h"
 #include "IDetailCustomization.h"
 #include "IDetailCustomNodeBuilder.h"
+#include "UObject/WeakFieldPtr.h"
 
 class IBlueprintEditor;
 class UBlueprint;

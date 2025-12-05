@@ -56,8 +56,8 @@ bool FBlueprintComponentReferenceTests_Core::RunTest(FString const&)
 			SampleName1.SetNumber(11);
 			FName SampleName2 = "Sample";
 			SampleName2.SetNumber(22);
-			
-			
+
+
 			FBlueprintComponentReference Sample0 = FBlueprintComponentReference::ForPath(SampleName0);
 			FBlueprintComponentReference Sample1 = FBlueprintComponentReference::ForPath(SampleName1);
 			FBlueprintComponentReference Sample2 = FBlueprintComponentReference::ForPath(SampleName2);
@@ -113,6 +113,13 @@ bool FBlueprintComponentReferenceTests_Core::RunTest(FString const&)
 			TestTrueExpr(BadReference == FBlueprintComponentReference(TEXT("DoesNotExist")));
 			TestTrueExpr(!BadReference.IsNull());
 			TestTrueExpr(BadReference.GetComponent(TestActor) == nullptr);
+		}
+		{
+			FBlueprintComponentReference RootReference;
+			RootReference.ParseString(TEXT("property:RootComponent"));
+
+			TestTrueExpr(!RootReference.IsNull());
+			TestTrueExpr(RootReference.GetComponent(TestActor) == RootComponent);
 		}
 	}
 

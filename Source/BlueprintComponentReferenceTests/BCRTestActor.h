@@ -76,40 +76,44 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test")
 	UPrimaryDataAsset* TargetDA = nullptr;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Test|Engine")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Engine", meta=(UseComponentPicker))
 	FComponentReference ComponentReference;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Migration", meta=(UseComponentPicker))
+	FComponentReference MigrationSample;
+	// FBlueprintComponentReference MigrationSample;
+
 	// Simple component reference. Defaults only
-	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Test|Base")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Base")
 	FBlueprintComponentReference ReferenceVar;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Test|Base")
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Base")
 	FBlueprintComponentReference ReferencePath;
 
-	// Reference to nonexistent var 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Test|Base")
+	// Reference to nonexistent var
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Base")
 	FBlueprintComponentReference ReferenceBadVar;
 	// Reference to nonexistent path
-	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Test|Base")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Base")
 	FBlueprintComponentReference ReferenceBadPath;
 	// Reference to existing component that does not match filter conditions
-	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Test|Base", meta=(AllowedClasses="/Script/Engine.MovementComponent"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Base", meta=(AllowedClasses="/Script/Engine.MovementComponent"))
 	FBlueprintComponentReference ReferenceBadValue;
-	
+
 	// Simple component reference. Only SceneComp allowed
-	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Test|Filter", meta=(AllowedClasses="/Script/Engine.SceneComponent"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Filter", meta=(AllowedClasses="/Script/Engine.SceneComponent"))
 	FBlueprintComponentReference ReferenceFilterA;
 
 	// Simple component reference.  SceneComp disallowed
-	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Test|Filter", meta=(DisallowedClasses="/Script/Engine.SceneComponent"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Filter", meta=(DisallowedClasses="/Script/Engine.SceneComponent"))
 	FBlueprintComponentReference ReferenceFilterB;
 
-	// Simple component reference with member filter func. 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Test|Filter", meta=(ComponentFilter="TestComponent"))
+	// Simple component reference with member filter func.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Filter", meta=(ComponentFilter="TestComponent"))
 	FBlueprintComponentReference ReferenceFilterUser;
 
-	// Simple component reference with external user filter func. 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Test|Filter", meta=(ComponentFilter="BlueprintComponentReferenceTests.BCRTestActor.TestComponent"))
+	// Simple component reference with external user filter func.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Filter", meta=(ComponentFilter="BlueprintComponentReferenceTests.BCRTestActor.TestComponent"))
 	FBlueprintComponentReference ReferenceFilterUserExternal;
 
 	// Hide clear button
@@ -174,7 +178,7 @@ class ABCRCachedTestActor : public ACharacter
 	GENERATED_BODY()
 public:
 	static const FName MeshPropertyName;
-	
+
 	ABCRCachedTestActor();
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Test|Cached", meta=(AllowedClasses="/Script/Engine.SceneComponent"))
@@ -190,15 +194,15 @@ public:
 	TMap<FBlueprintComponentReference, FBCRTestStrustData> ReferenceMapKey;
 
 #if WITH_CACHED_COMPONENT_REFERENCE_TESTS
-	
+
 	TCachedComponentReferenceSingle<USceneComponent> CachedReferenceSingle { this, &ReferenceSingle };
-	
+
 	TCachedComponentReferenceArray<USceneComponent> CachedReferenceArray { this, &ReferenceArray };
-	
+
 	TCachedComponentReferenceMapValue<USceneComponent, FName> CachedReferenceMap { this, &ReferenceMap };
-	
+
 	TCachedComponentReferenceMapKey<USceneComponent, FBCRTestStrustData> CachedReferenceMapKey { this, &ReferenceMapKey };
 
 #endif
-	
+
 };

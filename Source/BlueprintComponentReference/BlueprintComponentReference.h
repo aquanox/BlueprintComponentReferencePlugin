@@ -67,6 +67,11 @@ enum class EBlueprintComponentReferenceMode : uint8
  *		Should include editor-only components?
  *		Default: True
  *
+ * - ShowRoot=bool <br/>
+ *		Should include actor root component magic reference?
+ *		Note: It is always USceneComponent, actual type can be determined only in runtime.
+ *		Default: False
+ *
  * - AllowedClasses="/Script/Engine.ClassA,/Script/Engine.Class.B" <br/>
  *		Specifies list of allowed base component types
  *
@@ -177,6 +182,11 @@ public:
 	 */
 	void Invalidate();
 
+	/**
+	 * Handle type migration when reading serialized data
+	 */
+	bool SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
+
 	bool operator==(const FBlueprintComponentReference& Rhs) const
 	{
 		return Mode == Rhs.Mode && Value == Rhs.Value;
@@ -196,7 +206,7 @@ public:
 	{
 		return FBlueprintComponentReference(EBlueprintComponentReferenceMode::Property, InName);
 	}
-	
+
 	static FBlueprintComponentReference ForPath(const FName& InPath)
 	{
 		return FBlueprintComponentReference(EBlueprintComponentReferenceMode::Path, InPath);
@@ -218,6 +228,7 @@ struct TStructOpsTypeTraits<FBlueprintComponentReference>
 {
 	enum
 	{
-		WithIdenticalViaEquality = true
+		WithIdenticalViaEquality = true,
+		WithStructuredSerializeFromMismatchedTag = true
 	};
 };

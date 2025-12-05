@@ -20,6 +20,7 @@ const FName FCRMetadataKey::ShowNative = "ShowNative";
 const FName FCRMetadataKey::ShowInstanced = "ShowInstanced";
 const FName FCRMetadataKey::ShowHidden = "ShowHidden";
 const FName FCRMetadataKey::ShowEditor = "ShowEditor";
+const FName FCRMetadataKey::ShowRoot = "ShowRoot";
 const FName FCRMetadataKey::ComponentFilter = "ComponentFilter";
 
 void FBlueprintComponentReferenceMetadata::ResetSettings()
@@ -45,6 +46,7 @@ void FBlueprintComponentReferenceMetadata::LoadSettingsFromProperty(const FPrope
 	bShowInstanced = FMetadataMarshaller::GetBoolMetaDataValue(InProp, FCRMetadataKey::ShowInstanced).Get(DefaultValues.bShowInstanced);
 	bShowHidden = FMetadataMarshaller::GetBoolMetaDataValue(InProp, FCRMetadataKey::ShowHidden).Get(DefaultValues.bShowHidden);
 	bShowEditor = FMetadataMarshaller::GetBoolMetaDataValue(InProp, FCRMetadataKey::ShowEditor).Get( DefaultValues.bShowEditor);
+	bShowRoot = FMetadataMarshaller::GetBoolMetaDataValue(InProp, FCRMetadataKey::ShowRoot).Get( DefaultValues.bShowRoot);
 	ComponentFilter = FMetadataMarshaller::GetStringMetaDataValue(InProp, FCRMetadataKey::ComponentFilter).Get( DefaultValues.ComponentFilter);
 
 	FMetadataMarshaller::GetClassMetadata(InProp, FCRMetadataKey::ActorClass, [this](UClass* InClass)
@@ -132,6 +134,10 @@ void FBlueprintComponentReferenceMetadata::ApplySettingsToProperty(UBlueprint* I
 	if (InChanged.IsNone() || InChanged == GET_MEMBER_NAME_CHECKED(FBlueprintComponentReferenceMetadata, bShowEditor))
 	{
 		FMetadataMarshaller::SetMetaDataValue(InBlueprint, InProperty, FCRMetadataKey::ShowEditor, BoolToString(bShowEditor));
+	}
+	if (InChanged.IsNone() || InChanged == GET_MEMBER_NAME_CHECKED(FBlueprintComponentReferenceMetadata, bShowRoot))
+	{
+		FMetadataMarshaller::SetMetaDataValue(InBlueprint, InProperty, FCRMetadataKey::ShowRoot, BoolToString(bShowRoot));
 	}
 	if (InChanged.IsNone() || InChanged == GET_MEMBER_NAME_CHECKED(FBlueprintComponentReferenceMetadata, AllowedClasses))
 	{

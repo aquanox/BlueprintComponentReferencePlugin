@@ -38,9 +38,10 @@
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Misc/EngineVersionComparison.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #if UE_VERSION_OLDER_THAN(5, 0, 0)
-#include "EditorStyle.h"
+#include "EditorStyleSet.h"
 using FStyleSourceHelper = FEditorStyle;
 #else
 #include "Styling/AppStyle.h"
@@ -484,7 +485,7 @@ void FBlueprintComponentReferenceCustomization::OnPropertyValueChanged(FName Sou
 
 	CachedComponentNode.Reset();
 	PropertyState = EPropertyState::Normal;
-	
+
 	if (!ComponentPickerContext.IsValid())
 	{
 		DetermineContext();
@@ -501,9 +502,14 @@ void FBlueprintComponentReferenceCustomization::OnPropertyValueChanged(FName Sou
 			if (Found.IsValid())
 			{
 				if (Found->IsUnknown())
+				{
 					PropertyState = EPropertyState::BadInfo;
+				}
 				else if (!TestNode(Found))
+				{
 					PropertyState = EPropertyState::BadReference;
+				}
+
 			}
 			CachedComponentNode = Found;
 		}
@@ -518,7 +524,7 @@ void FBlueprintComponentReferenceCustomization::OnPropertyValueChanged(FName Sou
 	{
 		PropertyState = EPropertyState::BadPropertyAccess;
 	}
-	
+
 	if (PropertyState != EPropertyState::Normal)
 	{
 		if (Switches::bResetInvalidReferences)
@@ -578,7 +584,7 @@ FText FBlueprintComponentReferenceCustomization::OnGetComponentTooltip() const
 	{
 		return LOCTEXT("BadComponentReference", "Target component does not match filters specified for this property");
 	}
-	
+
 	TSharedPtr<FComponentInfo> LocalNode = CachedComponentNode.Pin();
 	if (LocalNode.IsValid())
 	{
@@ -593,7 +599,7 @@ FText FBlueprintComponentReferenceCustomization::OnGetComponentName() const
 	{
 		return LOCTEXT("MultipleValues", "Multiple Values");
 	}
-	
+
 	TSharedPtr<FComponentInfo> LocalNode = CachedComponentNode.Pin();
 	if (LocalNode.IsValid())
 	{
@@ -662,7 +668,7 @@ TSharedRef<SWidget> FBlueprintComponentReferenceCustomization::OnGetMenuContent(
 			FSelectionData Data;
 			Data.Category = HierarchyInfo;
 
-			for(const TSharedPtr<FComponentInfo>& Node : HierarchyInfo->GetNodes())
+			for (const TSharedPtr<FComponentInfo>& Node : HierarchyInfo->GetNodes())
 			{
 				FName NodeId = Node->GetNodeID();
 				if (TestNode(Node) && TestObject(Node->GetComponentTemplate()))
@@ -685,6 +691,26 @@ TSharedRef<SWidget> FBlueprintComponentReferenceCustomization::OnGetMenuContent(
 		if (Switches::bFilterUniqueNodes)
 		{
 			Algo::Reverse(ChoosableElements);
+		}
+
+		// Add root component magic item
+		if (ViewSettings.bShowRoot)
+		{
+			TSharedPtr<FComponentInfo> RootInfo = ComponentPickerContext->GetRoot();
+			// if (TestNode(RootInfo) && TestObject(RootInfo->GetComponentTemplate()))
+			{
+				if (ChoosableElements.Num())
+				{
+					ChoosableElements.Last().Elements.Add(RootInfo);
+				}
+				else
+				{
+					FSelectionData MenuSection;
+					MenuSection.Category = DataSource.Last();
+					MenuSection.Elements.Add(RootInfo);
+					ChoosableElements.Add(MenuSection);
+				}
+			}
 		}
 
 		CachedChoosableElements = MoveTemp(ChoosableElements);

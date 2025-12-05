@@ -115,7 +115,7 @@ private:
 		// value does not match filters
 		BadReference,
 		// value points to unknown component
-		BadInfo,
+		BadInfo
 	};
 	/** represents current state of customization since last update */
 	EPropertyState PropertyState = EPropertyState::Normal;

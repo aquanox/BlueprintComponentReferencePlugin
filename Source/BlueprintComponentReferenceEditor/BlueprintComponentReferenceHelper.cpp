@@ -9,7 +9,9 @@
 #include "Misc/CoreDelegates.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/UObjectIterator.h"
+#include "UObject/Package.h"
 #include "Misc/EngineVersionComparison.h"
+#include "Misc/PackageName.h"
 #include "HAL/IConsoleManager.h"
 #include "PropertyHandle.h"
 
@@ -515,17 +517,10 @@ USCS_Node* FBlueprintComponentReferenceHelper::FindSCSNodeForInstance(const UAct
 	return nullptr;
 }
 
-bool FBlueprintComponentReferenceHelper::DoesReferenceMatch(const FBlueprintComponentReference& InRef, const FComponentInfo& Value)
+bool FBlueprintComponentReferenceHelper::IsRootComponentReference(const FBlueprintComponentReference& InRef)
 {
-	switch (InRef.Mode)
-	{
-	case EBlueprintComponentReferenceMode::Property:
-		return Value.GetVariableName() == InRef.Value;
-	case EBlueprintComponentReferenceMode::Path:
-		return Value.GetObjectName() == InRef.Value;
-	default:
-		return false;
-	}
+	static const FBlueprintComponentReference RootPropertyName(EBlueprintComponentReferenceMode::Property, TEXT("RootComponent"));
+	return InRef == RootPropertyName;
 }
 
 bool FBlueprintComponentReferenceHelper::InvokeComponentFilter(TSharedPtr<class IPropertyHandle> InProperty, const FString& InFilterFn, const UObject* InObj)
@@ -573,19 +568,38 @@ bool FBlueprintComponentReferenceHelper::InvokeComponentFilter(TSharedPtr<class 
 	return true;
 }
 
-TSharedPtr<FComponentInfo> FComponentPickerContext::FindComponent(const FBlueprintComponentReference& InRef, bool bSafeSearch) const
+TSharedPtr<FComponentInfo> FComponentPickerContext::FindComponent(const FBlueprintComponentReference& InRef, bool bSafeSearch)
 {
 	if (InRef.IsNull())
 	{
 		return nullptr;
 	}
 
-	// Search across component hierarchy
-	for (const auto& ClassDetails : ClassHierarchy)
+	// Dealing with root component magic reference
+	if (FBlueprintComponentReferenceHelper::IsRootComponentReference(InRef))
 	{
-		for (const auto& Node : ClassDetails->GetNodes())
+		return GetRoot();
+	}
+
+	auto DoesReferenceMatch = [&](const FComponentInfo& Value) -> bool
+	{
+		switch (InRef.GetMode())
 		{
-			if ((FBlueprintComponentReferenceHelper::DoesReferenceMatch(InRef, *Node)))
+		case EBlueprintComponentReferenceMode::Property:
+			return Value.GetVariableName() == InRef.GetValue();
+		case EBlueprintComponentReferenceMode::Path:
+			return Value.GetObjectName() == InRef.GetValue();
+		default:
+			return false;
+		}
+	};
+
+	// Search across component hierarchy
+	for (const TSharedPtr<FHierarchyInfo>& ClassDetails : ClassHierarchy)
+	{
+		for (const TSharedPtr<FComponentInfo>& Node : ClassDetails->GetNodes())
+		{
+			if (DoesReferenceMatch(*Node))
 			{
 				return Node;
 			}
@@ -593,6 +607,7 @@ TSharedPtr<FComponentInfo> FComponentPickerContext::FindComponent(const FBluepri
 	}
 
 	// Dealing with unknown component reference
+	if (bSafeSearch)
 	{
 		const FString SearchKey = InRef.ToString();
 		if (TSharedPtr<FComponentInfo> Unknown = Unknowns.FindRef(SearchKey))
@@ -610,9 +625,18 @@ TSharedPtr<FComponentInfo> FComponentPickerContext::FindComponent(const FBluepri
 	return nullptr;
 }
 
-TSharedPtr<FComponentInfo> FComponentPickerContext::FindComponentForVariable(const FName& InName) const
+TSharedPtr<FComponentInfo> FComponentPickerContext::FindComponentForVariable(const FName& InName)
 {
 	return FindComponent(FBlueprintComponentReference(EBlueprintComponentReferenceMode::Property, InName), false);
+}
+
+TSharedPtr<FComponentInfo> FComponentPickerContext::GetRoot()
+{
+	if (!Root.IsValid())
+	{
+		Root = MakeShared<FComponentInfo_Root>();
+	}
+	return Root;
 }
 
 bool FBlueprintComponentReferenceHelper::IsComponentReferenceProperty(const FProperty* InProperty)
@@ -867,7 +891,7 @@ TSharedPtr<FHierarchyInfo> FBlueprintComponentReferenceHelper::GetOrCreateClassD
 	{
 		Entry->bIsBlueprint = true;
 
-		for(USCS_Node* SCSNode : BPClass->SimpleConstructionScript->GetAllNodes())
+		for (USCS_Node* SCSNode : BPClass->SimpleConstructionScript->GetAllNodes())
 		{
 			auto Template = SCSNode->GetActualComponentTemplate(BPClass);
 			UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("%s register BPR node %s"), *InLabel, *BuildComponentInfo(Template));
@@ -923,7 +947,7 @@ TSharedPtr<FComponentInfo> FBlueprintComponentReferenceHelper::CreateFromInstanc
 
 bool FBlueprintComponentReferenceHelper::IsBlueprintProperty(const FProperty* VariableProperty)
 {
-	if(UClass* const VarSourceClass = VariableProperty ? VariableProperty->GetOwner<UClass>() : nullptr)
+	if (UClass* const VarSourceClass = VariableProperty ? VariableProperty->GetOwner<UClass>() : nullptr)
 	{
 		return (VarSourceClass->ClassGeneratedBy != nullptr);
 	}

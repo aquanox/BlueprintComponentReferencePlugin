@@ -25,6 +25,7 @@ struct FCRMetadataKey
 	static const FName ShowInstanced;
 	static const FName ShowHidden;
 	static const FName ShowEditor;
+	static const FName ShowRoot;
 	// advanced filtering
 	static const FName ComponentFilter;
 };
@@ -76,6 +77,12 @@ public:
 	/** Allow to pick editor-only components */
 	UPROPERTY(EditAnywhere, Category=Metadata, DisplayName="Show Editor", meta=(MDSpecifier="ShowEditor", MDHandler="Bool"))
 	bool bShowEditor = true;
+	/**
+	 * Allow to pick actor root component
+	 * Note: type can be guaranteed only in runtime, used only as a shortcut "whatever root is" or when migrating
+	 */
+	UPROPERTY(EditAnywhere, Category=Metadata, DisplayName="Show Root", meta=(MDSpecifier="ShowRoot", MDHandler="Bool"))
+	bool bShowRoot = false;
 
 	/**
 	 * ActorComponent classes or interfaces that can be referenced by this property
@@ -96,7 +103,7 @@ public:
 
 	/**
 	 * Specifies custom component filtering function.
-	 * 
+	 *
 	 * Must be of signature
 	 * `bool MyFunction(const UActorComponent* InComponent);`
 	 */
@@ -122,7 +129,7 @@ struct BLUEPRINTCOMPONENTREFERENCEEDITOR_API FMetadataMarshaller
 	static void SetMetaDataValue(UBlueprint* Blueprint, FProperty* Property, const FName& InName, TOptional<FString> InValue);
 
 	static TOptional<FString> GetStringMetaDataValue(const FProperty* Property, const FName& InName);
-	
+
 	static TOptional<bool> GetBoolMetaDataValue(const FProperty* Property, const FName& InName);
 
 	static void GetClassMetadata(const FProperty* Property, const FName& InName, const TFunctionRef<void(UClass*)>& Func);

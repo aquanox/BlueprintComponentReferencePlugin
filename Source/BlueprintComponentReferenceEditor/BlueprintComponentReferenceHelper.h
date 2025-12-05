@@ -118,6 +118,21 @@ struct FComponentInfo_Unknown : public FComponentInfo
 	virtual FName GetObjectName() const override { return Mode == EBlueprintComponentReferenceMode::Path ? Value : NAME_None; }
 };
 
+struct FComponentInfo_Root : public FComponentInfo_Unknown
+{
+	FComponentInfo_Root()
+	{
+		Mode = EBlueprintComponentReferenceMode::Property;
+		Value = TEXT("RootComponent");
+	}
+
+	virtual FText GetDisplayText() const override { return INVTEXT("Root Component (auto)"); }
+	virtual FText GetTooltipText() const override { return INVTEXT("Actor Root Component (auto)"); }
+	virtual UClass* GetComponentClass() const override { return USceneComponent::StaticClass(); }
+	virtual UActorComponent* GetComponentTemplate() const override { return GetMutableDefault<USceneComponent>(); }
+	virtual bool IsUnknown() const override { return false; }
+};
+
 struct FHierarchyInfo
 {
 	TArray<TSharedPtr<FComponentInfo>> Nodes;
@@ -187,13 +202,14 @@ public:
 
 struct FComponentPickerContext
 {
-	FString							Label;
+	FString Label;
 
-	TWeakObjectPtr<AActor>			Actor;
-	TWeakObjectPtr<UClass>			Class;
-	TArray<TSharedPtr<FHierarchyInfo>>		ClassHierarchy;
+	TWeakObjectPtr<AActor> Actor;
+	TWeakObjectPtr<UClass> Class;
+	TArray<TSharedPtr<FHierarchyInfo>> ClassHierarchy;
 
-	mutable TMap<FString, TSharedPtr<FComponentInfo>> Unknowns;
+	TSharedPtr<FComponentInfo> Root;
+	TMap<FString, TSharedPtr<FComponentInfo>> Unknowns;
 
 	AActor* GetActor() const { return Actor.Get(); }
 	UClass* GetClass() const { return Class.Get(); }
@@ -202,12 +218,12 @@ struct FComponentPickerContext
 	 * Lookup for component information
 	 * @param InRef Component reference to resolve
 	 * @param bSafeSearch Should return instance of Unknown if no information available
-	 * @return Component information 
+	 * @return Component information
 	 */
-	TSharedPtr<FComponentInfo> FindComponent(const FBlueprintComponentReference& InRef, bool bSafeSearch) const;
-	TSharedPtr<FComponentInfo> FindComponentForVariable(const FName& InName) const;
+	TSharedPtr<FComponentInfo> FindComponent(const FBlueprintComponentReference& InRef, bool bSafeSearch);
+	TSharedPtr<FComponentInfo> FindComponentForVariable(const FName& InName);
 
-
+	TSharedPtr<FComponentInfo> GetRoot() /*fake*/;
 };
 
 /**
@@ -289,7 +305,7 @@ public:
 	// Tries to find a SCS node that was likely responsible for creating the specified instance component.  Note: This is not always possible to do!
 	static USCS_Node* FindSCSNodeForInstance(const UActorComponent* InstanceComponent, UClass* ClassToSearch);
 
-	static bool DoesReferenceMatch(const FBlueprintComponentReference& InRef, const FComponentInfo& Value);
+	static bool IsRootComponentReference(const FBlueprintComponentReference& InRef);
 
 	static bool InvokeComponentFilter(TSharedPtr<class IPropertyHandle> InProperty, const FString& InFilterFn, const UObject* InObj);
 

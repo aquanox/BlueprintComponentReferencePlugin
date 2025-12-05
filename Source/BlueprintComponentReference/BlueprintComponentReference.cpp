@@ -4,7 +4,10 @@
 #include "Modules/ModuleManager.h"
 #include "Components/ActorComponent.h"
 #include "Misc/EngineVersionComparison.h"
+#include "Engine/EngineTypes.h"
 #include "GameFramework/Actor.h"
+#include "Serialization/StructuredArchive.h"
+#include "UObject/PropertyTag.h"
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, BlueprintComponentReference);
 
@@ -57,7 +60,7 @@ bool FBlueprintComponentReference::ParseString(const FString& InValue)
 FString FBlueprintComponentReference::ToString() const
 {
 	TStringBuilder<32> Result;
-	switch(Mode)
+	switch (Mode)
 	{
 	case EBlueprintComponentReferenceMode::Property:
 		Result.Append(TEXT("property:"));
@@ -77,7 +80,7 @@ UActorComponent* FBlueprintComponentReference::GetComponent(AActor* SearchActor)
 {
 	UActorComponent* Result = nullptr;
 
-	if(SearchActor)
+	if (SearchActor)
 	{
 		switch (Mode)
 		{
@@ -113,4 +116,69 @@ void FBlueprintComponentReference::Invalidate()
 {
 	Mode = EBlueprintComponentReferenceMode::None;
 	Value = NAME_None;
+}
+
+bool FBlueprintComponentReference::SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot)
+{
+	static const FName RootComponentReferencePropertyName = TEXT("RootComponent");
+
+	// migration of Engine CR -> BCR, drops actor as context will be determined by detail customization
+	static const FName EngineComponentReferenceContextName("ComponentReference");
+#if UE_VERSION_OLDER_THAN(5, 0, 0)
+	if (Tag.Type == EngineComponentReferenceContextName)
+#else
+	if (Tag.GetType().IsStruct(EngineComponentReferenceContextName))
+#endif
+	{
+		FComponentReference Reference;
+		FComponentReference::StaticStruct()->SerializeItem(Slot, &Reference, nullptr);
+		if (!Reference.ComponentProperty.IsNone())
+		{
+			Mode = EBlueprintComponentReferenceMode::Property;
+			Value = Reference.ComponentProperty;
+		}
+		else if (!Reference.PathToComponent.IsEmpty())
+		{
+			Mode = EBlueprintComponentReferenceMode::Path;
+			Value = *Reference.PathToComponent;
+		}
+#if UE_VERSION_OLDER_THAN(5, 0, 0)
+		else if (Reference.OtherActor)
+#else
+		else if (Reference.OtherActor.IsValid())
+#endif
+		{
+			Mode = EBlueprintComponentReferenceMode::Property;
+			Value = RootComponentReferencePropertyName;
+		}
+		return true;
+	}
+
+#if UE_VERSION_NEWER_THAN(5, 1, 0)
+	// migration of UE5+ SoftCR -> BCR, drops actor as context will be determined by detail customization
+	static const FName EngineSoftComponentReferenceContextName("SoftComponentReference");
+	if (Tag.GetType().IsStruct(EngineSoftComponentReferenceContextName))
+	{
+		FSoftComponentReference Reference;
+		FSoftComponentReference::StaticStruct()->SerializeItem(Slot, &Reference, nullptr);
+		if (!Reference.ComponentProperty.IsNone())
+		{
+			Mode = EBlueprintComponentReferenceMode::Property;
+			Value = Reference.ComponentProperty;
+		}
+		else if (!Reference.PathToComponent.IsEmpty())
+		{
+			Mode = EBlueprintComponentReferenceMode::Path;
+			Value = *Reference.PathToComponent;
+		}
+		else if (Reference.OtherActor.IsValid())
+		{
+			Mode = EBlueprintComponentReferenceMode::Property;
+			Value = RootComponentReferencePropertyName;
+		}
+		return true;
+	}
+#endif
+
+	return false;
 }
