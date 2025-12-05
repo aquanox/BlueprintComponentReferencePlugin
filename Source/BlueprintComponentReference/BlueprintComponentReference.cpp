@@ -76,7 +76,7 @@ FString FBlueprintComponentReference::ToString() const
 	return Result.ToString();
 }
 
-UActorComponent* FBlueprintComponentReference::GetComponent(AActor* SearchActor) const
+UActorComponent* FBlueprintComponentReference::ExtractComponent(AActor* SearchActor) const
 {
 	UActorComponent* Result = nullptr;
 
@@ -105,6 +105,16 @@ UActorComponent* FBlueprintComponentReference::GetComponent(AActor* SearchActor)
 	}
 
 	return Result;
+}
+
+UActorComponent* FBlueprintComponentReference::GetComponent(AActor* SearchActor) const
+{
+	return ExtractComponent(SearchActor);
+}
+
+UActorComponent* FBlueprintComponentReference::GetComponent(const AActor* SearchActor) const
+{
+	return ExtractComponent(const_cast<AActor*>(SearchActor));
 }
 
 bool FBlueprintComponentReference::IsNull() const

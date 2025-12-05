@@ -158,6 +158,7 @@ public:
 	 * Get the actual component pointer from this reference
 	 *
 	 * @param SearchActor Actor to perform search in
+	 * @return Found component or null if search failed
 	 */
 	UActorComponent* GetComponent(AActor* SearchActor) const;
 
@@ -165,9 +166,30 @@ public:
 	 * Get the actual component pointer from this reference
 	 *
 	 * @param SearchActor Actor to perform search in
+	 * @return Found component or null if search failed
+	 */
+	UActorComponent* GetComponent(const AActor* SearchActor) const;
+
+	/**
+	 * Get the actual component pointer from this reference
+	 *
+	 * @param SearchActor Actor to perform search in
+	 * @return Found component or null if search failed
 	 */
 	template<typename T>
 	T* GetComponent(AActor* SearchActor) const
+	{
+		return Cast<T>(GetComponent(SearchActor));
+	}
+
+	/**
+	 * Get the actual component pointer from this reference
+	 *
+	 * @param SearchActor Actor to perform search in
+	 * @return Found component or null if search failed
+	 */
+	template<typename T>
+	T* GetComponent(const AActor* SearchActor) const
 	{
 		return Cast<T>(GetComponent(SearchActor));
 	}
@@ -213,6 +235,8 @@ public:
 	}
 
 protected:
+	UActorComponent* ExtractComponent(AActor* SearchActor) const;
+
 	friend class FBlueprintComponentReferenceHelper;
 
 	UPROPERTY(EditAnywhere, Category=Component)
