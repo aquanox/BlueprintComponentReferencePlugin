@@ -541,8 +541,12 @@ bool FBlueprintComponentReferenceHelper::InvokeComponentFilter(TSharedPtr<class 
 		if (InFilterFn.Contains(TEXT(".")))
 		{
 			ObjectList.Empty();
+#if UE_VERSION_OLDER_THAN(5, 7, 0)
 			const UFunction* FilterFunction = FindObject<UFunction>(nullptr, *InFilterFn, true);
-			if (FilterFunction && FilterFunction->HasAnyFunctionFlags(EFunctionFlags::FUNC_Static))
+#else
+            const UFunction* FilterFunction = FindObject<UFunction>(nullptr, *InFilterFn, EFindObjectFlags::ExactClass);
+#endif
+			if (FilterFunction && FilterFunction->HasAnyFunctionFlags(FUNC_Static))
 			{
 				UObject* FilterOwnerCDO = FilterFunction->GetOuterUClass()->GetDefaultObject();
 				CallableName = FilterFunction->GetFName();
@@ -587,7 +591,7 @@ TSharedPtr<FComponentInfo> FComponentPickerContext::FindComponent(const FBluepri
 			}
 		}
 	}
-	
+
 	// Dealing with unknown component reference
 	{
 		const FString SearchKey = InRef.ToString();
