@@ -3,6 +3,7 @@
 [![GitHub forks](https://img.shields.io/github/forks/aquanox/BlueprintComponentReferencePlugin)](https://github.com/aquanox/BlueprintComponentReferencePlugin/network)
 [![GitHub stars](https://img.shields.io/github/stars/aquanox/BlueprintComponentReferencePlugin)](https://github.com/aquanox/BlueprintComponentReferencePlugin/stargazers)
 ![UE5](https://img.shields.io/badge/UE5-5.0+-lightgrey)
+![UE4](https://img.shields.io/badge/UE4-4.27-lightgrey)
 
 ## Blueprint Component Reference Plugin for Unreal Engine
 
@@ -39,7 +40,8 @@ Component Filtering:
 Item Display: 
  * `NoClear` - Hide 'Clear' button. Default = False.
  * `NoNavigate` - Hide 'Navigate to' button. Default = False.
- * `NoPicker` - Disable component picker. Default = False.
+ * `NoPicker` - Disable component picker. Default = False. Deprecated.
+ * `ComponentViewMode` - Specifies component viewer display mode. Values: [Off, Menu, Table, Default]
 
 Out-of-Actor Use:
 * `ActorClass` - Class to use for component selection dropdown if context detection is not possible.
@@ -66,17 +68,21 @@ class ABCRTestActor : public AInfo
 {
 	GENERATED_BODY()
 public:
-    /* Simplest reference to any component within current class */
+    /** Reference to any component within current class */
     UPROPERTY(EditAnywhere, BlueprintReadOnly)
     FBlueprintComponentReference SimpleReference;
     
-    /* Simplest reference to any native component within current class */
+    /** Reference to any native component within current class */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ShowNative=true, ShowBlueprint=false))
     FBlueprintComponentReference NativeOnlyReference;
     
-    /* Simplest reference to any component within current class */
+    /** Reference to any component within current class */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(AllowedClasses="/Script/Engine.SceneComponent"))
-    FBlueprintComponentReference SimpleSceneCompReference;
+    FBlueprintComponentReference SceneCompReference;
+	
+    /** Reference to any component within current class, picker would use table view mode */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ComponentViewMode=Table))
+    FBlueprintComponentReference ReferenceWithTableView;
 };
 
 UCLASS()
@@ -84,7 +90,7 @@ class UBCRTestDataAsset : public UDataAsset
 {
 	GENERATED_BODY()
 public:
-    /* Make a reference to any component within a BCRTestActor class */
+    /** Reference to any component within a BCRTestActor class */
     UPROPERTY(EditAnywhere, meta=(ActorClass="/Script/BlueprintComponentReferenceTests.BCRTestActor"))
     FBlueprintComponentReference ExternalRef;
 };
@@ -105,11 +111,15 @@ Editor View:
 
 ![](Images/BCR-Large.png)
 
-Details View:
+Details View Menu mode:
 
 ![](Images/BCR-Quick.png)
 
-Graph Nodes:
+Details View Table mode:
+
+![](Images/BCR-TableView.png)
+
+Blueprint Graph Nodes:
 
 ![](Images/BCR-Nodes.png)
 
