@@ -42,6 +42,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "SComponentPickerTableWidget.h"
 #include "SlateStyleHelper.h"
+#include "HAL/IConsoleManager.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintComponentReferenceCustomization"
 
@@ -55,7 +56,12 @@ namespace Switches
 	// Should filter unique node ids
 	constexpr bool bFilterUniqueNodes = true;
 
-	constexpr int64 DefaultViewMode = static_cast<int64>(EBlueprintComponentReferenceViewMode::Menu);
+	constexpr int32 DefaultViewModeDefaultValue = static_cast<int32>(EBlueprintComponentReferenceViewMode::Menu);
+	static TAutoConsoleVariable<int32> DefaultViewMode(
+		TEXT("BCR.DefaultViewMode"),
+		DefaultViewModeDefaultValue,
+		TEXT("Default view mode for BCR selector 0=Default, 1=Off, 2=Menu, 3=Table")
+	);
 }
 
 TSharedRef<IPropertyTypeCustomization> FBlueprintComponentReferenceCustomization::MakeInstance()
@@ -638,11 +644,14 @@ TSharedRef<SWidget> FBlueprintComponentReferenceCustomization::OnGetMenuContent(
 		FString Value;
 		if (!GConfig->GetString(TEXT("BlueprintComponentReference"), TEXT("DefaultViewMode"), Value, GEditorIni) || Value.IsEmpty())
 		{
-			Value = StaticEnum<EBlueprintComponentReferenceViewMode>()->GetNameStringByValue(Switches::DefaultViewMode);
+			Value = StaticEnum<EBlueprintComponentReferenceViewMode>()->GetNameStringByValue(Switches::DefaultViewMode.GetValueOnAnyThread());
 		}
 
 		int64 EnumValue = StaticEnum<EBlueprintComponentReferenceViewMode>()->GetValueByNameString(Value);
-		if (EnumValue == INDEX_NONE) EnumValue = Switches::DefaultViewMode;
+		if (EnumValue == INDEX_NONE)
+		{
+			EnumValue = Switches::DefaultViewModeDefaultValue;
+		}
 		ViewMode = static_cast<EBlueprintComponentReferenceViewMode>(EnumValue);
 	}
 
