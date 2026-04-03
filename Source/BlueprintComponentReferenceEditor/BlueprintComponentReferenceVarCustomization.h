@@ -19,7 +19,6 @@ class BLUEPRINTCOMPONENTREFERENCEEDITOR_API FBlueprintComponentReferenceVarCusto
 	using FMetadataContainer = FBlueprintComponentReferenceMetadata;
 public:
 	FBlueprintComponentReferenceVarCustomization(
-		TSharedPtr<IBlueprintEditor> InBlueprintEditor,
 		TWeakObjectPtr<UBlueprint> InBlueprintPtr
 	);
 
@@ -33,9 +32,6 @@ protected:
 	virtual void OnContainerPropertyChanged(FName InName);
 
 private:
-	/** The blueprint editor instance */
-	TSharedPtr<IBlueprintEditor>	BlueprintEditorPtr;
-
 	/** The blueprint we are editing */
 	TWeakObjectPtr<UBlueprint>		BlueprintPtr;
 

@@ -12,9 +12,8 @@
 #include "ScopedTransaction.h"
 #include "UObject/WeakFieldPtr.h"
 
-FBlueprintComponentReferenceVarCustomization::FBlueprintComponentReferenceVarCustomization(TSharedPtr<IBlueprintEditor> InBlueprintEditor, TWeakObjectPtr<UBlueprint> InBlueprintPtr)
+FBlueprintComponentReferenceVarCustomization::FBlueprintComponentReferenceVarCustomization(TWeakObjectPtr<UBlueprint> InBlueprintPtr)
 {
-	BlueprintEditorPtr = InBlueprintEditor;
 	BlueprintPtr		= InBlueprintPtr;
 }
 
@@ -40,7 +39,7 @@ TSharedPtr<IDetailCustomization> FBlueprintComponentReferenceVarCustomization::M
 
 		if (FinalBlueprint.IsSet())
 		{
-			return MakeShared<FBlueprintComponentReferenceVarCustomization>(BlueprintEditor, MakeWeakObjectPtr(FinalBlueprint.GetValue()));
+			return MakeShared<FBlueprintComponentReferenceVarCustomization>(MakeWeakObjectPtr(FinalBlueprint.GetValue()));
 		}
 	}
 
