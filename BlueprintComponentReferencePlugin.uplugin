@@ -1,7 +1,7 @@
 {
 	"FileVersion": 3,
 	"Version": 120,
-	"VersionName": "1.2.0",
+	"VersionName": "1.3.1",
 	"FriendlyName": "Blueprint Component Reference",
 	"Description": "Provides component picker for Blueprint details.",
 	"Category": "Core",
