@@ -12,10 +12,10 @@
 #include "ScopedTransaction.h"
 #include "UObject/WeakFieldPtr.h"
 
-FBlueprintComponentReferenceVarCustomization::FBlueprintComponentReferenceVarCustomization(TSharedPtr<IBlueprintEditor> InBlueprintEditor, TWeakObjectPtr<UBlueprint> InBlueprintPtr)
+FBlueprintComponentReferenceVarCustomization::FBlueprintComponentReferenceVarCustomization(TWeakPtr<IBlueprintEditor> InBlueprintEditorPtr, TWeakObjectPtr<UBlueprint> InBlueprintPtr)
 {
-	BlueprintEditorPtr = InBlueprintEditor;
-	BlueprintPtr		= InBlueprintPtr;
+	BlueprintEditorPtr = InBlueprintEditorPtr;
+	BlueprintPtr = InBlueprintPtr;
 }
 
 TSharedPtr<IDetailCustomization> FBlueprintComponentReferenceVarCustomization::MakeInstance(TSharedPtr<IBlueprintEditor> BlueprintEditor)
@@ -47,9 +47,11 @@ TSharedPtr<IDetailCustomization> FBlueprintComponentReferenceVarCustomization::M
 	return nullptr;
 }
 
-TSharedPtr<TStructOnScope<FBlueprintComponentReferenceVarCustomization::FMetadataContainer>> FBlueprintComponentReferenceVarCustomization::CreateContainer() const
+TSharedPtr<TStructOnScope<FMetadataContainerBase>> FBlueprintComponentReferenceVarCustomization::CreateContainer() const
 {
-	return MakeShared<TStructOnScope<FMetadataContainer>>(MakeStructOnScope<FMetadataContainer>());
+	TStructOnScope<FMetadataContainerBase> Value;
+	Value.InitializeAs<FBlueprintComponentReferenceMetadata>();
+	return MakeShared<TStructOnScope<FMetadataContainerBase>>(MoveTemp(Value));
 }
 
 void FBlueprintComponentReferenceVarCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
@@ -119,13 +121,31 @@ void FBlueprintComponentReferenceVarCustomization::OnContainerPropertyChanged(FN
 {
 	FScopedTransaction Transaction(INVTEXT("ApplySettingsToProperty"));
 
-	FMetadataContainer& Settings = *ScopedSettings->Get();
+	UBlueprint* Blueprint = BlueprintPtr.Get();
+
+	FMetadataContainerBase* Settings = ScopedSettings->Get();
+	check(Settings);
+
+	bool bNeedsRefresh = false;
 
 	for (const TWeakFieldPtr<FProperty>& Property : PropertiesBeingCustomized)
 	{
 		if (FProperty* Local = Property.Get())
 		{
-			Settings.ApplySettingsToProperty(BlueprintPtr.Get(), Local, InName);
+			Settings->ApplySettingsToProperty(Blueprint, Local, InName);
+
+			if (Local->FindMetaData(TEXT("RequestBlueprintRefresh")) != nullptr)
+			{
+				bNeedsRefresh = true;
+			}
+		}
+	}
+
+	if (bNeedsRefresh)
+	{
+		if (TSharedPtr<IBlueprintEditor> BlueprintEditor = BlueprintEditorPtr.Pin())
+		{
+			BlueprintEditor->RefreshMyBlueprint();
 		}
 	}
 }

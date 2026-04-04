@@ -45,10 +45,24 @@ enum class EBlueprintComponentReferenceViewMode
 };
 
 /**
+ * Internal struct for metadata containers
+ */
+USTRUCT()
+struct BLUEPRINTCOMPONENTREFERENCEEDITOR_API FMetadataContainerBase
+{
+	GENERATED_BODY()
+public:
+	virtual ~FMetadataContainerBase() = default;
+	virtual void ResetSettings() {}
+	virtual void LoadSettingsFromProperty(const FProperty* InProp) {}
+	virtual void ApplySettingsToProperty(UBlueprint* InBlueprint, FProperty* InProperty, const FName& InChanged)  {}
+};
+
+/**
  * Internal struct for blueprint property configuration and view settings
  */
 USTRUCT()
-struct BLUEPRINTCOMPONENTREFERENCEEDITOR_API FBlueprintComponentReferenceMetadata
+struct BLUEPRINTCOMPONENTREFERENCEEDITOR_API FBlueprintComponentReferenceMetadata : public FMetadataContainerBase
 {
 	GENERATED_BODY()
 public:
@@ -125,10 +139,9 @@ public:
 	FString ComponentFilter;
 
 public:
-	virtual ~FBlueprintComponentReferenceMetadata() = default;
-	virtual void ResetSettings();
-	virtual void LoadSettingsFromProperty(const FProperty* InProp);
-	virtual void ApplySettingsToProperty(UBlueprint* InBlueprint, FProperty* InProperty, const FName& InChanged);
+	virtual void ResetSettings() override;
+	virtual void LoadSettingsFromProperty(const FProperty* InProp) override;
+	virtual void ApplySettingsToProperty(UBlueprint* InBlueprint, FProperty* InProperty, const FName& InChanged) override;
 
 	bool UsePicker() const { return ComponentViewMode != EBlueprintComponentReferenceViewMode::Off; }
 };
@@ -136,6 +149,8 @@ public:
 class UBlueprint;
 
 /**
+ * Minimal self-contained edition of metadata marshaller.
+ *
  * An utility class that converts a typed struct container into property metadata and vise-versa and other experiments
  */
 struct BLUEPRINTCOMPONENTREFERENCEEDITOR_API FMetadataMarshaller

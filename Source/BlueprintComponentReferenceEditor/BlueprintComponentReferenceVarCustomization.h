@@ -16,33 +16,31 @@ class UBlueprint;
  */
 class BLUEPRINTCOMPONENTREFERENCEEDITOR_API FBlueprintComponentReferenceVarCustomization : public IDetailCustomization
 {
-	using FMetadataContainer = FBlueprintComponentReferenceMetadata;
 public:
 	FBlueprintComponentReferenceVarCustomization(
-		TSharedPtr<IBlueprintEditor> InBlueprintEditor,
+		TWeakPtr<IBlueprintEditor> InBlueprintEditor,
 		TWeakObjectPtr<UBlueprint> InBlueprintPtr
 	);
 
 	static TSharedPtr<IDetailCustomization> MakeInstance(TSharedPtr<IBlueprintEditor> BlueprintEditor);
 protected:
 	virtual FName GetCategoryName() const { return TEXT("ComponentReferenceMetadata"); }
-	virtual TSharedPtr<TStructOnScope<FMetadataContainer>> CreateContainer() const;
+	virtual TSharedPtr<TStructOnScope<FMetadataContainerBase>> CreateContainer() const;
 
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
 
 	virtual void OnContainerPropertyChanged(FName InName);
-
 private:
 	/** The blueprint editor instance */
-	TSharedPtr<IBlueprintEditor>	BlueprintEditorPtr;
+	TWeakPtr<IBlueprintEditor> BlueprintEditorPtr;
 
 	/** The blueprint we are editing */
-	TWeakObjectPtr<UBlueprint>		BlueprintPtr;
+	TWeakObjectPtr<UBlueprint> BlueprintPtr;
 
 	/** The property we are editing */
 	TArray<TWeakFieldPtr<FProperty>> PropertiesBeingCustomized;
 
 	/** Object holding aggregate settins to be applied to properties */
-	TSharedPtr<TStructOnScope<FMetadataContainer>> ScopedSettings;
+	TSharedPtr<TStructOnScope<FMetadataContainerBase>> ScopedSettings;
 
 };
