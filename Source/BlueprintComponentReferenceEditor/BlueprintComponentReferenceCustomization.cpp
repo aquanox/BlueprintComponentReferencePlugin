@@ -449,10 +449,17 @@ FPropertyAccess::Result FBlueprintComponentReferenceCustomization::GetValue(FBlu
 {
 	// Potentially accessing the value while garbage collecting or saving the package could trigger a crash.
 	// so we fail to get the value when that is occurring.
-	if (GIsSavingPackage || IsGarbageCollecting())
-	{
-		return FPropertyAccess::Fail;
-	}
+#if UE_VERSION_OLDER_THAN(5, 8, 0)
+		if (GIsSavingPackage || IsGarbageCollecting())
+		{
+			return FPropertyAccess::Fail;
+		}
+#else
+		if (UE::IsSavingPackage() || IsGarbageCollecting())
+		{
+			return FPropertyAccess::Fail;
+		}
+#endif
 
 	FPropertyAccess::Result Result = FPropertyAccess::Fail;
 	if (PropertyHandle.IsValid() && PropertyHandle->IsValidHandle())

@@ -60,13 +60,22 @@ void FBCREditorModule::StartupModule()
 	{
 		ClassHelper = MakeShared<FBlueprintComponentReferenceHelper>();
 
+		// PostEngineInitHandle = FCoreDelegates::OnPostEngineInit.AddRaw(this, &FBCREditorModule::OnPostEngineInit);
+#if UE_VERSION_OLDER_THAN(5, 8, 0)
 		PostEngineInitHandle = FCoreDelegates::OnPostEngineInit.AddRaw(this, &FBCREditorModule::OnPostEngineInit);
+#else
+		PostEngineInitHandle = FCoreDelegates::GetOnPostEngineInit().AddRaw(this, &FBCREditorModule::OnPostEngineInit);
+#endif
 	}
 }
 
 void FBCREditorModule::OnPostEngineInit()
 {
-	FCoreDelegates::OnPostEngineInit.Remove(PostEngineInitHandle);
+#if UE_VERSION_OLDER_THAN(5, 8, 0)
+		FCoreDelegates::OnPostEngineInit.Remove(PostEngineInitHandle);
+#else
+		FCoreDelegates::GetOnPostEngineInit().Remove(PostEngineInitHandle);
+#endif
 
 #if !UE_VERSION_OLDER_THAN(5, 0, 0)
 	OnReloadCompleteDelegateHandle = FCoreUObjectDelegates::ReloadCompleteDelegate.AddRaw(this, &FBCREditorModule::OnReloadComplete);
@@ -96,7 +105,12 @@ void FBCREditorModule::ShutdownModule()
 {
 	if (GIsEditor && !IsRunningCommandlet())
 	{
+#if UE_VERSION_OLDER_THAN(5, 8, 0)
 		FCoreDelegates::OnPostEngineInit.Remove(PostEngineInitHandle);
+#else
+		FCoreDelegates::GetOnPostEngineInit().Remove(PostEngineInitHandle);
+#endif
+
 #if !UE_VERSION_OLDER_THAN(5, 0, 0)
 		FCoreUObjectDelegates::ReloadCompleteDelegate.Remove(OnReloadCompleteDelegateHandle);
 		FCoreUObjectDelegates::ReloadReinstancingCompleteDelegate.Remove(OnReloadReinstancingCompleteDelegateHandle);
