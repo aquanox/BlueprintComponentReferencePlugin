@@ -447,9 +447,15 @@ void FBlueprintComponentReferenceCustomization::SetValue(const FBlueprintCompone
 
 FPropertyAccess::Result FBlueprintComponentReferenceCustomization::GetValue(FBlueprintComponentReference& OutValue) const
 {
+#if UE_VERSION_OLDER_THAN(5, 8, 0)
+	bool bIsSavingPackage = GIsSavingPackage;
+#else
+	bool bIsSavingPackage = UE::IsSavingPackage();
+#endif
+
 	// Potentially accessing the value while garbage collecting or saving the package could trigger a crash.
 	// so we fail to get the value when that is occurring.
-	if (GIsSavingPackage || IsGarbageCollecting())
+	if (bIsSavingPackage || IsGarbageCollecting())
 	{
 		return FPropertyAccess::Fail;
 	}
