@@ -2,7 +2,8 @@
 
 #include "BlueprintComponentReferenceEditor.h"
 #include "BlueprintComponentReferenceCustomization.h"
-#include "BlueprintComponentReferenceVarCustomization.h"
+#include "BlueprintComponentReferenceCustomizationExtras.h"
+#include "MetadataCore/MetadataEditorVarCustomization.h"
 #include "BlueprintEditorModule.h"
 #include "HAL/IConsoleManager.h"
 #include "UnrealEdGlobals.h"
@@ -12,6 +13,11 @@
 IMPLEMENT_MODULE(FBCREditorModule, BlueprintComponentReferenceEditor);
 
 DEFINE_LOG_CATEGORY(LogComponentReferenceEditor);
+
+namespace
+{
+	static const FName BCRModuleName("BlueprintComponentReferenceEditor");
+}
 
 #if ALLOW_CONSOLE
 
@@ -83,27 +89,72 @@ void FBCREditorModule::OnPostEngineInit()
 	OnModulesChangedDelegateHandle = FModuleManager::Get().OnModulesChanged().AddRaw(this, &FBCREditorModule::OnModulesChanged);
 	OnBlueprintCompiledHandle = GEditor->OnBlueprintCompiled().AddRaw(this, &FBCREditorModule::OnBlueprintRecompile);
 
-	FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	PropertyModule.RegisterCustomPropertyTypeLayout(
-		"BlueprintComponentReference",
-		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FBlueprintComponentReferenceCustomization::MakeInstance));
-
 	FBlueprintEditorModule& BlueprintEditorModule = FModuleManager::GetModuleChecked<FBlueprintEditorModule>("Kismet");
 #if UE_VERSION_OLDER_THAN(5, 0, 0)
 	BlueprintEditorModule.RegisterVariableCustomization(
 		FProperty::StaticClass(),
-		FOnGetVariableCustomizationInstance::CreateStatic(&FBlueprintComponentReferenceVarCustomization::MakeInstance));
+		FOnGetVariableCustomizationInstance::CreateStatic(&FMetadataEditorVarCustomization::MakeInstance));
 #else
 	VariableCustomizationHandle = BlueprintEditorModule.RegisterVariableCustomization(
 		FProperty::StaticClass(),
-		FOnGetVariableCustomizationInstance::CreateStatic(&FBlueprintComponentReferenceVarCustomization::MakeInstance));
+		FOnGetVariableCustomizationInstance::CreateStatic(&FMetadataEditorVarCustomization::MakeInstance));
 #endif
+
+	// register default types before resetting PostEngineInitHandle
+	RegisterComponentReferenceType<FBlueprintComponentReference, FBlueprintComponentReferenceCustomization, false>();
+
+#if defined(WITH_BCR_EXTRAS) && WITH_BCR_EXTRAS
+	// register extras
+	RegisterComponentReferenceType<FSceneComponentReference, FBlueprintComponentReferenceCustomization, false>();
+	RegisterComponentReferenceType<FPrimitiveComponentReference, FBlueprintComponentReferenceCustomization, false>();
+	RegisterComponentReferenceType<FMeshComponentReference, FBlueprintComponentReferenceCustomization, false>();
+	RegisterComponentReferenceType<FMeshSocketReference, FMeshSocketReferenceCustomization, false>();
+#endif
+
+	// process pending layout registrations
+	OnPostEngineInit_ProcessPendingRegs();
+
+	//
+	bPostEngineInitComplete = true;
+}
+
+void FBCREditorModule::RegisterComponentRereferenceType(FName Name, FOnGetPropertyTypeCustomizationInstance Provider)
+{
+	// External calls to Register may be invoked from early loading phases before EngineInit, so need to defer the tasks
+	// after engine is initialized it is safe to register type right away
+	if (GIsEditor && !IsRunningCommandlet())
+	{
+		FBCREditorModule& Module = FBCREditorModule::Get();
+		Module.PendingRegistrations.Emplace(Name, MoveTemp(Provider));
+
+		if (Module.bPostEngineInitComplete)
+		{ // init already happened, process right away
+			Module.OnPostEngineInit_ProcessPendingRegs();
+		}
+	}
+}
+
+void FBCREditorModule::OnPostEngineInit_ProcessPendingRegs()
+{
+	if (PendingRegistrations.Num())
+	{
+		FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+		for (const auto& Pair : PendingRegistrations)
+		{
+			PropertyModule.RegisterCustomPropertyTypeLayout(Pair.Key, Pair.Value);
+			RegisteredTypes.Add(Pair.Key);
+		}
+		PendingRegistrations.Empty();
+		PropertyModule.NotifyCustomizationModuleChanged();
+	}
 }
 
 void FBCREditorModule::ShutdownModule()
 {
 	if (GIsEditor && !IsRunningCommandlet())
 	{
+		bPostEngineInitComplete = false;
+
 #if UE_VERSION_OLDER_THAN(5, 8, 0)
 		FCoreDelegates::OnPostEngineInit.Remove(PostEngineInitHandle);
 #else
@@ -124,7 +175,12 @@ void FBCREditorModule::ShutdownModule()
 		if (FModuleManager::Get().IsModuleLoaded("PropertyEditor"))
 		{
 			FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-			PropertyModule.UnregisterCustomPropertyTypeLayout("BlueprintComponentReference");
+			//PropertyModule.UnregisterCustomPropertyTypeLayout("BlueprintComponentReference");
+			for (const FName& TypeName : RegisteredTypes)
+			{
+				PropertyModule.UnregisterCustomPropertyTypeLayout(TypeName);
+			}
+			RegisteredTypes.Empty();
 		}
 
 		if (FModuleManager::Get().IsModuleLoaded("Kismet"))
@@ -139,10 +195,19 @@ void FBCREditorModule::ShutdownModule()
 	}
 }
 
+bool FBCREditorModule::IsAvailable()
+{
+	return FModuleManager::Get().IsModuleLoaded(BCRModuleName);
+}
+
+FBCREditorModule& FBCREditorModule::Get()
+{
+	return FModuleManager::GetModuleChecked<FBCREditorModule>(BCRModuleName);
+}
+
 TSharedPtr<FBlueprintComponentReferenceHelper> FBCREditorModule::GetReflectionHelper()
 {
-	static const FName ModuleName("BlueprintComponentReferenceEditor");
-	auto& Ref = FModuleManager::LoadModuleChecked<FBCREditorModule>(ModuleName).ClassHelper;
+	auto& Ref = FBCREditorModule::Get().ClassHelper;
 	if (!Ref.IsValid())
 	{
 		Ref =  MakeShared<FBlueprintComponentReferenceHelper>();

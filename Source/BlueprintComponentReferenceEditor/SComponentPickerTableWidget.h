@@ -1,4 +1,6 @@
-﻿#pragma once
+﻿// Copyright 2024, Aquanox.
+
+#pragma once
 
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/SHeaderRow.h"

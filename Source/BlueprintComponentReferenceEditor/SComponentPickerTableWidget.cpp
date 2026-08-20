@@ -1,4 +1,6 @@
-﻿#include "SComponentPickerTableWidget.h"
+﻿// Copyright 2024, Aquanox.
+
+#include "SComponentPickerTableWidget.h"
 
 #include "PropertyCustomizationHelpers.h"
 #include "SlateStyleHelper.h"

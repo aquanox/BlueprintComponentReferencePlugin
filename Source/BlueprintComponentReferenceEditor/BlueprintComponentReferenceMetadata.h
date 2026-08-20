@@ -5,6 +5,7 @@
 #include "UObject/SoftObjectPtr.h"
 #include "Templates/SubclassOf.h"
 #include "Components/ActorComponent.h"
+#include "MetadataCore/MetadataMarshallerContainer.h"
 
 #include "BlueprintComponentReferenceMetadata.generated.h"
 
@@ -45,20 +46,6 @@ enum class EBlueprintComponentReferenceViewMode
 };
 
 /**
- * Internal struct for metadata containers
- */
-USTRUCT()
-struct BLUEPRINTCOMPONENTREFERENCEEDITOR_API FMetadataContainerBase
-{
-	GENERATED_BODY()
-public:
-	virtual ~FMetadataContainerBase() = default;
-	virtual void ResetSettings() {}
-	virtual void LoadSettingsFromProperty(const FProperty* InProp) {}
-	virtual void ApplySettingsToProperty(UBlueprint* InBlueprint, FProperty* InProperty, const FName& InChanged)  {}
-};
-
-/**
  * Internal struct for blueprint property configuration and view settings
  */
 USTRUCT()
@@ -74,13 +61,13 @@ public:
 	/**
 	 * Enables Navigate to Component button
 	 */
-	UPROPERTY(EditAnywhere, Category=Metadata, meta=(MDSpecifier="NoNavigate", MDHandler="!Flag"))
-	bool bUseNavigate = true;
+	UPROPERTY(EditAnywhere, Category=Metadata, meta=(MDSpecifier="NoNavigate", MDHandler="Flag"))
+	bool bDisableNavigate = false;
 	/**
 	 * Enables Reset/Clear button
 	 */
-	UPROPERTY(EditAnywhere, Category=Metadata, meta=(MDSpecifier="NoClear", MDHandler="!Flag"))
-	bool bUseClear	= true;
+	UPROPERTY(EditAnywhere, Category=Metadata, meta=(MDSpecifier="NoClear", MDHandler="Flag"))
+	bool bDisableClear	= false;
 
 	/**
 	 * Enforces specific actor class to collect components from, usually used when automatic discovery is not possible.
@@ -118,14 +105,14 @@ public:
 	 * Important note: prefer native actor classes over blueprints to avoid loading unnesessary assets
 	 */
 	UPROPERTY(EditAnywhere, DisplayName="Allowed Classes", Category=Metadata, NoClear, meta=(MDSpecifier="AllowedClasses", MDHandler="ClassList", DisplayThumbnail=false, NoElementDuplicate, AllowAbstract=true, NoBrowse, NoCreate, DisallowCreateNew))
-	TArray<TSubclassOf<UActorComponent>>	AllowedClasses;
+	TArray<TSoftClassPtr<UActorComponent>>	AllowedClasses;
 	/**
 	 * ActorComponent classes or interfaces that can NOT be referenced by this property
 	 *
 	 * Important note: prefer native actor classes over blueprints to avoid loading unnesessary assets
 	 */
 	UPROPERTY(EditAnywhere, DisplayName="Disallowed Classes", Category=Metadata, NoClear, meta=(MDSpecifier="DisallowedClasses", MDHandler="ClassList", DisplayThumbnail=false, NoElementDuplicate, AllowAbstract=true, NoBrowse, NoCreate, DisallowCreateNew))
-	TArray<TSubclassOf<UActorComponent>>	DisallowedClasses;
+	TArray<TSoftClassPtr<UActorComponent>>	DisallowedClasses;
 
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FComponentFilterFunc, const UActorComponent*);
 
@@ -140,39 +127,9 @@ public:
 
 public:
 	virtual void ResetSettings() override;
-	virtual void LoadSettingsFromProperty(const FProperty* InProp) override;
-	virtual void ApplySettingsToProperty(UBlueprint* InBlueprint, FProperty* InProperty, const FName& InChanged) override;
+	virtual void LoadSettings(const FMetadataSettingsSource& Source) override;
+	virtual void ApplySettings(FMetadataSettingsSource& Source, const FName& InChanged) override;
 
 	bool UsePicker() const { return ComponentViewMode != EBlueprintComponentReferenceViewMode::Off; }
-};
-
-class UBlueprint;
-
-/**
- * Minimal self-contained edition of metadata marshaller.
- *
- * An utility class that converts a typed struct container into property metadata and vise-versa and other experiments
- */
-struct BLUEPRINTCOMPONENTREFERENCEEDITOR_API FMetadataMarshaller
-{
-	static bool HasMetaDataValue(const FProperty* Property, const FName& InName);
-
-	static void SetMetaDataValue(UBlueprint* Blueprint, FProperty* Property, const FName& InName, TOptional<FString> InValue);
-
-	static TOptional<FString> GetStringMetaDataValue(const FProperty* Property, const FName& InName);
-
-	static TOptional<bool> GetBoolMetaDataValue(const FProperty* Property, const FName& InName);
-
-	template<typename T>
-	static T GetEnumMetaDataValue(const FProperty* Property, const FName& InName)
-	{
-		return (T) GetEnumMetaDataValue( Property, StaticEnum<T>(), InName ).Get( (int64) T::Default );
-	}
-
-	static TOptional<int64> GetEnumMetaDataValue(const FProperty* Property, UEnum* EnumType, const FName& InName);
-
-	static void GetClassMetadata(const FProperty* Property, const FName& InName, const TFunctionRef<void(UClass*)>& Func);
-
-	static void GetClassListMetadata(const FProperty* Property, const FName& InName, const TFunctionRef<void(UClass*)>& Func);
 
 };

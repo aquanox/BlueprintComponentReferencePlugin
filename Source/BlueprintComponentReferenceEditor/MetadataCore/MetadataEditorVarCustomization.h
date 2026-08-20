@@ -14,16 +14,17 @@ class UBlueprint;
 /**
  *
  */
-class BLUEPRINTCOMPONENTREFERENCEEDITOR_API FBlueprintComponentReferenceVarCustomization : public IDetailCustomization
+class BLUEPRINTCOMPONENTREFERENCEEDITOR_API FMetadataEditorVarCustomization : public IDetailCustomization
 {
+	using ThisClass = FMetadataEditorVarCustomization;
 public:
-	FBlueprintComponentReferenceVarCustomization(
+	FMetadataEditorVarCustomization(
 		TWeakPtr<IBlueprintEditor> InBlueprintEditor,
 		TWeakObjectPtr<UBlueprint> InBlueprintPtr
 	);
 
 	static TSharedPtr<IDetailCustomization> MakeInstance(TSharedPtr<IBlueprintEditor> BlueprintEditor);
-protected:
+
 	virtual FName GetCategoryName() const { return TEXT("ComponentReferenceMetadata"); }
 	virtual TSharedPtr<TStructOnScope<FMetadataContainerBase>> CreateContainer() const;
 

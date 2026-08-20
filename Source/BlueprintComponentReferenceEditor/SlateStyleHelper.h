@@ -1,4 +1,6 @@
-﻿#pragma once
+﻿// Copyright 2024, Aquanox.
+
+#pragma once
 
 #include "Misc/EngineVersionComparison.h"
 #include "Brushes/SlateNoResource.h"

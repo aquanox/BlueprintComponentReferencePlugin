@@ -64,12 +64,24 @@ namespace Switches
 	);
 }
 
-TSharedRef<IPropertyTypeCustomization> FBlueprintComponentReferenceCustomization::MakeInstance()
+bool FBlueprintComponentReferenceCustomization::IsSupportedProperty(TSharedRef<IPropertyHandle> InPropertyHandle) const
 {
-	return MakeShared<FBlueprintComponentReferenceCustomization>();
+	const FStructProperty* Property = CastField<FStructProperty>(InPropertyHandle->GetProperty());
+	if (!Property)
+		return false; // reject due to property type
+	if (!FBlueprintComponentReferenceHelper::IsComponentReferenceType(Property->Struct))
+		return false; // reject due to not being child of BCR in general
+	if (StructFilter.IsBound() && !StructFilter.Execute(Property->Struct))
+		return false; // reject due to custom filter
+	return true;
 }
 
-void FBlueprintComponentReferenceCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
+FBlueprintComponentReferenceCustomization::FBlueprintComponentReferenceCustomization(FIsSupportedStructFilter InStructFilter)
+	: StructFilter(InStructFilter)
+{
+}
+
+void FBlueprintComponentReferenceCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& PTCUtils)
 {
 	PropertyHandle = InPropertyHandle;
 
@@ -85,109 +97,127 @@ void FBlueprintComponentReferenceCustomization::CustomizeHeader(TSharedRef<IProp
 	// this will disable use of default "Reset To Defaults" for this header
 	InPropertyHandle->MarkResetToDefaultCustomized(true);
 
+	PropertyStruct.Reset();
 	ViewSettings.ResetSettings();
 
-	FStructProperty* const Property = CastFieldChecked<FStructProperty>(InPropertyHandle->GetProperty());
-	if (Property && ensureAlways(FBlueprintComponentReferenceHelper::IsComponentReferenceType(Property->Struct)))
+	if (IsSupportedProperty(InPropertyHandle))
 	{
+		FStructProperty* const Property = CastFieldChecked<FStructProperty>(InPropertyHandle->GetProperty());
+		PropertyStruct = Property->Struct;
+		TempPropertyStorage.InitializeFrom(FStructOnScope(Property->Struct));
+
+		// Stage 1: import settings from BCR struct
+		ViewSettings.LoadSettingsFromType(Property->Struct);
+		// Stage 2: import settings from member property
 		ViewSettings.LoadSettingsFromProperty(InPropertyHandle->GetMetaDataProperty());
 
-		BuildComboBox();
-
-		InPropertyHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FBlueprintComponentReferenceCustomization::OnPropertyValueChanged, Property->GetFName()));
+		InPropertyHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &ThisClass::OnPropertyValueChanged, Property->GetFName()));
 		OnPropertyValueChanged(Property->GetFName());
 
-		TSharedPtr<SHorizontalBox> ValueContent;
-		SAssignNew(ValueContent, SHorizontalBox)
-		+SHorizontalBox::Slot()
-		.FillWidth(1.0f)
-		[
-#if WITH_BCR_DRAG_DROP
-			SNew(SDropTarget)
-				.OnAllowDrop(this, &FBlueprintComponentReferenceCustomization::OnVerifyDrag)
-				.OnIsRecognized(this, &FBlueprintComponentReferenceCustomization::OnVerifyDrag)
-				.OnDropped(this, &FBlueprintComponentReferenceCustomization::OnDropped)
-			[
-				ComponentComboButton.ToSharedRef()
-			]
-#else
-			ComponentComboButton.ToSharedRef()
-#endif
-		];
-
-		if (ViewSettings.bUseNavigate)
-		{
-#if !UE_VERSION_OLDER_THAN(5, 0, 0)
-			ValueContent->AddSlot()
-			.AutoWidth()
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.Padding(2.0f, 1.0f)
-			[
-				PropertyCustomizationHelpers::MakeBrowseButton(
-					FSimpleDelegate::CreateSP(this, &FBlueprintComponentReferenceCustomization::OnNavigateComponent),
-					LOCTEXT( "NavigateButtonToolTipText", "Select Component in Component Editor"),
-					/* enabled = */ true, /* actor icon = */ true
-				)
-
-			];
-#endif
-		}
-
-		if (ViewSettings.bUseClear)
-		{
-			ValueContent->AddSlot()
-			.AutoWidth()
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.Padding(2.0f, 1.0f)
-			[
-				PropertyCustomizationHelpers::MakeClearButton(
-					FSimpleDelegate::CreateSP(this, &FBlueprintComponentReferenceCustomization::OnClear),
-					LOCTEXT("ClearButtonToolTipText", "Clear Component"),
-					/* enabled = */ true
-				)
-			];
-		}
-
-		HeaderRow.NameContent()
-		[
-			InPropertyHandle->CreatePropertyNameWidget()
-		]
-		.ValueContent()
-		.MinDesiredWidth(TOptional<float>())
-		.MaxDesiredWidth(TOptional<float>())
-		.HAlign(HAlign_Fill)
-		[
-			ValueContent.ToSharedRef()
-		]
-		.IsEnabled(MakeAttributeSP(this, &FBlueprintComponentReferenceCustomization::CanEdit));
+		CustomizeHeaderImpl(InPropertyHandle, HeaderRow, PTCUtils);
 	}
 }
 
-void FBlueprintComponentReferenceCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> InStructPropertyHandle, IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+void FBlueprintComponentReferenceCustomization::CustomizeHeaderImpl(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& PTCUtils)
+{
+	ComponentComboButton = BuildComboBox();
+
+	TSharedPtr<SHorizontalBox> ValueContent;
+	SAssignNew(ValueContent, SHorizontalBox)
+	+SHorizontalBox::Slot()
+	.FillWidth(1.0f)
+	[
+#if WITH_BCR_DRAG_DROP
+		SNew(SDropTarget)
+			.OnAllowDrop(this, &ThisClass::OnVerifyDrag)
+			.OnIsRecognized(this, &ThisClass::OnVerifyDrag)
+			.OnDropped(this, &ThisClass::OnDropped)
+		[
+			ComponentComboButton.ToSharedRef()
+		]
+#else
+		ComponentComboButton.ToSharedRef()
+#endif
+	];
+
+#if !UE_VERSION_OLDER_THAN(5, 0, 0)
+	if (!ViewSettings.bDisableNavigate)
+	{
+		ValueContent->AddSlot()
+		.AutoWidth()
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		.Padding(2.0f, 1.0f)
+		[
+			PropertyCustomizationHelpers::MakeBrowseButton(
+				FSimpleDelegate::CreateSP(this, &ThisClass::OnNavigateComponent),
+				LOCTEXT( "NavigateButtonToolTipText", "Select Component in Component Editor"),
+				/* enabled = */ true, /* actor icon = */ true
+			)
+		];
+	}
+#endif
+
+	if (!ViewSettings.bDisableClear)
+	{
+		ValueContent->AddSlot()
+		.AutoWidth()
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		.Padding(2.0f, 1.0f)
+		[
+			PropertyCustomizationHelpers::MakeClearButton(
+				FSimpleDelegate::CreateSP(this, &ThisClass::OnClear),
+				LOCTEXT("ClearButtonToolTipText", "Clear Component"),
+				/* enabled = */ true
+			)
+		];
+	}
+
+	HeaderRow.NameContent()
+	[
+		InPropertyHandle->CreatePropertyNameWidget()
+	]
+	.ValueContent()
+	.MinDesiredWidth(TOptional<float>())
+	.MaxDesiredWidth(TOptional<float>())
+	.HAlign(HAlign_Fill)
+	[
+		ValueContent.ToSharedRef()
+	]
+	.IsEnabled(MakeAttributeSP(this, &ThisClass::CanEdit));
+}
+
+void FBlueprintComponentReferenceCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> InStructPropertyHandle, IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& PTCUtils)
 {
 	uint32 NumberOfChild = 0;
-	if (InStructPropertyHandle->GetNumChildren(NumberOfChild) == FPropertyAccess::Success)
+	if (InStructPropertyHandle->GetNumChildren(NumberOfChild) != FPropertyAccess::Success)
+		return;
+
+	for (uint32 Index = 0; Index < NumberOfChild; ++Index)
 	{
-		for (uint32 Index = 0; Index < NumberOfChild; ++Index)
+		TSharedRef<IPropertyHandle> ChildPropertyHandle = InStructPropertyHandle->GetChildHandle(Index).ToSharedRef();
+		//if (IsVisibleProperty(ChildPropertyHandle))
 		{
-			TSharedRef<IPropertyHandle> ChildPropertyHandle = InStructPropertyHandle->GetChildHandle(Index).ToSharedRef();
-
-			ChildPropertyHandle->MarkResetToDefaultCustomized(true);
-
-			ChildPropertyHandle->SetOnPropertyValueChanged(
-				FSimpleDelegate::CreateSP(this, &FBlueprintComponentReferenceCustomization::OnPropertyValueChanged,
-					ChildPropertyHandle->GetProperty()->GetFName()
-				)
-			);
-
-			StructBuilder.AddProperty(ChildPropertyHandle)
-				.ShowPropertyButtons(!ViewSettings.UsePicker())
-				.ShouldAutoExpand(!ViewSettings.UsePicker())
-				.IsEnabled(MakeAttributeSP(this, &FBlueprintComponentReferenceCustomization::CanEditChildren));
+			CustomizeChildImpl(InStructPropertyHandle, ChildPropertyHandle, StructBuilder, PTCUtils);
 		}
 	}
+}
+
+void FBlueprintComponentReferenceCustomization::CustomizeChildImpl(TSharedRef<IPropertyHandle> InPropertyHandle, TSharedRef<IPropertyHandle> InChildPropertyHandle, IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& PTCUtils)
+{
+	InChildPropertyHandle->MarkResetToDefaultCustomized(true);
+
+	InChildPropertyHandle->SetOnPropertyValueChanged(
+		FSimpleDelegate::CreateSP(this, &ThisClass::OnPropertyValueChanged,
+			InChildPropertyHandle->GetProperty()->GetFName()
+		)
+	);
+
+	StructBuilder.AddProperty(InChildPropertyHandle)
+		.ShowPropertyButtons(!ViewSettings.UsePicker())
+		.ShouldAutoExpand(!ViewSettings.UsePicker())
+		.IsEnabled(MakeAttributeSP(this, &ThisClass::CanEditChildren));
 }
 
 FString FBlueprintComponentReferenceCustomization::GetLoggingContextString() const
@@ -220,7 +250,7 @@ FString FBlueprintComponentReferenceCustomization::GetLoggingContextString() con
 	return Buffer.ToString();
 }
 
-void FBlueprintComponentReferenceCustomization::BuildComboBox()
+TSharedRef<SComboButton> FBlueprintComponentReferenceCustomization::BuildComboBox()
 {
 	TSharedPtr<SVerticalBox> ObjectContent;
 	SAssignNew(ObjectContent, SVerticalBox)
@@ -233,7 +263,7 @@ void FBlueprintComponentReferenceCustomization::BuildComboBox()
 		.VAlign(VAlign_Center)
 		[
 			SNew(SImage)
-			.Image(this, &FBlueprintComponentReferenceCustomization::GetComponentIcon)
+			.Image(this, &ThisClass::GetComponentIcon)
 		]
 		+ SHorizontalBox::Slot()
 		.Padding(2, 0, 0, 0)
@@ -245,20 +275,20 @@ void FBlueprintComponentReferenceCustomization::BuildComboBox()
 			.TextStyle( FSlateStyleHelper::Get(), "PropertyEditor.AssetClass" )
 #endif
 			.Font( FSlateStyleHelper::GetFontStyle( "PropertyWindow.NormalFont" ) )
-			.Text(this, &FBlueprintComponentReferenceCustomization::OnGetComponentName)
-			.ColorAndOpacity(this, &FBlueprintComponentReferenceCustomization::OnGetComponentNameColor)
-			.ToolTipText(this, &FBlueprintComponentReferenceCustomization::OnGetComponentTooltip)
+			.Text(this, &ThisClass::OnGetComponentName)
+			.ColorAndOpacity(this, &ThisClass::OnGetComponentNameColor)
+			.ToolTipText(this, &ThisClass::OnGetComponentTooltip)
 		]
 	];
 
-	SAssignNew(ComponentComboButton, SComboButton)
+	return SNew(SComboButton)
 #if UE_VERSION_OLDER_THAN(5, 0, 0)
 		.ButtonStyle( FSlateStyleHelper::Get(), "PropertyEditor.AssetComboStyle" )
 		.ForegroundColor(FSlateStyleHelper::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
 #endif
-		.OnGetMenuContent(this, &FBlueprintComponentReferenceCustomization::OnGetMenuContent)
-		.OnMenuOpenChanged(this, &FBlueprintComponentReferenceCustomization::OnMenuOpenChanged)
-		.ContentPadding(FMargin(2,2,2,1))
+		.OnGetMenuContent(this, &ThisClass::OnGetMenuContent)
+		.OnMenuOpenChanged(this, &ThisClass::OnMenuOpenChanged)
+		.ContentPadding(FMargin(0,2,0,2))
 		.Visibility(ViewSettings.UsePicker() ? EVisibility::Visible : EVisibility::Collapsed)
 		.ButtonContent()
 		[
@@ -269,7 +299,7 @@ void FBlueprintComponentReferenceCustomization::BuildComboBox()
 			.VAlign(VAlign_Center)
 			[
 				SNew(SImage)
-				.Image(this, &FBlueprintComponentReferenceCustomization::GetStatusIcon)
+				.Image(this, &ThisClass::GetStatusIcon)
 			]
 			+ SHorizontalBox::Slot()
 			.Padding(2, 0, 0, 0)
@@ -440,12 +470,24 @@ void FBlueprintComponentReferenceCustomization::SetValue(const FBlueprintCompone
 	if (bIsEmpty || IsComponentReferenceValid(Value))
 	{
 		FString TextValue;
-		CastFieldChecked<const FStructProperty>(PropertyHandle->GetProperty())->Struct->ExportText(TextValue, &Value, &Value, nullptr, EPropertyPortFlags::PPF_None, nullptr);
-		ensure(PropertyHandle->SetValueFromFormattedString(TextValue) == FPropertyAccess::Result::Success);
+		PropertyStruct->ExportText(TextValue, &Value, &Value, nullptr, EPropertyPortFlags::PPF_None, nullptr);
+		ensureAlways(PropertyHandle->SetValueFromFormattedString(TextValue) == FPropertyAccess::Result::Success);
 	}
 }
 
-FPropertyAccess::Result FBlueprintComponentReferenceCustomization::GetValue(FBlueprintComponentReference& OutValue) const
+void FBlueprintComponentReferenceCustomization::SetDefaultValue()
+{
+	UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("%s SetDefaultValue"), *GetLoggingContextString());
+
+	check(TempPropertyStorage.IsValid());
+	PropertyStruct->ClearScriptStruct(TempPropertyStorage.Get());
+
+	FString TextValue;
+	PropertyStruct->ExportText(TextValue, TempPropertyStorage.Get(), TempPropertyStorage.Get(), nullptr, EPropertyPortFlags::PPF_None, nullptr);
+	ensureAlways(PropertyHandle->SetValueFromFormattedString(TextValue) == FPropertyAccess::Result::Success);
+}
+
+FBlueprintComponentReferenceCustomization::FValueAndError FBlueprintComponentReferenceCustomization::GetValue() const
 {
 #if UE_VERSION_OLDER_THAN(5, 8, 0)
 	bool bIsSavingPackage = GIsSavingPackage;
@@ -453,38 +495,38 @@ FPropertyAccess::Result FBlueprintComponentReferenceCustomization::GetValue(FBlu
 	bool bIsSavingPackage = UE::IsSavingPackage();
 #endif
 
+	check(TempPropertyStorage.IsValid());
+
 	// Potentially accessing the value while garbage collecting or saving the package could trigger a crash.
 	// so we fail to get the value when that is occurring.
 	if (bIsSavingPackage || IsGarbageCollecting())
 	{
-		return FPropertyAccess::Fail;
+		return FValueAndError(TempPropertyStorage.Get(), FPropertyAccess::Fail);
 	}
 
-	FPropertyAccess::Result Result = FPropertyAccess::Fail;
 	if (PropertyHandle.IsValid() && PropertyHandle->IsValidHandle())
 	{
 		TArray<void*> RawData;
 		PropertyHandle->AccessRawData(RawData);
 
-		switch(RawData.Num())
+		if (RawData.Num() == 1)
 		{
-		case 0:
-			Result = FPropertyAccess::Success;
-			break;
-		case 1:
-			if (void* RawPtr = RawData[0])
-			{
-				const FBlueprintComponentReference& ThisReference = *static_cast<const FBlueprintComponentReference*>(RawPtr);
-				OutValue = ThisReference;
-				Result = FPropertyAccess::Success;
-			}
-			break;
-		default:
-			Result = FPropertyAccess::MultipleValues;
-			break;
+			return FValueAndError(static_cast<const FBlueprintComponentReference*>(RawData[0]), FPropertyAccess::Success);
+
+			//PropertyStruct->CopyScriptStruct(TempPropertyStorage.Get(), RawData[0]);
+			//return FValueAndError(TempPropertyStorage.Get(), FPropertyAccess::Success);
+		}
+		else if (RawData.Num() == 0)
+		{
+			return FValueAndError(TempPropertyStorage.Get(), FPropertyAccess::Fail);
+		}
+		else
+		{
+			return FValueAndError(TempPropertyStorage.Get(), FPropertyAccess::MultipleValues);
 		}
 	}
-	return Result;
+
+	return FValueAndError(TempPropertyStorage.Get(), FPropertyAccess::Fail);
 }
 
 void FBlueprintComponentReferenceCustomization::OnPropertyValueChanged(FName Source)
@@ -499,10 +541,10 @@ void FBlueprintComponentReferenceCustomization::OnPropertyValueChanged(FName Sou
 		DetermineContext();
 	}
 
-	FBlueprintComponentReference TmpComponentReference;
-	const FPropertyAccess::Result Result = GetValue(TmpComponentReference);
-	if (Result == FPropertyAccess::Success)
+	const FValueAndError Result = GetValue();
+	if (Result.Value == FPropertyAccess::Success)
 	{
+		const FBlueprintComponentReference& TmpComponentReference = *Result.Key;
 		// search for component node information within context
 		if (ComponentPickerContext.IsValid() && !TmpComponentReference.IsNull())
 		{
@@ -538,10 +580,11 @@ void FBlueprintComponentReferenceCustomization::OnPropertyValueChanged(FName Sou
 		if (Switches::bResetInvalidReferences)
 		{
 			UE_LOG(LogComponentReferenceEditor, Warning, TEXT("%s Invalid reference. Resetting to none."), *GetLoggingContextString());
-			SetValue(FBlueprintComponentReference());
+			SetDefaultValue();
 		}
 		else
 		{
+			const FBlueprintComponentReference& TmpComponentReference = *Result.Key;
 			UE_LOG(LogComponentReferenceEditor, Warning, TEXT("%s has invalid reference (%s)"), *GetLoggingContextString(), *TmpComponentReference.ToString());
 		}
 	}
@@ -817,74 +860,53 @@ void FBlueprintComponentReferenceCustomization::OnMenuOpenChanged(bool bOpen)
 
 void FBlueprintComponentReferenceCustomization::OnClear()
 {
-	SetValue(FBlueprintComponentReference());
+	SetDefaultValue();
 }
 
 void FBlueprintComponentReferenceCustomization::OnNavigateComponent()
 {
-#if !UE_VERSION_OLDER_THAN(5, 0, 0)
-	TSharedPtr<FComponentInfo> LocalNode = CachedComponentNode.Pin();
-	if (!LocalNode.IsValid() || !ComponentPickerContext.IsValid())
+	if (ComponentPickerContext.IsValid() && CachedComponentNode.IsValid())
 	{
-		return;
-	}
+		AActor* const SearchActor = ComponentPickerContext.IsValid() ? ComponentPickerContext->GetActor() : nullptr;
+		TSharedPtr<FComponentInfo> LocalNode = CachedComponentNode.Pin();
 
-	AActor* const SearchActor = ComponentPickerContext.IsValid() ? ComponentPickerContext->GetActor() : nullptr;
-
-	// Find editor for owning blueprint
-	UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
-
-	FBlueprintEditor* BlueprintEditor = nullptr;
-	UBlueprint* EditedBlueprint = nullptr;
-
-	for(UObject* EditedAsset : AssetEditorSubsystem->GetAllEditedAssets())
-	{
-		if (UBlueprint* Blueprint = Cast<UBlueprint>(EditedAsset))
+		if (::IsValid(SearchActor) && LocalNode.IsValid())
 		{
-			UBlueprintGeneratedClass* GeneratedClass = Cast<UBlueprintGeneratedClass>(Blueprint->GeneratedClass);
-			if (GeneratedClass && GeneratedClass->GetFName() == SearchActor->GetClass()->GetFName())
-			{
-				BlueprintEditor =  static_cast<FBlueprintEditor*>(AssetEditorSubsystem->FindEditorForAsset(Blueprint, false));
-				EditedBlueprint = Blueprint;
-				break;
-			}
+			FBlueprintComponentReferenceHelper::TryNavigateToComponent(SearchActor, LocalNode);
 		}
 	}
-
-	if (BlueprintEditor && EditedBlueprint)
-	{
-		// Open Viewport Tab
-		BlueprintEditor->FocusWindow();
-		BlueprintEditor->GetTabManager()->TryInvokeTab(FBlueprintEditorTabs::SCSViewportID);
-
-		// Select the Component in the Viewport tab view
-		if (auto Template = LocalNode->GetComponentTemplate())
-		{
-
-			BlueprintEditor->FindAndSelectSubobjectEditorTreeNode(Template, false);
-		}
-	}
-#endif
 }
 
 void FBlueprintComponentReferenceCustomization::OnComponentSelected(TSharedPtr<FComponentInfo> Node)
 {
 	ComponentComboButton->SetIsOpen(false);
-
 	CachedComponentNode = Node;
 
-	FBlueprintComponentReference Result;
-	// Todo: desired mode override by metadata, unless really desired
+	// Prepare a clean struct in temp storage
+	// write new component reference while resetting all possible custom properties
+	// and assign to property
+
+	check(TempPropertyStorage.IsValid());
+	PropertyStruct->ClearScriptStruct(TempPropertyStorage.Get());
+
+	FBlueprintComponentReference& Result = *TempPropertyStorage.Get();
 	if (Node->GetDesiredMode() == EBlueprintComponentReferenceMode::Property)
 	{
-		Result = FBlueprintComponentReference(EBlueprintComponentReferenceMode::Property, Node->GetVariableName());
+		FBlueprintComponentReferenceHelper::SetMode_Private(Result, EBlueprintComponentReferenceMode::Property);
+		FBlueprintComponentReferenceHelper::SetValue_Private(Result, Node->GetVariableName());
 	}
 	else
 	{
-		Result = FBlueprintComponentReference(EBlueprintComponentReferenceMode::Path, Node->GetObjectName());
+		FBlueprintComponentReferenceHelper::SetMode_Private(Result, EBlueprintComponentReferenceMode::Path);
+		FBlueprintComponentReferenceHelper::SetValue_Private(Result, Node->GetObjectName());
 	}
 
-	SetValue(Result);
+	OnComponentSelected(Result);
+}
+
+void FBlueprintComponentReferenceCustomization::OnComponentSelected(FBlueprintComponentReference& NewValue)
+{
+	SetValue(NewValue);
 }
 
 void FBlueprintComponentReferenceCustomization::CloseComboButton()

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "BlueprintComponentReference.h"
+#include "BlueprintComponentReferenceExtras.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Info.h"
 #include "Engine/EngineTypes.h"
@@ -167,6 +168,19 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Struct")
 	TArray<FBCRTestStruct> StructTestArray;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Extras")
+	FSceneComponentReference SceneRefSingle;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Extras")
+	TArray<FSceneComponentReference> SceneRefArray;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Extras")
+	TMap<FName, FSceneComponentReference> SceneRefMap;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Extras")
+	FMeshSocketReference SocketRefSingle;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Extras")
+	TArray<FMeshSocketReference> SocketRefArray;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Test|Extras")
+	TMap<FName, FMeshSocketReference> SocketRefMap;
 };
 
 UCLASS(MinimalAPI, Blueprintable)

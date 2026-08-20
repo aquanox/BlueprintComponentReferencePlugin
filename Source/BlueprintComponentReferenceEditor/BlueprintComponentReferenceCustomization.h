@@ -27,22 +27,30 @@ class FDragDropEvent;
 /**
  * Component reference cutomization class
  */
-class FBlueprintComponentReferenceCustomization : public IPropertyTypeCustomization
+class BLUEPRINTCOMPONENTREFERENCEEDITOR_API FBlueprintComponentReferenceCustomization
+	: public IPropertyTypeCustomization
 {
+	using ThisClass = FBlueprintComponentReferenceCustomization;
 public:
-	/** Makes a new instance of this customization for a specific detail view requesting it */
-	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
+	using FIsSupportedStructFilter = TDelegate<bool(const UScriptStruct*)>;
 
-	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& PropertyTypeCustomizationUtils) override;
-	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> InPropertyHandle, IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& PropertyTypeCustomizationUtils) override;
+	FBlueprintComponentReferenceCustomization(FIsSupportedStructFilter InStructFilter = FIsSupportedStructFilter());
 
-private:
+	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& PTCUtils) override;
+	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> InPropertyHandle, IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& PTCUtils) override;
+
+	virtual bool IsSupportedProperty(TSharedRef<IPropertyHandle> InPropertyHandle) const;
+
+	virtual void CustomizeHeaderImpl(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& PTCUtils);
+	virtual void CustomizeChildImpl(TSharedRef<IPropertyHandle> InPropertyHandle, TSharedRef<IPropertyHandle> InChildPropertyHandle,  IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& PTCUtils);
+
+protected:
+
 	/** Build a simple debug context for the property */
 	FString GetLoggingContextString() const;
-	FString CachedContextString;
 
 	/** Build the combobox widget. */
-	void BuildComboBox();
+	TSharedRef<class SComboButton> BuildComboBox();
 
 	/**
 	 * Determine the context the customization is used in
@@ -50,21 +58,31 @@ private:
 	void DetermineContext();
 
 	/**
-	 * Set the value of the asset referenced by this property editor.
-	 * Will set the underlying property handle if there is one.
+	 * Set the BCR value to the property
 	 */
 	void SetValue(const FBlueprintComponentReference& Value);
 
-	/** Get the value referenced by this widget. */
-	FPropertyAccess::Result GetValue(FBlueprintComponentReference& OutValue) const;
+	/**
+	 * Sets the default value to the property
+	 */
+	void SetDefaultValue();
+
+	using FValueAndError = TPair<const FBlueprintComponentReference*, FPropertyAccess::Result>;
+
+	/**
+	 * Get the value referenced by this widget.
+	 *
+	 * Value is always either pointer to real BCR memory or a temp storage (in case of errror)
+	 */
+	FValueAndError GetValue() const;
 
 	/** Callback when the property value changed. */
-	void OnPropertyValueChanged(FName Source);
+	virtual void OnPropertyValueChanged(FName Source);
 
-	bool IsComponentReferenceValid(const FBlueprintComponentReference& Value) const;
+	virtual bool IsComponentReferenceValid(const FBlueprintComponentReference& Value) const;
 
-	bool CanEdit() const;
-	bool CanEditChildren() const;
+	virtual bool CanEdit() const;
+	virtual bool CanEditChildren() const;
 
 	const FSlateBrush* GetComponentIcon() const;
 	FText OnGetComponentName() const;
@@ -78,9 +96,10 @@ private:
 	TSharedRef<SWidget> BuildComponentSelectionTable();
 	void OnMenuOpenChanged(bool bOpen);
 
-	void OnClear();
-	void OnNavigateComponent();
+	virtual void OnClear();
+	virtual void OnNavigateComponent();
 	void OnComponentSelected(TSharedPtr<FComponentInfo> Node);
+	virtual void OnComponentSelected(FBlueprintComponentReference& NewValue);
 
 	void CloseComboButton();
 
@@ -94,9 +113,15 @@ private:
 	FReply OnDrop(TSharedPtr<FDragDropOperation> InDragDrop);
 #endif
 
-private:
+protected:
+	/** */
+	FIsSupportedStructFilter StructFilter;
 	/** The property handle we are customizing */
 	TSharedPtr<IPropertyHandle> PropertyHandle;
+	/** The struct type this customization showing */
+	TWeakObjectPtr<UScriptStruct> PropertyStruct;
+	/** The temp container for the data */
+	TStructOnScope<FBlueprintComponentReference> TempPropertyStorage;
 	/** Cached hierarchy utilities */
 	TSharedPtr<FBlueprintComponentReferenceHelper> ClassHelper;
 
@@ -126,4 +151,6 @@ private:
 	TWeakPtr<FComponentInfo> CachedComponentNode;
 
 	TArray<FComponentPickerGroup> CachedChoosableElements;
+
+	FString CachedContextString;
 };

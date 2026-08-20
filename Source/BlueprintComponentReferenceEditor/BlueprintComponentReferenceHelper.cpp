@@ -14,6 +14,9 @@
 #include "Misc/PackageName.h"
 #include "HAL/IConsoleManager.h"
 #include "PropertyHandle.h"
+#include "BlueprintEditor.h"
+#include "BlueprintEditorTabs.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintComponentReference"
 
@@ -683,6 +686,7 @@ TSharedPtr<FComponentPickerContext> FBlueprintComponentReferenceHelper::CreateCh
 	Ctx->Label = InLabel;
 	Ctx->Actor = InActor;
 	Ctx->Class = InClass;
+	Ctx->Blueprint = InClass->IsInBlueprint() ? Cast<UBlueprint>(InClass->ClassGeneratedBy) : nullptr;
 
 	ActiveContexts.Emplace(InLabel, Ctx);
 
@@ -690,9 +694,23 @@ TSharedPtr<FComponentPickerContext> FBlueprintComponentReferenceHelper::CreateCh
 
 	if (!InActor->IsTemplate())
 	{
-		if (auto InstanceData = GetOrCreateInstanceData(InLabel, InActor))
+		if (auto InstanceData = GetOrCreateInstanceData(Ctx, InLabel, InActor))
 		{
 			Ctx->ClassHierarchy.Add(InstanceData);
+		}
+	}
+
+	/**
+	 * Record real templates
+	 */
+	if (InActor->IsTemplate())
+	{
+		TInlineComponentArray<UActorComponent*> Components;
+		InActor->GetComponents(Components);
+
+		for (UActorComponent* Component : Components)
+		{
+			Ctx->ComponentTemplates.Emplace(Component->GetFName(), Component);
 		}
 	}
 
@@ -705,7 +723,7 @@ TSharedPtr<FComponentPickerContext> FBlueprintComponentReferenceHelper::CreateCh
 
 		for (UClass* Class : Classes)
 		{
-			if (auto ClassData = GetOrCreateClassData(InLabel, Class))
+			if (auto ClassData = GetOrCreateClassData(Ctx, InLabel, Class))
 			{
 				Ctx->ClassHierarchy.Add(ClassData);
 			}
@@ -795,7 +813,7 @@ void FBlueprintComponentReferenceHelper::MarkBlueprintCacheDirty()
 }
 
 
-TSharedPtr<FHierarchyInfo> FBlueprintComponentReferenceHelper::GetOrCreateInstanceData(FString const& InLabel, AActor* InActor)
+TSharedPtr<FHierarchyInfo> FBlueprintComponentReferenceHelper::GetOrCreateInstanceData(TSharedRef<FComponentPickerContext> InCtx, const FString& InLabel, AActor* InActor)
 {
 	// disabled due to problems tracking level editor actor change in a simple way
 	constexpr bool bEnableInstanceDataCache = false;
@@ -849,14 +867,14 @@ TSharedPtr<FHierarchyInfo> FBlueprintComponentReferenceHelper::GetOrCreateInstan
 		if (Object->CreationMethod == EComponentCreationMethod::Instance)
 		{
 			UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("%s register INS node %s"), *InLabel, *BuildComponentInfo(Object));
-			Entry->Nodes.Add(CreateFromInstance(Object));
+			Entry->Nodes.Add(CreateFromInstance(InCtx, Object));
 		}
 	}
 
 	return Entry;
 }
 
-TSharedPtr<FHierarchyInfo> FBlueprintComponentReferenceHelper::GetOrCreateClassData(FString const& InLabel, UClass* InClass)
+TSharedPtr<FHierarchyInfo> FBlueprintComponentReferenceHelper::GetOrCreateClassData(TSharedRef<FComponentPickerContext> InCtx, const FString& InLabel, UClass* InClass)
 {
 	ensureAlways(::IsValid(InClass));
 
@@ -893,10 +911,10 @@ TSharedPtr<FHierarchyInfo> FBlueprintComponentReferenceHelper::GetOrCreateClassD
 
 		for (USCS_Node* SCSNode : BPClass->SimpleConstructionScript->GetAllNodes())
 		{
-			auto Template = SCSNode->GetActualComponentTemplate(BPClass);
+			UActorComponent* Template = SCSNode->GetActualComponentTemplate(BPClass);
 			UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("%s register BPR node %s"), *InLabel, *BuildComponentInfo(Template));
 
-			Entry->Nodes.Add(CreateFromNode(SCSNode));
+			Entry->Nodes.Add(CreateFromNode(InCtx, SCSNode));
 		}
 
 		if (GBCRCacheEnabled)
@@ -919,20 +937,20 @@ TSharedPtr<FHierarchyInfo> FBlueprintComponentReferenceHelper::GetOrCreateClassD
 		{
 			UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("%s register NAT node %s"), *InLabel, *BuildComponentInfo(Object));
 
-			Entry->Nodes.Add(CreateFromInstance(Object));
+			Entry->Nodes.Add(CreateFromInstance(InCtx, Object));
 		}
 	}
 
 	return Entry;
 }
 
-TSharedPtr<FComponentInfo> FBlueprintComponentReferenceHelper::CreateFromNode(USCS_Node* InComponentNode)
+TSharedPtr<FComponentInfo> FBlueprintComponentReferenceHelper::CreateFromNode(TSharedRef<FComponentPickerContext> InCtx, USCS_Node* InComponentNode)
 {
 	check(InComponentNode);
 	return MakeShared<FComponentInfo_Default>(InComponentNode);
 }
 
-TSharedPtr<FComponentInfo> FBlueprintComponentReferenceHelper::CreateFromInstance(UActorComponent* InComponent)
+TSharedPtr<FComponentInfo> FBlueprintComponentReferenceHelper::CreateFromInstance(TSharedRef<FComponentPickerContext> InCtx, UActorComponent* InComponent)
 {
 	check(InComponent);
 
@@ -942,6 +960,11 @@ TSharedPtr<FComponentInfo> FBlueprintComponentReferenceHelper::CreateFromInstanc
 		return MakeShared<FComponentInfo_Instanced>(Owner, InComponent);
 	}
 
+	auto ActualTemplate = InCtx->ComponentTemplates.FindRef(InComponent->GetFName());
+	if (ActualTemplate.IsValid())
+	{
+		InComponent = ActualTemplate.Get();
+	}
 	return MakeShared<FComponentInfo_Default>(InComponent);
 }
 
@@ -1051,6 +1074,45 @@ void FBlueprintComponentReferenceHelper::DebugDumpContexts(const TArray<FString>
 			}
 		}
 	}
+}
+
+void FBlueprintComponentReferenceHelper::TryNavigateToComponent(AActor* SearchActor, TSharedPtr<FComponentInfo> LocalNode)
+{
+#if !UE_VERSION_OLDER_THAN(5, 0, 0)
+	// Find editor for owning blueprint
+	UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
+
+	FBlueprintEditor* BlueprintEditor = nullptr;
+	UBlueprint* EditedBlueprint = nullptr;
+
+	for(UObject* EditedAsset : AssetEditorSubsystem->GetAllEditedAssets())
+	{
+		if (UBlueprint* Blueprint = Cast<UBlueprint>(EditedAsset))
+		{
+			UBlueprintGeneratedClass* GeneratedClass = Cast<UBlueprintGeneratedClass>(Blueprint->GeneratedClass);
+			if (GeneratedClass && GeneratedClass->GetFName() == SearchActor->GetClass()->GetFName())
+			{
+				BlueprintEditor =  static_cast<FBlueprintEditor*>(AssetEditorSubsystem->FindEditorForAsset(Blueprint, false));
+				EditedBlueprint = Blueprint;
+				break;
+			}
+		}
+	}
+
+	if (BlueprintEditor && EditedBlueprint)
+	{
+		// Open Viewport Tab
+		BlueprintEditor->FocusWindow();
+		BlueprintEditor->GetTabManager()->TryInvokeTab(FBlueprintEditorTabs::SCSViewportID);
+
+		// Select the Component in the Viewport tab view
+		if (auto Template = LocalNode->GetComponentTemplate())
+		{
+
+			BlueprintEditor->FindAndSelectSubobjectEditorTreeNode(Template, false);
+		}
+	}
+#endif
 }
 
 

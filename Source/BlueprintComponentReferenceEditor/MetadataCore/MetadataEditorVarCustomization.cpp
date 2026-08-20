@@ -1,6 +1,6 @@
 ﻿// Copyright 2024, Aquanox.
 
-#include "BlueprintComponentReferenceVarCustomization.h"
+#include "MetadataEditorVarCustomization.h"
 
 #include "BlueprintComponentReferenceCustomization.h"
 #include "BlueprintComponentReferenceHelper.h"
@@ -12,13 +12,13 @@
 #include "ScopedTransaction.h"
 #include "UObject/WeakFieldPtr.h"
 
-FBlueprintComponentReferenceVarCustomization::FBlueprintComponentReferenceVarCustomization(TWeakPtr<IBlueprintEditor> InBlueprintEditorPtr, TWeakObjectPtr<UBlueprint> InBlueprintPtr)
+FMetadataEditorVarCustomization::FMetadataEditorVarCustomization(TWeakPtr<IBlueprintEditor> InBlueprintEditorPtr, TWeakObjectPtr<UBlueprint> InBlueprintPtr)
 {
 	BlueprintEditorPtr = InBlueprintEditorPtr;
 	BlueprintPtr = InBlueprintPtr;
 }
 
-TSharedPtr<IDetailCustomization> FBlueprintComponentReferenceVarCustomization::MakeInstance(TSharedPtr<IBlueprintEditor> BlueprintEditor)
+TSharedPtr<IDetailCustomization> FMetadataEditorVarCustomization::MakeInstance(TSharedPtr<IBlueprintEditor> BlueprintEditor)
 {
 	const TArray<UObject*>* Objects = (BlueprintEditor.IsValid() ? BlueprintEditor->GetObjectsCurrentlyBeingEdited() : nullptr);
 	if (Objects)
@@ -40,21 +40,21 @@ TSharedPtr<IDetailCustomization> FBlueprintComponentReferenceVarCustomization::M
 
 		if (FinalBlueprint.IsSet())
 		{
-			return MakeShared<FBlueprintComponentReferenceVarCustomization>(BlueprintEditor, MakeWeakObjectPtr(FinalBlueprint.GetValue()));
+			return MakeShared<ThisClass>(BlueprintEditor, MakeWeakObjectPtr(FinalBlueprint.GetValue()));
 		}
 	}
 
 	return nullptr;
 }
 
-TSharedPtr<TStructOnScope<FMetadataContainerBase>> FBlueprintComponentReferenceVarCustomization::CreateContainer() const
+TSharedPtr<TStructOnScope<FMetadataContainerBase>> FMetadataEditorVarCustomization::CreateContainer() const
 {
 	TStructOnScope<FMetadataContainerBase> Value;
 	Value.InitializeAs<FBlueprintComponentReferenceMetadata>();
 	return MakeShared<TStructOnScope<FMetadataContainerBase>>(MoveTemp(Value));
 }
 
-void FBlueprintComponentReferenceVarCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
+void FMetadataEditorVarCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 {
 	ScopedSettings.Reset();
 	PropertiesBeingCustomized.Reset();
@@ -104,7 +104,7 @@ void FBlueprintComponentReferenceVarCustomization::CustomizeDetails(IDetailLayou
 			if (It->HasAnyPropertyFlags(CPF_Deprecated|CPF_Transient))
 				continue;
 
-			FSimpleDelegate ChangeHandler = FSimpleDelegate::CreateSP(this, &FBlueprintComponentReferenceVarCustomization::OnContainerPropertyChanged, It->GetFName());
+			FSimpleDelegate ChangeHandler = FSimpleDelegate::CreateSP(this, &ThisClass::OnContainerPropertyChanged, It->GetFName());
 
 			FAddPropertyParams Params;
 			IDetailPropertyRow* PropertyRow = Builder.AddExternalStructureProperty(ScopedSettings, It->GetFName(), EPropertyLocation::Default, Params);
@@ -117,7 +117,7 @@ void FBlueprintComponentReferenceVarCustomization::CustomizeDetails(IDetailLayou
 	}
 }
 
-void FBlueprintComponentReferenceVarCustomization::OnContainerPropertyChanged(FName InName)
+void FMetadataEditorVarCustomization::OnContainerPropertyChanged(FName InName)
 {
 	FScopedTransaction Transaction(INVTEXT("ApplySettingsToProperty"));
 
@@ -130,11 +130,11 @@ void FBlueprintComponentReferenceVarCustomization::OnContainerPropertyChanged(FN
 
 	for (const TWeakFieldPtr<FProperty>& Property : PropertiesBeingCustomized)
 	{
-		if (FProperty* Local = Property.Get())
+		if (FProperty* LocalProperty = Property.Get())
 		{
-			Settings->ApplySettingsToProperty(Blueprint, Local, InName);
+			Settings->ApplySettingsToProperty(Blueprint, LocalProperty, InName);
 
-			if (Local->FindMetaData(TEXT("RequestBlueprintRefresh")) != nullptr)
+			if (LocalProperty->FindMetaData(TEXT("RequestBlueprintRefresh")) != nullptr)
 			{
 				bNeedsRefresh = true;
 			}

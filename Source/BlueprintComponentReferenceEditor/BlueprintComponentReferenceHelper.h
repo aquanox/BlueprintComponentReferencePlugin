@@ -29,7 +29,7 @@ inline static FName GetFNameSafe(const UObject* InField)
 /**
  * @see FSCSEditorTreeNodeComponentBase
  */
-struct FComponentInfo
+struct BLUEPRINTCOMPONENTREFERENCEEDITOR_API FComponentInfo
 {
 protected:
 	TWeakObjectPtr<UActorComponent> Object;
@@ -62,7 +62,7 @@ public:
 /**
  * @see FSCSEditorTreeNodeComponent
  */
-struct FComponentInfo_Default : public FComponentInfo
+struct BLUEPRINTCOMPONENTREFERENCEEDITOR_API FComponentInfo_Default : public FComponentInfo
 {
 private:
 	using Super = FComponentInfo;
@@ -82,7 +82,7 @@ public:
 /**
  * @see FSCSEditorTreeNodeInstanceAddedComponent
  */
-struct FComponentInfo_Instanced : public FComponentInfo
+struct BLUEPRINTCOMPONENTREFERENCEEDITOR_API FComponentInfo_Instanced : public FComponentInfo
 {
 private:
 	using Super = FComponentInfo;
@@ -100,7 +100,7 @@ public:
 	virtual bool IsValidInfo() const override { return Super::IsValidInfo() && InstancedComponentOwnerPtr.IsValid(); }
 };
 
-struct FComponentInfo_Unknown : public FComponentInfo
+struct BLUEPRINTCOMPONENTREFERENCEEDITOR_API FComponentInfo_Unknown : public FComponentInfo
 {
 	EBlueprintComponentReferenceMode Mode;
 	FName Value;
@@ -118,7 +118,7 @@ struct FComponentInfo_Unknown : public FComponentInfo
 	virtual FName GetObjectName() const override { return Mode == EBlueprintComponentReferenceMode::Path ? Value : NAME_None; }
 };
 
-struct FComponentInfo_Root : public FComponentInfo_Unknown
+struct BLUEPRINTCOMPONENTREFERENCEEDITOR_API FComponentInfo_Root : public FComponentInfo_Unknown
 {
 	FComponentInfo_Root()
 	{
@@ -133,7 +133,7 @@ struct FComponentInfo_Root : public FComponentInfo_Unknown
 	virtual bool IsUnknown() const override { return false; }
 };
 
-struct FHierarchyInfo
+struct BLUEPRINTCOMPONENTREFERENCEEDITOR_API FHierarchyInfo
 {
 	TArray<TSharedPtr<FComponentInfo>> Nodes;
 	bool bDirty = false;
@@ -159,7 +159,7 @@ struct FHierarchyInfo
 	T* GetClass() const { return Cast<T>(GetClassObject()); }
 };
 
-struct FHierarchyClassInfo : public FHierarchyInfo
+struct BLUEPRINTCOMPONENTREFERENCEEDITOR_API FHierarchyClassInfo : public FHierarchyInfo
 {
 private:
 	using Super = FHierarchyInfo;
@@ -179,7 +179,7 @@ public:
 	void OnCompiled(class UBlueprint*);
 };
 
-struct FHierarchyInstanceInfo : public FHierarchyInfo
+struct BLUEPRINTCOMPONENTREFERENCEEDITOR_API FHierarchyInstanceInfo : public FHierarchyInfo
 {
 private:
 	using Super = FHierarchyInfo;
@@ -200,13 +200,16 @@ public:
 	void OnCompiled(class UBlueprint*);
 };
 
-struct FComponentPickerContext
+struct BLUEPRINTCOMPONENTREFERENCEEDITOR_API FComponentPickerContext
 {
 	FString Label;
 
 	TWeakObjectPtr<AActor> Actor;
 	TWeakObjectPtr<UClass> Class;
+	TWeakObjectPtr<UBlueprint> Blueprint;
 	TArray<TSharedPtr<FHierarchyInfo>> ClassHierarchy;
+
+	TMap<FName, TWeakObjectPtr<UActorComponent>> ComponentTemplates;
 
 	TSharedPtr<FComponentInfo> Root;
 	TMap<FString, TSharedPtr<FComponentInfo>> Unknowns;
@@ -246,7 +249,7 @@ struct FComponentPickerFilter
  *
  * maybe merge back to module class?
  */
-class FBlueprintComponentReferenceHelper : public TSharedFromThis<FBlueprintComponentReferenceHelper>
+class BLUEPRINTCOMPONENTREFERENCEEDITOR_API FBlueprintComponentReferenceHelper : public TSharedFromThis<FBlueprintComponentReferenceHelper>
 {
 public:
 	using FInstanceKey = TTuple<FName /* fn */, FName /* name */, FName /* class */>;
@@ -289,7 +292,7 @@ public:
 	 * @param InActor Actor instance to collect information from
 	 * @return
 	 */
-	TSharedPtr<FHierarchyInfo> GetOrCreateInstanceData(FString const& InLabel, AActor* InActor);
+	TSharedPtr<FHierarchyInfo> GetOrCreateInstanceData(TSharedRef<FComponentPickerContext> InCtx, const FString& InLabel, AActor* InActor);
 
 	/**
 	 * Collect components info specific to class
@@ -298,10 +301,11 @@ public:
 	 * @param InClass Class instance to collect information from
 	 * @return
 	 */
-	TSharedPtr<FHierarchyInfo> GetOrCreateClassData(FString const& InLabel, UClass* InClass);
+	TSharedPtr<FHierarchyInfo> GetOrCreateClassData(TSharedRef<FComponentPickerContext> InCtx, const FString& InLabel, UClass* InClass);
 
-	static TSharedPtr<FComponentInfo> CreateFromNode(USCS_Node* InComponentNode);
-	static TSharedPtr<FComponentInfo> CreateFromInstance(UActorComponent* Component);
+
+	static TSharedPtr<FComponentInfo> CreateFromNode(TSharedRef<FComponentPickerContext> InCtx, USCS_Node* InComponentNode);
+	static TSharedPtr<FComponentInfo> CreateFromInstance(TSharedRef<FComponentPickerContext> InCtx, UActorComponent* Component);
 
 	/** IS it a blueprint property or not */
 	static bool IsBlueprintProperty(const FProperty* VariableProperty);
@@ -326,6 +330,21 @@ public:
 	void DebugDumpClasses(const TArray<FString>& Args);
 	void DebugDumpContexts(const TArray<FString> Array);
 	void DebugForceCleanup();
+
+	/**
+	 * Attempt to switch to blueprint editor and highlight or select component in component view
+	 */
+	static void TryNavigateToComponent(AActor* Actor,  TSharedPtr<FComponentInfo> Info);
+
+	static void SetMode_Private(FBlueprintComponentReference& Reference, EBlueprintComponentReferenceMode NewMode)
+	{
+		Reference.Mode = NewMode;
+	}
+
+	static void SetValue_Private(FBlueprintComponentReference& Reference, FName NewValue)
+	{
+		Reference.Value = NewValue;
+	}
 
 private:
 	float		LastCacheCleanup = 0;
