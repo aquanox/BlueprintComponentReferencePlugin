@@ -41,7 +41,7 @@ void SComponentPickerTableWidget::Construct(const FArguments& InArgs)
 		TreeItem->bIsCategory = true;
 		TreeItem->bIsExpandable = true;
 		TreeItem->bIsExpanded = true;
-		TreeItem->ComponentIcon = FSlateIconFinder::FindIconForClass(Group.Category->GetClass());
+		TreeItem->ComponentIcon = FSlateIconFinder::FindIconForClass(Group.Category->GetClassObject());
 
 		for (const TSharedPtr<FComponentInfo>& Element : Group.Elements)
 		{

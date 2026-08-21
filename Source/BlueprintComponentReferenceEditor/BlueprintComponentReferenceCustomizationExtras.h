@@ -6,7 +6,9 @@
 #if defined(WITH_BCR_EXTRAS) && WITH_BCR_EXTRAS
 
 /**
- * Base class for MeshSocketReference
+ * Base class for MeshSocketReference.
+ *
+ * This is an example on creating custom BCR customizations
  */
 class BLUEPRINTCOMPONENTREFERENCEEDITOR_API FMeshSocketReferenceCustomization
 	: public FBlueprintComponentReferenceCustomization

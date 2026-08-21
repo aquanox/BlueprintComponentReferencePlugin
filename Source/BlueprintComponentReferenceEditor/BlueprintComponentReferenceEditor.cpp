@@ -9,6 +9,8 @@
 #include "UnrealEdGlobals.h"
 #include "Misc/EngineVersionComparison.h"
 #include "Editor/EditorEngine.h"
+#include "Context/ComponentPickerContext.h"
+#include "Context/ComponentPickerContextFactory.h"
 
 IMPLEMENT_MODULE(FBCREditorModule, BlueprintComponentReferenceEditor);
 
@@ -17,38 +19,10 @@ DEFINE_LOG_CATEGORY(LogComponentReferenceEditor);
 namespace
 {
 	static const FName BCRModuleName("BlueprintComponentReferenceEditor");
+
+	using FContextFactoryImpl = FLegacyContextFactory;
 }
 
-#if ALLOW_CONSOLE
-
-static FAutoConsoleCommand BCR_DumpInstances(
-	TEXT("BCR.DumpInstances"),
-	TEXT("Dump active instance data"),
-	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& InArgs) {
-		FBCREditorModule::GetReflectionHelper()->DebugDumpInstances(InArgs);
-	})
-);
-static FAutoConsoleCommand BCR_DumpClasses(
-	TEXT("BCR.DumpClasses"),
-	TEXT("Dump active class data"),
-	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& InArgs) {
-		FBCREditorModule::GetReflectionHelper()->DebugDumpClasses(InArgs);
-	})
-);
-static FAutoConsoleCommand BCR_DumpContexts(
-	TEXT("BCR.DumpContexts"),
-	TEXT("Dump active contexts data"),
-	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& InArgs) {
-		FBCREditorModule::GetReflectionHelper()->DebugDumpContexts(InArgs);
-	})
-);
-static FAutoConsoleCommand BCR_ForceCleanup(
-	TEXT("BCR.ForceCleanup"),
-	TEXT("Force cleanup stale data"),
-	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& InArgs) {
-		FBCREditorModule::GetReflectionHelper()->DebugForceCleanup();
-	})
-);
 static FAutoConsoleCommand BCR_EnableLogging(
 	TEXT("BCR.EnableLogging"),
 	TEXT("Enable BCR debug logging"),
@@ -58,13 +32,11 @@ static FAutoConsoleCommand BCR_EnableLogging(
 	})
 );
 
-#endif
-
 void FBCREditorModule::StartupModule()
 {
 	if (GIsEditor && !IsRunningCommandlet())
 	{
-		ClassHelper = MakeShared<FBlueprintComponentReferenceHelper>();
+		ContextFactory = MakeShared<FContextFactoryImpl>();
 
 #if UE_VERSION_OLDER_THAN(5, 8, 0)
 		PostEngineInitHandle = FCoreDelegates::OnPostEngineInit.AddRaw(this, &FBCREditorModule::OnPostEngineInit);
@@ -205,52 +177,48 @@ FBCREditorModule& FBCREditorModule::Get()
 	return FModuleManager::GetModuleChecked<FBCREditorModule>(BCRModuleName);
 }
 
-TSharedPtr<FBlueprintComponentReferenceHelper> FBCREditorModule::GetReflectionHelper()
+TSharedRef<FComponentPickerContextFactory> FBCREditorModule::GetContextFactory()
 {
-	auto& Ref = FBCREditorModule::Get().ClassHelper;
-	if (!Ref.IsValid())
+	auto& BuilderPtr = FBCREditorModule::Get().ContextFactory;
+	if (!BuilderPtr.IsValid())
 	{
-		Ref =  MakeShared<FBlueprintComponentReferenceHelper>();
+		BuilderPtr =  MakeShared<FContextFactoryImpl>();
 	}
-	return Ref;
+	return BuilderPtr.ToSharedRef();
 }
 
 void FBCREditorModule::OnReloadComplete(EReloadCompleteReason ReloadCompleteReason)
 {
 	UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("OnReloadComplete"));
-	if (ClassHelper)
+	if (ContextFactory)
 	{
-		ClassHelper->CleanupStaleData();
-		ClassHelper->MarkBlueprintCacheDirty();
+		ContextFactory->ValidateCache(true);
 	}
 }
 
 void FBCREditorModule::OnReinstancingComplete()
 {
 	UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("OnReinstancingComplete"));
-	if (ClassHelper)
+	if (ContextFactory)
 	{
-		ClassHelper->CleanupStaleData();
-		//ClassHelper->MarkBlueprintCacheDirty();
+		ContextFactory->ValidateCache(false);
 	}
 }
 
 void FBCREditorModule::OnModulesChanged(FName Name, EModuleChangeReason ModuleChangeReason)
 {
 	UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("OnModulesChanged"));
-	if (ClassHelper)
+	if (ContextFactory)
 	{
-		ClassHelper->CleanupStaleData();
-		//ClassHelper->MarkBlueprintCacheDirty();
+		ContextFactory->ValidateCache(false);
 	}
 }
 
 void FBCREditorModule::OnBlueprintRecompile()
 {
 	UE_LOG(LogComponentReferenceEditor, Verbose, TEXT("OnBlueprintRecompile"));
-	if (ClassHelper)
+	if (ContextFactory)
 	{
-		ClassHelper->CleanupStaleData();
-		ClassHelper->MarkBlueprintCacheDirty();
+		ContextFactory->ValidateCache(true);
 	}
 }

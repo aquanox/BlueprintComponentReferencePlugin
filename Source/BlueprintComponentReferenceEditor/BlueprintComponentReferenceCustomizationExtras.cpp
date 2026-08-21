@@ -132,8 +132,10 @@ void FMeshSocketReferenceCustomization::UpdateSocketComboData()
 		SocketDataSource.Add(MakeShared<FString>("None"));
 		if (UMeshComponent* Component = Cast<UMeshComponent>(Pinned->GetComponentTemplate()))
 		{
-			TArray<FName> Names = Component->GetAllSocketNames();
-			Algo::Transform(Names, SocketDataSource, [](FName A) { return MakeShared<FString>(A.ToString()); });
+			for (const FName& Name : Component->GetAllSocketNames())
+			{
+				SocketDataSource.Emplace(MakeShared<FString>(Name.ToString()));
+			}
 		}
 	}
 }

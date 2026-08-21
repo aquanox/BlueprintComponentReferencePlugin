@@ -17,7 +17,7 @@ class UMeshComponent;
 /**
  * A deriviate of FBlueprintComponentReference allowing only SceneComponents by default
  */
-USTRUCT(BlueprintType, meta=(AllowedClasses="/Script/Engine.SceneComponent"))
+USTRUCT(meta=(AllowedClasses="/Script/Engine.SceneComponent"))
 struct FSceneComponentReference : public FBlueprintComponentReference
 {
 	GENERATED_BODY()
@@ -26,7 +26,7 @@ struct FSceneComponentReference : public FBlueprintComponentReference
 /**
  * A deriviate of FBlueprintComponentReference allowing only PrimitiveComponent by default
  */
-USTRUCT(BlueprintType, meta=(AllowedClasses="/Script/Engine.PrimitiveComponent"))
+USTRUCT(meta=(AllowedClasses="/Script/Engine.PrimitiveComponent"))
 struct FPrimitiveComponentReference : public FBlueprintComponentReference
 {
 	GENERATED_BODY()
@@ -35,7 +35,7 @@ struct FPrimitiveComponentReference : public FBlueprintComponentReference
 /**
  * A deriviate of FBlueprintComponentReference allowing only MeshComponent by default
  */
-USTRUCT(BlueprintType, meta=(AllowedClasses="/Script/Engine.MeshComponent"))
+USTRUCT(meta=(AllowedClasses="/Script/Engine.MeshComponent"))
 struct FMeshComponentReference : public FBlueprintComponentReference
 {
 	GENERATED_BODY()
@@ -45,11 +45,11 @@ struct FMeshComponentReference : public FBlueprintComponentReference
  * A deriviate of FBlueprintComponentReference allowing only MeshComponent by default
  * and providing a socket selector
  */
-USTRUCT(BlueprintType, meta=(AllowedClasses="/Script/Engine.MeshComponent"))
+USTRUCT(meta=(AllowedClasses="/Script/Engine.MeshComponent"))
 struct FMeshSocketReference : public FBlueprintComponentReference
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, meta=(DisplayAfter="Value"))
+	UPROPERTY(EditAnywhere, Category=Component, meta=(DisplayAfter="Value"))
 	FName SocketName;
 };

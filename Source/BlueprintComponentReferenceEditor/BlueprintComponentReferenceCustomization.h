@@ -122,8 +122,6 @@ protected:
 	TWeakObjectPtr<UScriptStruct> PropertyStruct;
 	/** The temp container for the data */
 	TStructOnScope<FBlueprintComponentReference> TempPropertyStorage;
-	/** Cached hierarchy utilities */
-	TSharedPtr<FBlueprintComponentReferenceHelper> ClassHelper;
 
 	/** Main combo button */
 	TSharedPtr<SComboButton> ComponentComboButton;

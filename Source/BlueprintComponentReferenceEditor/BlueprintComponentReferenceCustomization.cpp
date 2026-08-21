@@ -85,8 +85,7 @@ void FBlueprintComponentReferenceCustomization::CustomizeHeader(TSharedRef<IProp
 {
 	PropertyHandle = InPropertyHandle;
 
-	ClassHelper = FBCREditorModule::GetReflectionHelper();
-	check(ClassHelper.IsValid());
+	FBCREditorModule::GetContextFactory();
 
 	ComponentPickerContext.Reset();
 	CachedComponentNode.Reset();
@@ -408,7 +407,7 @@ void FBlueprintComponentReferenceCustomization::DetermineContext()
 		|| ComponentPickerContext->GetActor() != OuterActor
 		|| ComponentPickerContext->GetClass() != OuterActorClass)
 	{
-		ComponentPickerContext = ClassHelper->CreateChooserContext(OuterActor, OuterActorClass, GetLoggingContextString());
+		ComponentPickerContext = FBlueprintComponentReferenceHelper::CreateChooserContext(OuterActor, OuterActorClass, GetLoggingContextString());
 	}
 
 	if (!ComponentPickerContext.IsValid())

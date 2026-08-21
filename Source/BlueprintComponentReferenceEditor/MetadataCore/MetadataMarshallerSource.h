@@ -61,7 +61,10 @@ public:
 		if (Value.IsSet())
 		{
 			TArray<TSoftClassPtr<T>> Result;
-			Algo::Transform(*Value, Result, [](const FSoftClassPath& E) -> TSoftClassPtr<T> { return TSoftClassPtr<T>(E); });
+			for (const FSoftClassPath& ClassPath : *Value)
+			{
+				Result.Emplace(TSoftClassPtr<T>(ClassPath));
+			}
 			return TOptional<TArray<TSoftClassPtr<T>>>( Result );
 		}
 		return TOptional<TArray<TSoftClassPtr<T>>>();
@@ -103,7 +106,10 @@ public:
 		if (InValue.IsSet())
 		{
 			TArray<FSoftClassPath> Tmp;
-			Algo::Transform(*InValue, Tmp, [](const TSoftClassPtr<T> & E) -> FSoftClassPath { return E.ToString(); });
+			for (TSoftClassPtr<T> Value : *InValue)
+			{
+				Tmp.Add(Value.ToString());
+			}
 			Converted = TOptional<TArray<FSoftClassPath>>( Tmp );
 		}
 		SetLazyClassListValue(InName, Converted);

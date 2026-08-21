@@ -76,7 +76,6 @@ public:
 	FText GetFilterText() const { return FilterText; }
 private:
 	TSharedPtr<FComponentPickerContext> Context;
-	TSharedPtr<FComponentPickerFilter> Filter;
 	FText FilterText;
 
 	TArray<FComponentPickerGroup> DataSource;

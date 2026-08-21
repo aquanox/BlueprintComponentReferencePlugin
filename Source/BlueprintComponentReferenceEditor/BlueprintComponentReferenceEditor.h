@@ -8,6 +8,7 @@
 
 class FBlueprintComponentReferenceCustomization;
 class FBlueprintComponentReferenceHelper;
+class FComponentPickerContextFactory;
 class FPropertyEditorModule;
 class IPropertyTypeCustomization;
 enum class EReloadCompleteReason;
@@ -15,10 +16,20 @@ enum class EReloadCompleteReason;
 class BLUEPRINTCOMPONENTREFERENCEEDITOR_API FBCREditorModule : public IModuleInterface
 {
 public:
+	/**
+	 *
+	 */
 	static bool IsAvailable();
+
+	/**
+	 *
+	 */
 	static FBCREditorModule& Get();
 
-	static TSharedPtr<FBlueprintComponentReferenceHelper> GetReflectionHelper();
+	/**
+	 *
+	 */
+	static TSharedRef<FComponentPickerContextFactory> GetContextFactory();
 
 	/**
 	 * A generic helper for registering component reference type with customization
@@ -71,7 +82,7 @@ private:
 	void OnModulesChanged(FName Name, EModuleChangeReason ModuleChangeReason);
 	void OnBlueprintRecompile();
 private:
-	TSharedPtr<FBlueprintComponentReferenceHelper> ClassHelper;
+	TSharedPtr<FComponentPickerContextFactory> ContextFactory;
 
 	using FPendingRegistrationFn = TFunction<FName(FPropertyEditorModule&)>;
 	TMap<FName, FOnGetPropertyTypeCustomizationInstance> PendingRegistrations;
